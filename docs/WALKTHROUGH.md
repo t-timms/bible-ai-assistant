@@ -53,8 +53,8 @@ We’ll go through each of these one at a time so you understand why each step m
 **Do this in Anaconda Prompt** (search for it in the Start menu—use this instead of regular PowerShell or Command Prompt so conda is available):
 
 ```bash
-# Go to your project folder
-cd c:\Users\ttimm\Desktop\John\bible-ai-assistant
+# Go to your project folder (replace with your path)
+cd c:\Users\YOUR_USERNAME\Desktop\John\bible-ai-assistant
 
 # Create the environment with Python 3.11 (-y skips “are you sure?” prompts)
 conda create -n bible-ai-assistant python=3.11 -y
