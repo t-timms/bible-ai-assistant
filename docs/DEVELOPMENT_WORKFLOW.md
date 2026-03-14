@@ -17,7 +17,7 @@ This document maps the **Bible AI Assistant Guide v2** to an industry-standard, 
 ## Phase 1: Environment and base model
 
 - [ ] Install stack in order: Git, Miniconda, **CUDA 12.8+** (required for RTX 5070 Ti / Blackwell), Node.js 22, VS Code, Docker Desktop, Ollama.
-- [ ] Create conda env `bible-ai` (Python 3.11). Install **PyTorch nightly** (CUDA 12.8+), not stable. Install `requirements.txt`.
+- [ ] Create conda env `bible-ai-assistant` (Python 3.11). Install **PyTorch nightly** (CUDA 12.8+), not stable. Install `requirements.txt`.
 - [ ] Verify: `torch.cuda.is_available()`, `get_device_name(0)`, `sm_120` in `arch_list`.
 - [ ] `huggingface-cli login`, `wandb login`.
 - [ ] Download base model: `huggingface-cli download Qwen/Qwen3-4B-Instruct-2507 --local-dir models/base_model --exclude "*.msgpack"`.

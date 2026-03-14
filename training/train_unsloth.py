@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 QLoRA fine-tuning of Qwen3 4B with Unsloth.
-Requires: conda env bible-ai, PyTorch nightly (CUDA 12.8+), data/processed/train.json.
+Requires: conda env bible-ai-assistant, PyTorch nightly (CUDA 12.8+), data/processed/train.json.
 Use bf16=True (never fp16) on RTX 5070 Ti (Blackwell).
 """
 from pathlib import Path
