@@ -21,7 +21,7 @@ SYSTEM """{system_text}"""
 
 PARAMETER temperature 0.2
 PARAMETER num_ctx 2048
-PARAMETER num_predict 512
+PARAMETER num_predict 256
 '''
     OUTPUT_PATH.write_text(content, encoding="utf-8")
     print(f"Wrote {OUTPUT_PATH}")
