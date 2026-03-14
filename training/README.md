@@ -21,11 +21,15 @@ QLoRA fine-tuning of Qwen3 4B on the Bible dataset.
 
 ```bash
 conda activate bible-ai-assistant
-# After dataset is ready:
+# After dataset is ready (data/processed/train.json). Default run name: qwen3-4b-bible-John
 python training/train_unsloth.py
+# Optional: use local base model or a different run name
+python training/train_unsloth.py --model-path models/base_model --run-name qwen3-4b-bible-John
 python training/merge_adapters.py
 python training/evaluate.py
 ```
+
+Hyperparameters are read from `config.yaml` when available (PyYAML required). LoRA adapters are saved to `models/<run_name>` (e.g. `models/qwen3-4b-bible-John`). For a full step-by-step walkthrough, see **docs/WALKTHROUGH.md** (Step 9).
 
 ## Checkpoints
 

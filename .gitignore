@@ -27,6 +27,9 @@ data/processed/*.json
 # ChromaDB index
 rag/chroma_db/
 
+# Generated Modelfile (machine-specific absolute path; re-run generate_modelfile.py)
+deployment/pc/Modelfile
+
 # Jupyter checkpoints
 .ipynb_checkpoints/
 
@@ -47,3 +50,6 @@ tmp/
 
 # W&B and Hugging Face (optional: keep run dirs local only)
 wandb/
+
+# Unsloth compiled cache
+unsloth_compiled_cache/

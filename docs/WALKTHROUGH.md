@@ -181,35 +181,500 @@ huggingface-cli download Qwen/Qwen3-4B-Instruct-2507 --local-dir models/base_mod
 
 ---
 
-## Step 8: Phase 2 — Build the Bible Dataset
+## Step 8: Phase 2 — Build the Bible Dataset (WEB)
 
 **Why:** Fine-tuning quality depends on dataset quality. We need 30k–50k Q&A examples in Qwen3 chat format (system + user + assistant) so the model learns to answer from Scripture and follow the constitution.
 
-**8a. Get raw Bible text (WEB)**
+**What we’re doing (big picture):**
 
-This project uses the **World English Bible (WEB)**. Download WEB in JSON:
+1. **Get the WEB text** — We need the Bible in a form the computer can read (JSON). The TehShrike repo has WEB as one JSON file per book, in a format that’s good for display but not yet what our dataset builder expects.
+2. **Convert to one flat file** — We’ll run a small script that reads all those book files and writes a single `bible_web.json` where each item is one verse: `{ book, chapter, verse, text }`. That’s the format our dataset builder knows how to use.
+3. **Build the training dataset** — The dataset builder reads that flat file and the system prompt, and creates Q&A pairs (“What does Psalm 27:1 say?” → “Psalm 27:1 says: …”) plus some theology examples. It writes `data/processed/train.json`, which we’ll use later for fine-tuning.
 
-- **[TehShrike/world-english-bible](https://github.com/TehShrike/world-english-bible)** — clone or download the repo; copy the WEB JSON file into `data/raw/` and name it `bible_web.json` or `bible.json`. If the file is nested (book → chapter → verse → text), the dataset builder will flatten it.
-- **Or** [scrollmapper/bible_databases](https://github.com/scrollmapper/bible_databases) — get WEB from the Formats folder; if it’s CSV or another format, convert to a JSON array of `{ "book", "chapter", "verse", "text" }` and save as `data/raw/bible.json`.
+---
 
-The dataset builder expects either a JSON **array** of verse objects or a **nested** object (book → chapter → verse → text); it will normalize to the format it needs.
+### Step 8a: Clone the World English Bible repo
 
-**8b. Run the dataset builder**
+**What:** We’re copying the TehShrike “world-english-bible” repository to your machine so we can read its JSON files.
 
-From the project root with `bible-ai-assistant` activated:
+**Why:** The repo is the standard way to get the WEB in JSON. We don’t change it; we only read from it.
+
+**Do this:** Open a terminal (Anaconda Prompt or any terminal). Go to a folder *next to* (or above) your project—for example your Desktop or a folder where you keep repos. You don’t have to put it inside `bible-ai-assistant`.
 
 ```bash
-python training/dataset_builder.py
+# Go to a folder where you want to put the WEB repo (e.g. Desktop or same folder as bible-ai-assistant's parent)
+cd c:\Users\ttimm\Desktop\John
+
+# Clone the repo (this creates a folder called world-english-bible)
+git clone https://github.com/TehShrike/world-english-bible.git
 ```
 
-By default this reads `data/raw/bible.json`, loads the system prompt from `prompts/system_prompt.txt`, generates verse-lookup and optional theology/constitution examples, and writes `data/processed/train.json`. Use `--max-examples` to cap the number (e.g. `--max-examples 50000`).
+**After it finishes:** You should see a new folder `world-english-bible` with a `json` folder inside it. Each file in `json` is one book (e.g. `genesis.json`, `psalms.json`). We’ll point our converter at this folder next.
 
-**8c. Check output**
+---
 
-- Open `data/processed/train.json` (or inspect the first few lines). Each entry should have a `messages` array with `system`, `user`, and `assistant` roles matching `data/sample.json`.
-- Target for first run: **30,000–50,000** examples. More variety (theology, character studies, constitution tests) can be added later.
+### Step 8b: Convert WEB to one flat JSON file
 
-**Phase 2 checkpoint:** When `train.json` is ready, tag **v0.2.0** (“Dataset builder complete, 50k Bible Q&A”). Then continue to Phase 3: fine-tuning (guide Section 9).
+**What:** We run a script that reads every `json/*.json` file in the repo, pulls out the verse text (from “paragraph text” and “line text” objects), groups by book, chapter, and verse, and writes a single file: `data/raw/bible_web.json`, which is a JSON array of `{ "book", "chapter", "verse", "text" }`.
+
+**Why:** Our dataset builder expects either a flat list of verses or a nested object. TehShrike’s format is one file per book with mixed “paragraph text” / “line text” objects, so this conversion step gives us one file in the shape the builder understands.
+
+**Do this:** From your **bible-ai-assistant** project root, with the **bible-ai-assistant** conda env activated:
+
+```bash
+cd c:\Users\ttimm\Desktop\John\bible-ai-assistant
+conda activate bible-ai-assistant
+
+# Point the script at the repo you just cloned (path to the repo root, not the json folder)
+python training/convert_web_tehshrike.py c:\Users\ttimm\Desktop\John\world-english-bible
+```
+
+**What you’ll see:** The script prints how many verses it found in each book file, then says it wrote `data/raw/bible_web.json` with the total count (about 31k verses for the full Bible). No errors means the conversion worked.
+
+**Check (optional):** Open `data/raw/bible_web.json` in an editor. You should see entries like:
+
+```json
+{ "book": "Genesis", "chapter": 1, "verse": 1, "text": "In the beginning God created the heavens and the earth." }
+```
+
+That’s exactly what the dataset builder needs.
+
+---
+
+### Step 8c: Build the training dataset (Q&A pairs)
+
+**What:** The dataset builder reads `data/raw/bible_web.json` and your system prompt, and creates training examples. For each verse it makes one Q&A: user asks “What does [reference] say?”, assistant answers with the verse and a short line that it’s Scripture. It also adds 500 theology examples (forgiveness, love, faith, etc.). It writes everything to `data/processed/train.json` in the Qwen3 chat format (system / user / assistant messages).
+
+**Why:** Fine-tuning needs many examples in that exact chat format. The model will learn to answer verse questions from Scripture and to stay on topic.
+
+**Do this:** Still in the project root with the env activated:
+
+```bash
+python training/dataset_builder.py --max-examples 50000
+```
+
+**What you’ll see:** It prints how many verses it loaded and how many examples it wrote. The total will be (number of verse examples, capped at 50k) + 500 theology examples. The file `data/processed/train.json` will be large (many MB). Don’t commit it (it’s in `.gitignore`).
+
+**Check (optional):** Open the start of `data/processed/train.json`. You should see objects with a `messages` array containing `system`, `user`, and `assistant` messages, matching the format in `data/sample.json`.
+
+---
+
+### Step 8d: Optional — Tag the checkpoint
+
+When you’re happy with the dataset, you can mark this in git:
+
+```bash
+git add training/convert_web_tehshrike.py training/dataset_builder.py
+git commit -m "Add WEB converter and dataset builder"
+git tag -a v0.2.0 -m "Dataset ready: WEB, 50k Q&A examples"
+git push origin main
+git push origin v0.2.0
+```
+
+(Only commit code and docs; `data/raw/bible_web.json` and `data/processed/train.json` stay local and are ignored by git.)
+
+**Phase 2 checkpoint:** When `train.json` is ready, tag **v0.2.0** (“Dataset builder complete, 50k Bible Q&A”). Then continue to Phase 3: fine-tuning (Step 9).
+
+---
+
+## Step 9: Phase 3 — Fine-tune Your Model (qwen3-4b-bible-John)
+
+**What you’re about to do (big picture):**
+
+1. **Check your environment** – Conda, GPU, and data are ready.
+2. **Run the training script** – The script loads the base model, adds small “adapter” weights (LoRA), and trains them on your Bible Q&A data.
+3. **Save the adapter** – Only the new weights are saved (as **qwen3-4b-bible-John**), not the full 4B model, so it’s small and fast to use later.
+
+**Why “qwen3-4b-bible-John”?**  
+- **qwen3-4b** = base model (Qwen3, 4 billion parameters).  
+- **bible** = trained on Bible (WEB) Q&A.  
+- **John** = your chosen name so this run and the saved folder are clearly yours.
+
+---
+
+### Step 9a: Open a terminal and activate the environment
+
+1. Open your terminal (PowerShell or Command Prompt).
+2. Go to the project folder and activate conda:
+
+```powershell
+cd c:\Users\ttimm\Desktop\John\bible-ai-assistant
+conda activate bible-ai-assistant
+```
+
+You should see `(bible-ai-assistant)` at the start of your prompt. All commands assume you’re in this folder so paths like `data/processed/train.json` and `models/qwen3-4b-bible-John` work correctly.
+
+---
+
+### Step 9b: (Optional) Check your GPU and training data
+
+**GPU:**
+
+```powershell
+python -c "import torch; print('CUDA:', torch.cuda.is_available()); print('Device:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'N/A')"
+```
+
+You want `CUDA: True` and your GPU name (e.g. RTX 5070 Ti). Training uses the GPU; if CUDA is False, it would run on CPU and be extremely slow.
+
+**Training data:**
+
+```powershell
+python -c "from pathlib import Path; p = Path('data/processed/train.json'); print('Exists:', p.exists()); print('Size (MB):', p.stat().st_size / (1024*1024) if p.exists() else 0)"
+```
+
+You should see `Exists: True` and a size of roughly a few hundred MB. If this file is missing, run the dataset builder first (Step 8 above).
+
+---
+
+### Step 9c: Understand what the script will do
+
+When you run the trainer, it will:
+
+| Step | What happens |
+|------|-------------------------------|
+| 1 | Load **Qwen3-4B-Instruct** (from Hugging Face or your local `models/base_model`). |
+| 2 | Load **data/processed/train.json** (Bible Q&A in system/user/assistant format). |
+| 3 | Turn each Q&A into one text string using the model’s “chat template” (so the model sees it as a normal conversation). |
+| 4 | Add **LoRA** adapters (small extra weights) to the model and train only those for 3 epochs. |
+| 5 | Log progress to **Weights & Biases** (project: `bible-ai`, run name: **qwen3-4b-bible-John**). |
+| 6 | Save checkpoints to **checkpoints/** every 500 steps. |
+| 7 | At the end, save the final LoRA adapter and tokenizer to **models/qwen3-4b-bible-John**. |
+
+**Why LoRA?** Training the full 4B parameters would need a lot of VRAM and time. LoRA trains only a small set of extra weights (adapters). You get most of the benefit with less memory and a smaller file to store and load.
+
+---
+
+### Step 9d: Run training
+
+From the project root, run:
+
+```powershell
+python training/train_unsloth.py --run-name qwen3-4b-bible-John
+```
+
+If you use the script’s default run name, you can also just run:
+
+```powershell
+python training/train_unsloth.py
+```
+
+(The default is already set to **qwen3-4b-bible-John**, so the W&B run and the folder **models/qwen3-4b-bible-John** will use that name.)
+
+**Using a local base model (if you downloaded it earlier):**
+
+```powershell
+python training/train_unsloth.py --run-name qwen3-4b-bible-John --model-path models/base_model
+```
+
+**What you’ll see:** Loading messages for the model and dataset; training steps with loss values; logs every 50 steps and checkpoint saves every 500 steps. On an RTX 5070 Ti, expect roughly **2–6 hours** depending on data size and settings.
+
+**If you get an error:**  
+- **“Training data not found”** → Run the dataset builder (Step 8) first.  
+- **“CUDA out of memory”** → In **training/config.yaml** try lowering `per_device_train_batch_size` (e.g. to 2) and/or `max_seq_length` (e.g. 1024).  
+- **Login/API errors** → Make sure you’re logged in: `huggingface-cli login` and `wandb login`.
+
+---
+
+### Step 9e: Watch progress (optional)
+
+- **In the terminal:** Loss should generally go down over time.  
+- **In Weights & Biases:** Go to [wandb.ai](https://wandb.ai), open project **bible-ai**, and find the run **qwen3-4b-bible-John**. You’ll see loss curves and system stats.
+
+If loss doesn’t decrease or you see NaNs, something may be wrong (e.g. learning rate too high, bad data). W&B helps you compare runs later.
+
+---
+
+### Step 9f: When training finishes
+
+When the script exits normally, you’ll see something like:
+
+```
+Saved LoRA adapter to c:\Users\ttimm\Desktop\John\bible-ai-assistant\models\qwen3-4b-bible-John
+```
+
+**What’s in that folder:** **adapter_config.json** and **adapter_model.safetensors** (the LoRA weights), plus **tokenizer** files so you can load the same tokenizer when you use the model.
+
+**Quick reference:**
+
+| Goal | Command |
+|------|--------|
+| Train with default name (qwen3-4b-bible-John) | `python training/train_unsloth.py` |
+| Train with custom name | `python training/train_unsloth.py --run-name YourName` |
+| Use local base model | `python training/train_unsloth.py --model-path models/base_model` |
+| Where adapter is saved | `models/qwen3-4b-bible-John` (or whatever you passed to `--run-name`) |
+| Where config lives | `training/config.yaml` |
+
+---
+
+## Step 10: Phase 3 — Merge adapters and evaluate
+
+After training, merge the LoRA adapter into the base model, then run evaluation.
+
+**Merge adapters:**
+
+```powershell
+python training/merge_adapters.py
+```
+
+This produces a full model (e.g. `models/qwen3-4b-bible-John-merged`) that you can convert to GGUF or push to Hugging Face.
+
+**Evaluate:**
+
+```powershell
+python training/evaluate.py
+```
+
+Pass = verse retrieval + constitution compliance (5/5). Ensure zero fabricated verses and constitution pass before moving to Phase 4.
+
+**Checkpoint:** **v0.3.0** — Fine-tuning complete. Next: Step 11 (quantize to GGUF and Ollama).
+
+---
+
+## Step 11: Phase 4 — Quantize to GGUF and Run in Ollama
+
+Follow this after **Phase 3** (training, merge, evaluation). Goal: convert your merged model to GGUF, load it in Ollama, and run a local smoke test.
+
+**What you’re doing:**
+
+1. **Convert** the merged Hugging Face model (`models/qwen3-4b-bible-John-merged`) to GGUF (float16).
+2. **Quantize** to Q4_K_M for smaller size and faster inference (Ollama / llama.cpp).
+3. **Create an Ollama model** using a Modelfile (system prompt + GGUF path).
+4. **Smoke test** with `ollama run bible-assistant "What does John 3:16 say?"`
+
+**Checkpoint:** **v0.4.0** — Model quantized to GGUF, tested in Ollama locally.
+
+---
+
+### Prerequisites
+
+- **Ollama** installed: https://ollama.com/download/windows  
+- **llama.cpp** (for conversion and quantize). Two options:
+  - **Option A:** Clone and build locally (recommended for full control).
+  - **Option B:** Use a Python GGUF converter that can read Hugging Face models (e.g. from `llama.cpp` repo).
+
+---
+
+### Option A: Using llama.cpp (clone and build)
+
+#### 1. Clone and prepare llama.cpp
+
+```powershell
+cd c:\Users\ttimm\Desktop\John
+git clone https://github.com/ggerganov/llama.cpp
+cd llama.cpp
+```
+
+Install Python deps for the converter:
+
+```powershell
+pip install -r requirements.txt
+```
+
+(Use your `bible-ai-assistant` conda env so `torch` etc. are available.)
+
+#### 2. Convert merged model to GGUF (f16)
+
+From the **project root** (`bible-ai-assistant`), point the converter at your merged model:
+
+```powershell
+cd c:\Users\ttimm\Desktop\John\bible-ai-assistant
+python ..\llama.cpp\convert_hf_to_gguf.py models\qwen3-4b-bible-John-merged --outfile models\qwen3-4b-bible-John-f16.gguf
+```
+
+If the script name or path differs (e.g. `convert-hf-to-gguf.py`), adjust. Some llama.cpp versions use different names; check the repo’s root for `convert*hf*gguf*.py`.
+
+#### 3. Build llama.cpp and quantize
+
+On Windows, build with CMake (see https://github.com/ggerganov/llama.cpp#build). You need **CMake** and **Visual Studio Build Tools** (C++) installed on the machine.
+
+```powershell
+cd c:\Users\ttimm\Desktop\John\llama.cpp
+mkdir build
+cd build
+cmake .. -DGGUF_CUDA=ON
+cmake --build . --config Release
+```
+
+The quantize tool is built as **llama-quantize** (not `quantize`). Build it explicitly if needed:
+
+```powershell
+cmake --build . --config Release --target llama-quantize
+```
+
+Then quantize to Q4_K_M (from `llama.cpp/build`):
+
+```powershell
+.\bin\Release\llama-quantize.exe ..\..\bible-ai-assistant\models\qwen3-4b-bible-John-f16.gguf ..\..\bible-ai-assistant\models\qwen3-4b-bible-John-q4_k_m.gguf Q4_K_M
+```
+
+(If the executable is elsewhere, run `dir bin\Release` to find it. Paths assume you’re in `llama.cpp/build`.)
+
+#### 4. Create Ollama Modelfile
+
+From **project root**:
+
+```powershell
+cd c:\Users\ttimm\Desktop\John\bible-ai-assistant
+```
+
+Create the Modelfile from your system prompt:
+
+```powershell
+python deployment/pc/generate_modelfile.py
+```
+
+This writes `deployment/pc/Modelfile` using `prompts/system_prompt.txt` and an **absolute path** to the GGUF so Ollama finds the local file (a relative path can be treated as a model name to pull). The generated Modelfile includes `num_predict 512` to limit response length and avoid repetition loops. If your GGUF lives elsewhere, edit `deployment/pc/generate_modelfile.py` and set `GGUF_PATH` accordingly.
+
+Or create `deployment/pc/Modelfile` by hand (copy from `Modelfile.template` and edit). Use an **absolute path** in `FROM` on Windows (e.g. `C:/Users/.../models/qwen3-4b-bible-John-q4_k_m.gguf`) so `ollama create` does not try to pull from the registry. Include:
+
+```
+FROM C:/path/to/your/bible-ai-assistant/models/qwen3-4b-bible-John-q4_k_m.gguf
+SYSTEM """..."""   # full contents of prompts/system_prompt.txt
+PARAMETER temperature 0.2
+PARAMETER num_ctx 2048
+PARAMETER num_predict 512
+```
+
+**Important:** Use the entire contents of `prompts/system_prompt.txt` in the SYSTEM block. `num_predict` caps output length and helps prevent infinite repetition.
+
+Create the Ollama model (from project root). If `ollama` is not in your PATH, use the full path to `ollama.exe` (e.g. `%LOCALAPPDATA%\Programs\Ollama\ollama.exe` on Windows):
+
+```powershell
+cd c:\Users\ttimm\Desktop\John\bible-ai-assistant
+ollama create bible-assistant -f deployment/pc/Modelfile
+```
+
+#### 5. Smoke test
+
+Start Ollama (or rely on the app), then:
+
+```powershell
+ollama run bible-assistant "What does John 3:16 say?"
+```
+
+You should get a verse-accurate answer. The session may wait for more input; type **/bye** to exit. If the model repeats indefinitely, ensure the Modelfile includes `PARAMETER num_predict 512` and recreate the model.
+
+**One-shot test (single response, no chat loop):** From PowerShell:  
+`Invoke-RestMethod -Uri "http://localhost:11434/api/generate" -Method Post -ContentType "application/json" -Body '{"model":"bible-assistant","prompt":"What does Psalm 23:1 say?","stream":false,"options":{"num_predict":256}}'`  
+From Command Prompt (if Ollama is not in PATH): use the full path to `ollama.exe` (e.g. `"%LOCALAPPDATA%\Programs\Ollama\ollama.exe"`).
+
+Then continue to **Phase 5: RAG** (Step 12).
+
+---
+
+### Option B: Alternative converters
+
+- **Unsloth:** Some Unsloth workflows can export to GGUF; check their docs for “save GGUF” or “export llama.cpp”.
+- **Other tools:** Any pipeline that turns a Hugging Face CausalLM into a GGUF file (then quantize with llama.cpp’s `quantize`) is fine. The Modelfile and Ollama steps stay the same.
+
+---
+
+### Troubleshooting (Step 11)
+
+- **“pull model manifest: file does not exist”** — Use an **absolute path** in the Modelfile’s `FROM` line (e.g. generate with `python deployment/pc/generate_modelfile.py`, which writes an absolute path).
+- **“ollama” not recognized** — Use the full path to `ollama.exe` (e.g. `"%LOCALAPPDATA%\Programs\Ollama\ollama.exe"` on Windows) or open a new terminal after installing Ollama.
+- **Model repeats forever** — Add `PARAMETER num_predict 512` to the Modelfile, regenerate, and run `ollama create bible-assistant -f deployment/pc/Modelfile` again.
+- **“Failed to load model”** — Ensure `FROM` points to the correct `.gguf` path and you run `ollama create` from a directory that makes that path valid.
+- **Slow or OOM** — Q4_K_M is usually fine on 16GB; if needed, use a smaller `num_ctx` or a smaller quantization.
+- **Wrong behavior** — Ensure the Modelfile’s `SYSTEM` block is exactly your `prompts/system_prompt.txt` (no truncation).
+- **Qwen3 tokenizer error during convert** — If the converter fails on tokenizer load, use a llama.cpp converter that supports Qwen3 (e.g. with a hub tokenizer fallback); see project notes.
+
+---
+
+## Step 12: Phase 5 — RAG (Retrieval-Augmented Generation)
+
+After your model runs in Ollama (Step 11), add a **RAG layer** so answers are grounded in retrieved verses. The RAG server sits between the client (e.g. OpenClaw or a UI) and Ollama: it finds relevant Scripture for each user question, injects it into the prompt, then forwards to Ollama.
+
+**What you’re doing:**
+
+1. **Build a vector index** — Turn `data/raw/bible_web.json` into a ChromaDB index using **nomic-embed-text-v1.5** (with `search_document:` prefix). One-time step.
+2. **Run the RAG server** — FastAPI app that accepts OpenAI-style `/v1/chat/completions`, retrieves top-k verses for the last user message, augments the prompt, and forwards to Ollama.
+3. **Test** — Call the RAG server (or use `query_test.py` to sanity-check retrieval). Checkpoint: **v0.5.0**.
+
+**Checkpoint:** **v0.5.0** — RAG layer complete; ChromaDB indexed, server augments prompts and forwards to Ollama.
+
+---
+
+### Prerequisites
+
+- **Step 8 done** — `data/raw/bible_web.json` (or `bible.json`) must exist.
+- **Ollama** running with `bible-assistant` (Step 11).
+- **Dependencies** — `chromadb`, `sentence-transformers`, `fastapi`, `uvicorn`, `httpx` (in `requirements.txt`).
+
+---
+
+### Step 12a: Build the ChromaDB index
+
+From the **project root** with `bible-ai-assistant` conda env activated:
+
+```powershell
+cd c:\Users\ttimm\Desktop\John\bible-ai-assistant
+conda activate bible-ai-assistant
+
+python rag/build_index.py
+```
+
+**What you’ll see:** The script loads verses from `data/raw/bible_web.json`, encodes them in batches with **nomic-embed-text-v1.5** (prefix `search_document:`), and writes the index to **rag/chroma_db/**. First run downloads the embedding model; then indexing takes a few minutes. Do not commit `rag/chroma_db/` (add to `.gitignore` if needed).
+
+---
+
+### Step 12b: (Optional) Sanity-check retrieval
+
+```powershell
+python rag/query_test.py
+```
+
+This queries for “What does John 3:16 say?” and prints the top 5 retrieved verses. You should see John 3:16 in or near the top results.
+
+---
+
+### Step 12c: Start the RAG server
+
+From the project root:
+
+```powershell
+uvicorn rag.rag_server:app --host 0.0.0.0 --port 8081
+```
+
+The server listens on port **8081** and forwards chat requests to Ollama (default `http://localhost:11434`). Ensure Ollama is running and has the `bible-assistant` model.
+
+**Environment (optional):**
+
+- **OLLAMA_URL** — Default `http://localhost:11434`. Set if Ollama is on another host.
+- **RAG_TOP_K** — Number of verses to inject (default `5`).
+
+---
+
+### Step 12d: Test the RAG endpoint
+
+With the server running, from another terminal:
+
+```powershell
+curl -X POST http://localhost:8081/v1/chat/completions -H "Content-Type: application/json" -d "{\"model\": \"bible-assistant\", \"messages\": [{\"role\": \"user\", \"content\": \"What does Psalm 23:1 say?\"}]}"
+```
+
+You should get a JSON response with the model’s answer, grounded in the retrieved verses the server injected.
+
+**Using from OpenClaw / UI:** Point the client at `http://localhost:8081/v1` instead of `http://localhost:11434/v1` so that all chat goes through RAG.
+
+---
+
+### Troubleshooting (Step 12)
+
+- **“ChromaDB index not found”** — Run `python rag/build_index.py` first.
+- **“No Bible JSON found”** — Ensure Step 8 is done and `data/raw/bible_web.json` exists.
+- **Slow first request** — The RAG server loads the embedder and ChromaDB on first use; later requests are faster.
+- **Ollama connection refused** — Start Ollama and ensure `bible-assistant` is available (`ollama list`).
+
+---
+
+## Step 13 onward: Phase 6+ (OpenClaw, Voice, Deployment)
+
+- **Phase 6:** OpenClaw + Telegram — Configure OpenClaw to use `http://localhost:8081/v1`; add Telegram bot token.
+- **Phase 7:** Voice + Gradio — Faster-Whisper (STT), Kokoro TTS, voice tab in UI.
+- **Phase 8:** Jetson + VPS — Edge deployment, Tailscale, production.
+
+See **docs/DEVELOPMENT_WORKFLOW.md** for the full phase list and version tags. For a quick index of all docs, see **docs/README.md**.
 
 ---
 

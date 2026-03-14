@@ -38,10 +38,12 @@ bible-ai-assistant/
 ├── prompts/        # System prompt and evaluation questions
 ├── deployment/     # PC, Jetson, and VPS setup
 ├── ui/             # Gradio web interface with voice
-└── docs/           # Architecture and results
+└── docs/           # Guides, workflow, and reference
 ```
 
-See [docs/architecture.md](docs/architecture.md) for detailed diagrams and phase-by-phase deployment.
+- **New to the project?** Start with **[docs/WALKTHROUGH.md](docs/WALKTHROUGH.md)** for the step-by-step guide (Steps 1–12).
+- **Doc index:** See **[docs/README.md](docs/README.md)** for a full list of documentation.
+- **Architecture:** See [docs/architecture.md](docs/architecture.md) for diagrams and phase-by-phase deployment.
 
 ## Quick Start
 
