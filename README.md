@@ -53,7 +53,7 @@ See [docs/architecture.md](docs/architecture.md) for detailed diagrams and phase
 
 ## Author
 
-Tremayne Timms | Dallas, TX | ttimmsinternational@gmail.com
+Tremayne Timms
 
 ## License
 
