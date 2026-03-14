@@ -14,13 +14,13 @@ QLoRA fine-tuning of Qwen3 4B on the Bible dataset.
 
 ## Environment
 
-- Conda env `bible-ai` with PyTorch nightly (CUDA 12.8+) and Unsloth. See main guide Section 6.
+- Conda env `bible-ai-assistant` with PyTorch nightly (CUDA 12.8+) and Unsloth. See main guide Section 6.
 - **Critical:** Use `bf16=True`, not `fp16`, on RTX 5070 Ti (Blackwell).
 
 ## Quick Run
 
 ```bash
-conda activate bible-ai
+conda activate bible-ai-assistant
 # After dataset is ready:
 python training/train_unsloth.py
 python training/merge_adapters.py

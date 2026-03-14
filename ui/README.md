@@ -5,7 +5,7 @@ Web interface with **text** and **voice** tabs. Voice: microphone → Faster-Whi
 ## Run
 
 ```bash
-conda activate bible-ai
+conda activate bible-ai-assistant
 python ui/app.py
 # Open http://localhost:7860
 ```

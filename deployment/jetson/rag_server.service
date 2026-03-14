@@ -7,7 +7,7 @@ WorkingDirectory=/home/USER/bible-ai-assistant
 ExecStart=/home/USER/.local/bin/uvicorn rag.rag_server:app --host 0.0.0.0 --port 8081
 Restart=always
 User=USER
-Environment=PATH=/home/USER/miniconda3/envs/bible-ai/bin:/usr/bin
+Environment=PATH=/home/USER/miniconda3/envs/bible-ai-assistant/bin:/usr/bin
 
 [Install]
 WantedBy=multi-user.target
