@@ -668,9 +668,103 @@ You should get a JSON response with the model’s answer, grounded in the retrie
 
 ---
 
-## Step 13 onward: Phase 6+ (OpenClaw, Voice, Deployment)
+## Step 13: Phase 6 — OpenClaw + Telegram
 
-- **Phase 6:** OpenClaw + Telegram — Configure OpenClaw to use `http://localhost:8081/v1`; add Telegram bot token.
+After RAG is running (Step 12), add the **OpenClaw** agent and **Telegram** so you can chat with the Bible assistant from your phone or any client. OpenClaw talks to your RAG server (which forwards to Ollama); Telegram is one interface.
+
+**What you’re doing:**
+
+1. **Install OpenClaw** — Node.js agent that routes messages to your LLM endpoint.
+2. **Point OpenClaw at the RAG server** — Use `http://localhost:8081/v1` so every request is augmented with retrieved verses.
+3. **Create a Telegram bot** — Get a token from @BotFather and add it to `.env`.
+4. **Run the full stack** — Ollama + RAG server + OpenClaw; connect Telegram to the bot.
+
+**Checkpoint:** **v0.6.0** — Full dev stack: Ollama + RAG + OpenClaw + Telegram.
+
+---
+
+### Prerequisites
+
+- **Steps 11–12 done** — Ollama with `bible-assistant`, RAG server on port 8081, ChromaDB index built.
+- **Node.js** (LTS) installed — OpenClaw is an npm package.
+- **Telegram account** — For @BotFather and testing.
+
+---
+
+### Step 13a: Install OpenClaw
+
+From any terminal (PowerShell or Command Prompt):
+
+```powershell
+npm install -g openclaw
+```
+
+Verify: `openclaw --version` (or `npx openclaw --help`).
+
+---
+
+### Step 13b: Configure OpenClaw to use the RAG server
+
+Run the onboarding wizard so OpenClaw uses your local RAG endpoint (not Ollama directly):
+
+```powershell
+openclaw onboard
+```
+
+When prompted for the **LLM / API endpoint**, use:
+
+- **Base URL:** `http://localhost:8081/v1`
+- **Model name:** `bible-assistant` (must match the model name your RAG server expects).
+
+This way all chat goes through the RAG server, which retrieves verses and forwards to Ollama.
+
+**SOUL.md (constitution):** OpenClaw may ask for or use a SOUL.md file that describes the agent’s behavior. You can point it at your project’s **`prompts/system_prompt.txt`** or a short SOUL.md that references the Bible assistant’s role (e.g. “You are a Bible AI Assistant…”). The RAG server and Ollama Modelfile already inject the full system prompt; SOUL.md can be a brief high-level description for the agent framework.
+
+---
+
+### Step 13c: Create a Telegram bot and add token
+
+1. In Telegram, open a chat with **@BotFather**.
+2. Send `/newbot` and follow the prompts (name and username for the bot).
+3. Copy the **token** BotFather returns (e.g. `7123456789:AAH...`).
+4. In your project, ensure `.env` exists (copy from `.env.example` if needed) and add or set:
+   ```bash
+   TELEGRAM_BOT_TOKEN=your_actual_token_here
+   ```
+   Never commit `.env`; it is in `.gitignore`.
+
+---
+
+### Step 13d: Run the full stack and connect Telegram
+
+1. **Terminal 1 — Ollama:** Ensure Ollama is running and `bible-assistant` is loaded (e.g. start the Ollama app or `ollama serve`).
+2. **Terminal 2 — RAG server:**
+   ```powershell
+   cd c:\Users\ttimm\Desktop\John\bible-ai-assistant
+   conda activate bible-ai-assistant
+   uvicorn rag.rag_server:app --host 0.0.0.0 --port 8081
+   ```
+3. **Terminal 3 — OpenClaw:** Start OpenClaw (exact command may vary by OpenClaw version; see OpenClaw docs). Often:
+   ```powershell
+   openclaw start
+   ```
+   Or run the gateway if your setup uses a separate gateway process. Ensure OpenClaw is configured to read `TELEGRAM_BOT_TOKEN` from `.env` (or set it in the OpenClaw config).
+4. **Telegram:** Open your bot in Telegram and send a message (e.g. “What does John 3:16 say?”). You should get a response from the Bible model via RAG + Ollama.
+
+**Checkpoint:** **v0.6.0** — Full dev stack with Telegram.
+
+---
+
+### Troubleshooting (Step 13)
+
+- **OpenClaw can’t reach the LLM** — Ensure the RAG server is running on 8081 and that the endpoint in OpenClaw is `http://localhost:8081/v1` (and that you use `bible-assistant` as the model name).
+- **Telegram bot doesn’t respond** — Check that `TELEGRAM_BOT_TOKEN` is set in `.env` and that OpenClaw is running and connected to Telegram (see OpenClaw docs for gateway/connector setup).
+- **Wrong or empty answers** — Confirm RAG is working: run `python rag/query_test.py` and test the RAG server with curl (Step 12d). Then ensure OpenClaw is pointing at the RAG server, not directly at Ollama.
+
+---
+
+## Step 14 onward: Phase 7+ (Voice, Deployment)
+
 - **Phase 7:** Voice + Gradio — Faster-Whisper (STT), Kokoro TTS, voice tab in UI.
 - **Phase 8:** Jetson + VPS — Edge deployment, Tailscale, production.
 
