@@ -97,4 +97,88 @@ You should see `CUDA available: True`, your GPU name, and **`sm_120`** in the ar
 
 ---
 
+## Step 6: Log into Hugging Face and Weights & Biases
+
+**Why:** Hugging Face hosts the base model (Qwen3 4B) and will store your fine-tuned model. W&B (Weights & Biases) records training runs (loss curves, hyperparameters) so you can compare experiments. Both need one-time login from your terminal.
+
+---
+
+### 6a. Create and use a Hugging Face token
+
+1. **Open:** https://huggingface.co/settings/tokens (log in or sign up if needed).
+2. **Choose token type:**
+   - **Write** — Simplest. Full read + write (download base model, create repos, upload your fine-tuned model, update for benchmarking). Use this unless you want extra restrictions.
+   - **Fine-grained** — More secure: limit what the token can do (e.g. only write to **Model repos**, or only to a specific repo like `YOUR_USERNAME/bible-qwen3-4b`). If the token is ever leaked, only those resources are affected. Good for open source when you want one token just for this project.
+3. **Create token:** Click **“Create new token”**.
+   - **Name:** e.g. `bible-ai-assistant`.
+   - **Type:** **Write** (easiest) or **Fine-grained** (see below).
+   - If **Fine-grained:** under permissions, grant at least **Read** (for downloading base model) and **Write** or **Create/update repos** for **Models** (so you can upload and update your fine-tuned model). Optionally restrict to a specific repo once you’ve created it.
+   - Click **“Generate token”**.
+3. **Copy the token:** Click the copy icon next to the token. It looks like `hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` (starts with `hf_`). You won’t see it again after you leave the page, so copy it now.
+4. **In Anaconda Prompt** (with `bible-ai-assistant` activated and project folder as current directory), run:
+   ```bash
+   huggingface-cli login
+   ```
+5. When it says **“Enter your token”** or **“Paste your token”**:
+   - **Right‑click** in the terminal window to paste (Windows pastes with right‑click in most terminals).
+   - Or type **Ctrl+Shift+V** (some terminals use this instead of Ctrl+V).
+   - Do **not** type the token by hand—one wrong character and it will fail. Paste only.
+   - Press **Enter** after pasting.
+6. You should see **“Login successful”** or **“Token is valid”**. If you see an error, create a new token (no spaces before/after when pasting) and try again.
+
+---
+
+### 6b. Create and use a Weights & Biases API key
+
+1. **Open:** https://wandb.ai/authorize (log in or sign up at https://wandb.ai if needed).
+2. **Copy your API key:** On the authorize page you’ll see your key (a long string). Click to copy it.
+3. **In Anaconda Prompt**, run:
+   ```bash
+   wandb login
+   ```
+4. When it says **“Paste your API key”** or **“Enter your API key”**:
+   - **Right‑click** to paste (or **Ctrl+Shift+V** if that’s what your terminal uses).
+   - Press **Enter**.
+5. You should see **“Successfully logged in”** or similar. W&B will save the key so you usually won’t need to paste it again on this machine.
+
+---
+
+### Quick reference (both in one go)
+
+In Anaconda Prompt, from the project folder with `bible-ai-assistant` active:
+
+```bash
+huggingface-cli login
+# When prompted: paste HF token (hf_...), Enter
+
+wandb login
+# When prompted: paste W&B API key, Enter
+```
+
+**Next:** Download the base model (Step 7).
+
+---
+
+## Step 7: Download Qwen3 4B Base Model
+
+**Why:** Qwen3-4B-Instruct-2507 is the model you’ll fine-tune on Bible Q&A. It’s about 8GB; downloading to `models/base_model/` keeps everything in one place and respects `.gitignore` (models are not committed).
+
+**Do this in Anaconda Prompt** with `bible-ai-assistant` activated, from the **project root** (e.g. `c:\Users\YOUR_USERNAME\Desktop\John\bible-ai-assistant`):
+
+```bash
+# Download to models/base_model (creates folder; ~10–20 min, ~8GB). Exclude .msgpack to save space.
+# Preferred (new CLI):
+hf download Qwen/Qwen3-4B-Instruct-2507 --local-dir models/base_model --exclude "*.msgpack"
+# Legacy (still works, but deprecated):
+huggingface-cli download Qwen/Qwen3-4B-Instruct-2507 --local-dir models/base_model --exclude "*.msgpack"
+```
+
+**Note:** If you see a warning that `huggingface-cli download` is deprecated, use `hf download` next time. If you see “Xet Storage” / “hf_xet” messages, the download still uses regular HTTP; installing `pip install hf_xet` is optional for faster future downloads.
+
+**Check:** When it finishes, `models/base_model/` should contain config, tokenizer, and model weights (e.g. `.safetensors`). Do not commit this folder (it’s in `.gitignore`).
+
+**Phase 1 complete.** Optionally tag the repo as **v0.1.1** to mark “base model downloaded” in history (`git tag -a v0.1.1 -m "Base model downloaded"` then `git push origin v0.1.1`). Next: **Phase 2** — building the Bible dataset (guide Section 8; `data/raw/`, `training/dataset_builder.py`, `data/processed/train.json`).
+
+---
+
 *Glory to God. We’ll build this in a way that honors the Word and serves others.*
