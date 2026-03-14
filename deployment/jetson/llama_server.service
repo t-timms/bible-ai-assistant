@@ -1,0 +1,22 @@
+[Unit]
+Description=llama.cpp Bible AI Inference Server
+After=network.target
+
+[Service]
+ExecStartPre=/usr/bin/nvpmodel -m 0
+ExecStartPre=/usr/bin/jetson_clocks
+ExecStart=/home/USER/llama.cpp/build/bin/llama-server \
+    -m /home/USER/models/bible-qwen3-q4km.gguf \
+    --host 0.0.0.0 \
+    --port 8080 \
+    --n-gpu-layers 32 \
+    --ctx-size 16384 \
+    --cache-type-k q4_1 \
+    --cache-type-v q4_1 \
+    --flash-attn \
+    --threads 4
+Restart=always
+User=USER
+
+[Install]
+WantedBy=multi-user.target

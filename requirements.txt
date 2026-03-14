@@ -1,0 +1,34 @@
+# Bible AI Assistant - Python Dependencies
+# Install in conda env: pip install -r requirements.txt
+# PyTorch: install separately (nightly with CUDA 12.8+ for RTX 5070 Ti). See docs.
+
+# Training
+transformers>=4.45.0
+datasets>=2.18.0
+peft>=0.10.0
+trl>=0.8.0
+accelerate>=0.33.0
+bitsandbytes>=0.44.0
+unsloth
+wandb
+huggingface_hub
+sentencepiece
+
+# RAG
+chromadb>=0.4.0
+sentence-transformers>=2.2.0
+
+# API and serving
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+httpx>=0.26.0
+
+# UI
+gradio>=4.0.0
+
+# Voice (STT)
+faster-whisper>=1.0.0
+
+# Utilities
+pydantic>=2.0.0
+python-dotenv>=1.0.0

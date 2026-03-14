@@ -1,0 +1,12 @@
+---
+description: Bible AI Assistant — constitution, guide alignment, and tech constraints
+alwaysApply: true
+---
+
+# Bible AI Assistant — Project Conventions
+
+- **Source of truth:** Follow the *Bible AI Assistant Guide v2* (PDF in project). Implementation order and checkpoints are in `docs/DEVELOPMENT_WORKFLOW.md`.
+- **Constitution:** Behavioral rules are in `CONSTITUTION.md` and `prompts/system_prompt.txt`. Never add behavior that contradicts them (e.g. fabricating verses, promoting other gods, explicit/violent content). New features (prompts, datasets, agent config) must stay constitution-aligned.
+- **Training:** Use **bf16=True** only. Never use fp16 for training on RTX 5070 Ti (Blackwell / sm_120). PyTorch must be nightly with CUDA 12.8+ for this GPU.
+- **Versions:** Milestone commits include a version tag (e.g. `v0.3.0: Fine-tuning complete`). Update `CHANGELOG.md` on release. Commit messages: present tense, first line &lt;72 chars.
+- **Scripts:** Training and RAG scripts live in `training/` and `rag/`. Keep paths relative to repo root; use `Path(__file__).resolve().parents[1]` for project root when needed.

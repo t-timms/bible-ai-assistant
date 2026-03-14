@@ -1,0 +1,49 @@
+# Model files (too large for GitHub)
+*.gguf
+*.bin
+*.safetensors
+models/
+checkpoints/
+
+# Environment secrets
+.env
+
+# Python
+__pycache__/
+*.pyc
+.conda/
+venv/
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+dist/
+build/
+
+# Large data files
+data/raw/*.json
+data/processed/*.json
+!data/sample.json
+
+# ChromaDB index
+rag/chroma_db/
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# IDE and OS
+.idea/
+.vscode/
+*.swp
+*.swo
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Logs and temp
+*.log
+*.tmp
+temp/
+tmp/
+
+# W&B and Hugging Face (optional: keep run dirs local only)
+wandb/

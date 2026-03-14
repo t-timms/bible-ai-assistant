@@ -1,0 +1,18 @@
+# Development stack on Windows PC (optional Docker orchestration).
+# Alternatively run: Ollama, RAG server, Kokoro TTS, and Gradio manually per guide.
+
+version: "3.8"
+services:
+  # Uncomment and adapt when you add Dockerized services (e.g. Kokoro TTS).
+  # kokoro-tts:
+  #   image: ghcr.io/remsky/kokoro-fastapi-gpu:latest
+  #   ports:
+  #     - "8880:8880"
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: 1
+  #             capabilities: [gpu]
+  # Ollama and RAG server are typically run on the host (conda env).
