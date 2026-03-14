@@ -177,7 +177,39 @@ huggingface-cli download Qwen/Qwen3-4B-Instruct-2507 --local-dir models/base_mod
 
 **Check:** When it finishes, `models/base_model/` should contain config, tokenizer, and model weights (e.g. `.safetensors`). Do not commit this folder (it’s in `.gitignore`).
 
-**Phase 1 complete.** Optionally tag the repo as **v0.1.1** to mark “base model downloaded” in history (`git tag -a v0.1.1 -m "Base model downloaded"` then `git push origin v0.1.1`). Next: **Phase 2** — building the Bible dataset (guide Section 8; `data/raw/`, `training/dataset_builder.py`, `data/processed/train.json`).
+**Phase 1 complete.** Optionally tag the repo as **v0.1.1** to mark “base model downloaded” in history (`git tag -a v0.1.1 -m "Base model downloaded"` then `git push origin v0.1.1`). Next: **Phase 2** — building the Bible dataset (Step 8).
+
+---
+
+## Step 8: Phase 2 — Build the Bible Dataset
+
+**Why:** Fine-tuning quality depends on dataset quality. We need 30k–50k Q&A examples in Qwen3 chat format (system + user + assistant) so the model learns to answer from Scripture and follow the constitution.
+
+**8a. Get raw Bible text (WEB)**
+
+This project uses the **World English Bible (WEB)**. Download WEB in JSON:
+
+- **[TehShrike/world-english-bible](https://github.com/TehShrike/world-english-bible)** — clone or download the repo; copy the WEB JSON file into `data/raw/` and name it `bible_web.json` or `bible.json`. If the file is nested (book → chapter → verse → text), the dataset builder will flatten it.
+- **Or** [scrollmapper/bible_databases](https://github.com/scrollmapper/bible_databases) — get WEB from the Formats folder; if it’s CSV or another format, convert to a JSON array of `{ "book", "chapter", "verse", "text" }` and save as `data/raw/bible.json`.
+
+The dataset builder expects either a JSON **array** of verse objects or a **nested** object (book → chapter → verse → text); it will normalize to the format it needs.
+
+**8b. Run the dataset builder**
+
+From the project root with `bible-ai-assistant` activated:
+
+```bash
+python training/dataset_builder.py
+```
+
+By default this reads `data/raw/bible.json`, loads the system prompt from `prompts/system_prompt.txt`, generates verse-lookup and optional theology/constitution examples, and writes `data/processed/train.json`. Use `--max-examples` to cap the number (e.g. `--max-examples 50000`).
+
+**8c. Check output**
+
+- Open `data/processed/train.json` (or inspect the first few lines). Each entry should have a `messages` array with `system`, `user`, and `assistant` roles matching `data/sample.json`.
+- Target for first run: **30,000–50,000** examples. More variety (theology, character studies, constitution tests) can be added later.
+
+**Phase 2 checkpoint:** When `train.json` is ready, tag **v0.2.0** (“Dataset builder complete, 50k Bible Q&A”). Then continue to Phase 3: fine-tuning (guide Section 9).
 
 ---
 
