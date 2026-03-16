@@ -84,7 +84,8 @@ def main() -> None:
             "verse": v["verse"],
             "reference": ref,
         })
-        documents.append(DOCUMENT_PREFIX + v["text"])
+        # Include reference so "What does John 3:16 say?" matches John 3:16's embedding
+        documents.append(DOCUMENT_PREFIX + ref + ": " + v["text"])
 
     for i in range(0, len(documents), BATCH_SIZE):
         batch_ids = ids[i : i + BATCH_SIZE]

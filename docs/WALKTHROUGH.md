@@ -523,7 +523,13 @@ Create the Modelfile from your system prompt:
 python deployment/pc/generate_modelfile.py
 ```
 
-This writes `deployment/pc/Modelfile` using `prompts/system_prompt.txt` and an **absolute path** to the GGUF so Ollama finds the local file (a relative path can be treated as a model name to pull). The generated Modelfile includes `num_predict 512` to limit response length and avoid repetition loops. If your GGUF lives elsewhere, edit `deployment/pc/generate_modelfile.py` and set `GGUF_PATH` accordingly.
+This writes `deployment/pc/Modelfile` using `prompts/system_prompt.txt` and an **absolute path** to the GGUF so Ollama finds the local file (a relative path can be treated as a model name to pull). The generated Modelfile includes `num_predict 300` and `repeat_penalty 1.45` to limit response length and avoid repetition loops. If your GGUF lives elsewhere, edit `deployment/pc/generate_modelfile.py` and set `GGUF_PATH` accordingly.
+
+**After editing `prompts/system_prompt.txt`** (e.g. tone guidelines, meta-questions), regenerate the Modelfile and recreate the Ollama model so changes take effect:
+```powershell
+python deployment/pc/generate_modelfile.py
+ollama create bible-assistant -f deployment/pc/Modelfile
+```
 
 Or create `deployment/pc/Modelfile` by hand (copy from `Modelfile.template` and edit). Use an **absolute path** in `FROM` on Windows (e.g. `C:/Users/.../models/qwen3-4b-bible-John-q4_k_m.gguf`) so `ollama create` does not try to pull from the registry. Include:
 
@@ -532,7 +538,8 @@ FROM C:/path/to/your/bible-ai-assistant/models/qwen3-4b-bible-John-q4_k_m.gguf
 SYSTEM """..."""   # full contents of prompts/system_prompt.txt
 PARAMETER temperature 0.2
 PARAMETER num_ctx 2048
-PARAMETER num_predict 512
+PARAMETER num_predict 300
+PARAMETER repeat_penalty 1.45
 ```
 
 **Important:** Use the entire contents of `prompts/system_prompt.txt` in the SYSTEM block. `num_predict` caps output length and helps prevent infinite repetition.
@@ -588,7 +595,7 @@ After your model runs in Ollama (Step 11), add a **RAG layer** so answers are gr
 **What you’re doing:**
 
 1. **Build a vector index** — Turn `data/raw/bible_web.json` into a ChromaDB index using **nomic-embed-text-v1.5** (with `search_document:` prefix). One-time step.
-2. **Run the RAG server** — FastAPI app that accepts OpenAI-style `/v1/chat/completions`, retrieves top-k verses for the last user message, augments the prompt, and forwards to Ollama.
+2. **Run the RAG server** — FastAPI app that accepts OpenAI-style `/v1/chat/completions`, retrieves top-k verses for the last user message, augments the prompt, and forwards to Ollama. Handles **meta-questions** (e.g. “What can you do?”) without verse retrieval—the model answers directly. Strips OpenClaw metadata and suffix instructions (e.g. “Answer in quotes, then add explanation”) so capability questions get natural responses.
 3. **Test** — Call the RAG server (or use `query_test.py` to sanity-check retrieval). Checkpoint: **v0.5.0**.
 
 **Checkpoint:** **v0.5.0** — RAG layer complete; ChromaDB indexed, server augments prompts and forwards to Ollama.
@@ -665,6 +672,9 @@ You should get a JSON response with the model’s answer, grounded in the retrie
 - **“No Bible JSON found”** — Ensure Step 8 is done and `data/raw/bible_web.json` exists.
 - **Slow first request** — The RAG server loads the embedder and ChromaDB on first use; later requests are faster.
 - **Ollama connection refused** — Start Ollama and ensure `bible-assistant` is available (`ollama list`).
+- **Responses start with "Answer:" or sound robotic** — Regenerate the Modelfile from the updated system prompt and recreate the model: `python deployment/pc/generate_modelfile.py` then `ollama create bible-assistant -f deployment/pc/Modelfile`. The system prompt includes tone guidelines to avoid stiff phrasing.
+- **“What can you do?” returns verses instead of capabilities** — The RAG server detects meta-questions and skips retrieval. If this still happens, regenerate the Modelfile (`python deployment/pc/generate_modelfile.py`) and recreate the model (`ollama create bible-assistant -f deployment/pc/Modelfile`) so the updated system prompt (META-QUESTIONS section) is applied.
+- **Responses start with “Answer:” or sound robotic** — Regenerate the Modelfile and recreate the model (see Modelfile note in Step 11). The system prompt forbids “Answer:” and instructs natural, conversational tone.
 
 ---
 
@@ -718,7 +728,7 @@ When prompted for the **LLM / API endpoint**, use:
 
 This way all chat goes through the RAG server, which retrieves verses and forwards to Ollama.
 
-**SOUL.md (constitution):** OpenClaw may ask for or use a SOUL.md file that describes the agent’s behavior. You can point it at your project’s **`prompts/system_prompt.txt`** or a short SOUL.md that references the Bible assistant’s role (e.g. “You are a Bible AI Assistant…”). The RAG server and Ollama Modelfile already inject the full system prompt; SOUL.md can be a brief high-level description for the agent framework.
+**SOUL.md (constitution):** OpenClaw may ask for or use a SOUL.md file that describes the agent’s behavior. You can point it at your project’s **`prompts/system_prompt.txt`** or a short SOUL.md that references the Bible assistant’s role (e.g. “You are a Bible AI Assistant…”). The RAG server and Ollama Modelfile already inject the full system prompt; SOUL.md can be a brief high-level description for the agent framework. The RAG server automatically strips OpenClaw metadata (e.g. “Sender (untrusted metadata)”) from user messages before processing, so capability questions like “What can you do?” work correctly.
 
 ---
 
@@ -760,6 +770,7 @@ This way all chat goes through the RAG server, which retrieves verses and forwar
 - **OpenClaw can’t reach the LLM** — Ensure the RAG server is running on 8081 and that the endpoint in OpenClaw is `http://localhost:8081/v1` (and that you use `bible-assistant` as the model name).
 - **Telegram bot doesn’t respond** — Check that `TELEGRAM_BOT_TOKEN` is set in `.env` and that OpenClaw is running and connected to Telegram (see OpenClaw docs for gateway/connector setup).
 - **Wrong or empty answers** — Confirm RAG is working: run `python rag/query_test.py` and test the RAG server with curl (Step 12d). Then ensure OpenClaw is pointing at the RAG server, not directly at Ollama.
+- **"What can you do?" returns verses instead of capabilities** — The RAG server detects meta-questions and skips verse retrieval; if this still fails, ensure you are on the latest RAG server and that OpenClaw metadata is being stripped (check logs).
 
 ---
 
