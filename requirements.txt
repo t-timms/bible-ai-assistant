@@ -17,6 +17,7 @@ sentencepiece
 # RAG
 chromadb>=0.4.0
 sentence-transformers>=2.2.0
+einops
 
 # API and serving
 fastapi>=0.109.0
