@@ -17,14 +17,15 @@ LOAD_IN_4BIT = True
 MAX_SEQ_LENGTH = 2048
 LORA_R = 16
 LORA_ALPHA = 32
-LORA_DROPOUT = 0.1
+LORA_DROPOUT = 0.15
 LORA_TARGET_MODULES = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
 OUTPUT_DIR = "checkpoints"
-NUM_EPOCHS = 3
+NUM_EPOCHS = 2
 BATCH_SIZE = 4
 GRADIENT_ACCUMULATION = 4
-LEARNING_RATE = 2.0e-4
-WARMUP_STEPS = 100
+LEARNING_RATE = 1.0e-4
+WARMUP_STEPS = 50
+EVAL_SPLIT = 0.1
 SAVE_STEPS = 500
 LOGGING_STEPS = 50
 BF16 = True  # REQUIRED for Blackwell. Do not use fp16.
@@ -45,7 +46,7 @@ def _load_config_yaml(project_root: Path) -> None:
         return
     global MODEL_NAME, LOAD_IN_4BIT, MAX_SEQ_LENGTH, LORA_R, LORA_ALPHA, LORA_DROPOUT
     global LORA_TARGET_MODULES, OUTPUT_DIR, NUM_EPOCHS, BATCH_SIZE, GRADIENT_ACCUMULATION
-    global LEARNING_RATE, WARMUP_STEPS, SAVE_STEPS, LOGGING_STEPS, BF16
+    global LEARNING_RATE, WARMUP_STEPS, SAVE_STEPS, LOGGING_STEPS, BF16, EVAL_SPLIT
     if "model" in cfg:
         m = cfg["model"]
         MODEL_NAME = m.get("name", MODEL_NAME)
@@ -68,6 +69,7 @@ def _load_config_yaml(project_root: Path) -> None:
         SAVE_STEPS = t.get("save_steps", SAVE_STEPS)
         LOGGING_STEPS = t.get("logging_steps", LOGGING_STEPS)
         BF16 = t.get("bf16", BF16)
+        EVAL_SPLIT = float(t.get("eval_split", EVAL_SPLIT))
 
 
 def main() -> None:
@@ -148,7 +150,7 @@ def main() -> None:
     )
 
     # Load dataset (messages format)
-    dataset = load_dataset("json", data_files=str(train_file), split="train")
+    full_dataset = load_dataset("json", data_files=str(train_file), split="train")
 
     # Add "text" column: apply chat template so the trainer has one string per example
     def format_messages(examples):
@@ -162,7 +164,7 @@ def main() -> None:
             texts.append(text)
         return {"text": texts}
 
-    dataset = dataset.map(format_messages, batched=True, remove_columns=dataset.column_names)
+    full_dataset = full_dataset.map(format_messages, batched=True, remove_columns=full_dataset.column_names)
 
     # Pre-tokenize in the main process to avoid Windows multiprocessing (UnslothSFTTrainer not found in workers)
     def tokenize_fn(examples):
@@ -176,7 +178,13 @@ def main() -> None:
         out["labels"] = [ids[:] for ids in out["input_ids"]]
         return out
 
-    dataset = dataset.map(tokenize_fn, batched=True, remove_columns=["text"], desc="Tokenizing")
+    full_dataset = full_dataset.map(tokenize_fn, batched=True, remove_columns=["text"], desc="Tokenizing")
+
+    # Train/eval split to monitor overfitting via W&B
+    split = full_dataset.train_test_split(test_size=EVAL_SPLIT, seed=42)
+    train_dataset = split["train"]
+    eval_dataset = split["test"]
+    print(f"Train: {len(train_dataset)} examples, Eval: {len(eval_dataset)} examples")
 
     # Training args — bf16 required for Blackwell
     # skip_prepare_dataset: we already tokenized above; avoids Unsloth tokenization map (Windows spawn issue)
@@ -189,6 +197,10 @@ def main() -> None:
         warmup_steps=WARMUP_STEPS,
         save_steps=SAVE_STEPS,
         logging_steps=LOGGING_STEPS,
+        eval_strategy="steps",
+        eval_steps=SAVE_STEPS,
+        load_best_model_at_end=True,
+        metric_for_best_model="eval_loss",
         report_to="wandb",
         bf16=BF16,
         max_seq_length=MAX_SEQ_LENGTH,
@@ -198,7 +210,8 @@ def main() -> None:
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
-        train_dataset=dataset,
+        train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
         args=training_args,
     )
 

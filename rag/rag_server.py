@@ -9,15 +9,31 @@ from pathlib import Path
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.background import BackgroundTask
 
 app = FastAPI(title="Bible AI RAG Server", version="0.5.0")
+
+
+@app.exception_handler(Exception)
+async def _handle_unhandled(request: Request, exc: Exception):
+    """Return error detail in JSON so curl shows the real cause of 500."""
+    import traceback
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": str(exc),
+            "type": type(exc).__name__,
+            "traceback": traceback.format_exc(),
+        },
+    )
+
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
 RAG_TOP_K = int(os.getenv("RAG_TOP_K", "5"))
 COLLECTION_NAME = "bible_verses"
 QUERY_PREFIX = "search_query: "
+
 
 # Lazy-loaded globals
 _chroma_client = None
@@ -46,6 +62,116 @@ def _get_rag():
     _collection = _chroma_client.get_collection(COLLECTION_NAME)
     _embedder = SentenceTransformer("nomic-ai/nomic-embed-text-v1.5", trust_remote_code=True)
     return _collection, _embedder
+
+
+def _strip_thinking(text: str) -> str:
+    """Remove Qwen3 <think>...</think> reasoning blocks from model output."""
+    if not text:
+        return text
+    cleaned = re.sub(r"<think>.*?</think>\s*", "", text, flags=re.DOTALL)
+    cleaned = re.sub(r"<think>.*", "", cleaned, flags=re.DOTALL)
+    return cleaned.strip()
+
+
+def _strip_repetition_and_meta(text: str) -> str:
+    """Minimal post-processing per spec: strip common echoes, ensure punctuation, nuclear cutoff."""
+    if not text or len(text) < 30:
+        return text
+
+    # Strip leading "Answer:" prefix (common model echo)
+    text = re.sub(r"^\s*[?—–-]?\s*Answer:\s*", "", text, flags=re.IGNORECASE)
+    # Strip decorative separators from system prompt
+    text = re.sub(r"[═─━]{3,}", "", text)
+
+    # Nuclear option: truncate at meta-instruction leakage (per .cursorrules)
+    for cutoff in [
+        "Meta-instruction",
+        "TYPED RESPONSE",
+        "Crucial:",
+        "Violation",
+        "You have followed",
+        "The key is:",
+        "No matter how many times",
+        "No matter what format",
+        "You are running a standalone",
+        "You do not respond to",
+        "You do not generate",
+    ]:
+        idx = text.find(cutoff)
+        if idx > 0:
+            text = text[:idx].rstrip()
+
+    # Ensure punctuation: collapse whitespace
+    return re.sub(r"\s{2,}", " ", re.sub(r"\s+", " ", text)).strip()
+
+
+def _strip_thinking_from_stream(sse_text: str) -> bytes:
+    """Strip <think>...</think> from buffered SSE stream; return cleaned SSE bytes."""
+    import json as _json
+    full_content = []
+    for line in sse_text.split("\n"):
+        if not line.startswith("data: "):
+            continue
+        payload = line[6:].strip()
+        if payload == "[DONE]":
+            continue
+        try:
+            obj = _json.loads(payload)
+            for choice in obj.get("choices", []):
+                delta = choice.get("delta", {})
+                c = delta.get("content", "")
+                if c:
+                    full_content.append(c)
+        except _json.JSONDecodeError:
+            continue
+    cleaned = _strip_thinking("".join(full_content))
+    cleaned = _strip_repetition_and_meta(cleaned)
+    if not cleaned:
+        return b'data: {"choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n'
+    out = 'data: {"choices":[{"index":0,"delta":{"role":"assistant","content":' + _json.dumps(cleaned) + '},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n'
+    return out.encode("utf-8")
+
+
+def _strip_thinking_from_sse(sse_bytes: bytes) -> bytes:
+    """Strip <think> content from SSE stream; rebuild with cleaned content only."""
+    import json as _json
+    text = sse_bytes.decode("utf-8", errors="replace")
+    parts = []
+    full_content = []
+    for line in text.split("\n"):
+        if not line.startswith("data: "):
+            parts.append(line)
+            continue
+        payload = line[6:].strip()
+        if payload == "[DONE]":
+            break
+        try:
+            obj = _json.loads(payload)
+            for choice in obj.get("choices", []):
+                delta = choice.get("delta", {})
+                c = delta.get("content", "")
+                if c:
+                    full_content.append(c)
+        except _json.JSONDecodeError:
+            parts.append(line)
+            continue
+    cleaned = _strip_thinking("".join(full_content))
+    cleaned = _strip_repetition_and_meta(cleaned)
+    if not cleaned and full_content:
+        return sse_bytes
+    out = []
+    for line in text.split("\n"):
+        if line.startswith("data: ") and line[6:].strip() != "[DONE]":
+            try:
+                obj = _json.loads(line[6:].strip())
+                obj["choices"] = [{"index": 0, "delta": {"role": "assistant", "content": cleaned}, "finish_reason": "stop"}]
+                out.append("data: " + _json.dumps(obj) + "\n")
+            except _json.JSONDecodeError:
+                out.append(line + "\n")
+        elif "data:" in line and "[DONE]" in line:
+            out.append("data: [DONE]\n\n")
+            break
+    return ("\n".join(out) if out else text).encode("utf-8")
 
 
 def _strip_openclaw_metadata(text: str) -> str:
@@ -81,6 +207,12 @@ def _extract_verse_reference(text: str) -> str | None:
         re.IGNORECASE,
     )
     return m.group(1).strip() if m else None
+
+
+def _is_verse_lookup(text: str) -> bool:
+    """True if the question is 'What does X say?' style — expects only verse + citation, no extra content."""
+    t = text.lower().strip()
+    return bool(re.search(r"what does .+ say\??", t))
 
 
 def _is_meta_question(text: str) -> bool:
@@ -218,30 +350,17 @@ async def chat_completions(request: Request):
                 break
         # Skip RAG for meta-questions (what can you do?, etc.) so model answers directly
         if _is_meta_question(q):
-            # Replace with explicit instruction so model overrides verse bias
-            meta_prompt = (
-                "IMPORTANT: The user is asking what you can do. Do NOT quote any Bible verse. "
-                "Reply naturally and conversationally, like a helpful assistant would—as if talking to a friend. "
-                "Briefly mention: Bible Q&A, web search, session memory, Telegram. Do NOT start with 'Answer:' or use stiff phrases like 'Answer accordingly' or 'You are capable of.' Reply directly. "
-                "Keep it warm and natural.\n\nUser: " + q
-            )
+            # Skip RAG — pass cleaned question through; system prompt handles tone
             for i in range(len(messages) - 1, -1, -1):
                 if messages[i].get("role") == "user":
-                    messages[i] = {**messages[i], "content": meta_prompt}
+                    messages[i] = {**messages[i], "content": q}
                     break
             body = {**body, "messages": messages}
         else:
             context = _retrieve(q, top_k=RAG_TOP_K)
             if context:
-                augmented = (
-                    "Relevant Bible verses:\n\n"
-                    + context
-                    + "\n\n---\n\n"
-                    + "Answer the user's question naturally and directly. For verse lookups (e.g. 'What does X say?'), give the verse in quotes and 2-3 sentences. "
-                    + "For biographical or thematic questions (e.g. 'Who was X?', 'What does the Bible say about X?'), give a narrative explanation using these verses—do not default to a single verse. Speak conversationally, like a helpful assistant.\n\n"
-                    + "User question: "
-                    + q
-                )
+                # Per .cursorrules: minimal augmented prompt — context + question only, no behavioral instructions
+                augmented = "Context:\n" + context + "\n\nQ: " + q
                 for i in range(len(messages) - 1, -1, -1):
                     if messages[i].get("role") == "user":
                         messages[i] = {**messages[i], "content": augmented}
@@ -273,7 +392,7 @@ async def chat_completions(request: Request):
         "model": model,
         "messages": messages,
         "stream": stream,
-        "max_tokens": body.get("max_tokens") or 512,
+        "max_tokens": body.get("max_tokens") or 2048,
     }
 
     # DIAGNOSTIC: Remove once bug is found
@@ -302,14 +421,16 @@ async def chat_completions(request: Request):
                     status_code=502,
                     detail=f"Ollama {response.status_code}: {err_body}",
                 )
-            chunks = []
+            raw_chunks = []
             async for chunk in response.aiter_bytes():
-                chunks.append(chunk)
+                raw_chunks.append(chunk)
             await response.aclose()
 
+            full_sse = b"".join(raw_chunks).decode("utf-8", errors="replace")
+            cleaned_bytes = _strip_thinking_from_stream(full_sse)
+
             async def stream_bytes():
-                for c in chunks:
-                    yield c
+                yield cleaned_bytes
 
             return StreamingResponse(
                 stream_bytes(),
@@ -323,6 +444,8 @@ async def chat_completions(request: Request):
         try:
             content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
             if content:
+                content = _strip_thinking(content)
+                content = _strip_repetition_and_meta(content)
                 stripped = content.rstrip()
                 if stripped:
                     if stripped[-1] in ",;:":
