@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
-Build ChromaDB vector index from Bible JSON.
-Uses nomic-embed-text-v1.5 with search_document prefix. See docs/WALKTHROUGH.md Step 12.
+Build ChromaDB vector index from Bible JSON in data/raw/.
+
+Loads bible_web.json or bible.json from data/raw/, embeds with nomic-embed-text-v1.5
+using "search_document:" prefix (required for v1.5), stores in rag/chroma_db/.
 """
 import json
 from pathlib import Path
