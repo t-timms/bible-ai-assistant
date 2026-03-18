@@ -454,6 +454,7 @@ Follow this after **Phase 3** (training, merge, evaluation). Goal: convert your 
 ### Prerequisites
 
 - **Ollama** installed: https://ollama.com/download/windows  
+- **Conda env not required** for this step: GGUF conversion, quantize, and `ollama create`/`run` run outside conda. See [ENVIRONMENT_REQUIREMENTS.md](ENVIRONMENT_REQUIREMENTS.md).
 - **llama.cpp** (for conversion and quantize). Two options:
   - **Option A:** Clone and build locally (recommended for full control).
   - **Option B:** Use a Python GGUF converter that can read Hugging Face models (e.g. from `llama.cpp` repo).
