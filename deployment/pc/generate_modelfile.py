@@ -9,7 +9,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SYSTEM_PROMPT_PATH = PROJECT_ROOT / "prompts" / "system_prompt.txt"
 # Use absolute path so Ollama finds the local GGUF (relative FROM can be treated as a model name to pull)
 # Use f16 (from merged) or q4_k_m if you've quantized; update this when you have q4_k_m
-GGUF_PATH = (PROJECT_ROOT / "models" / "qwen3-4b-bible-John-v3-q4_k_m.gguf").resolve().as_posix()
+GGUF_PATH = (PROJECT_ROOT / "models" / "qwen3.5-4b-bible-John-v5-f16.gguf").resolve().as_posix()
 OUTPUT_PATH = Path(__file__).resolve().parent / "Modelfile"
 
 
@@ -29,8 +29,8 @@ TEMPLATE """{{{{- if .System }}}}<|im_start|>system
 SYSTEM """{system_text}"""
 
 PARAMETER temperature 0.2
-PARAMETER num_ctx 2048
-PARAMETER num_predict 256
+PARAMETER num_ctx 8192
+PARAMETER num_predict 512
 PARAMETER repeat_penalty 1.65
 PARAMETER repeat_last_n 128
 PARAMETER stop "<|im_end|>"

@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 """
 Merge LoRA adapters into full model (merged_16bit) for export and quantization.
-Run after train_unsloth.py. Output: models/<run_name>-merged (e.g. qwen3-4b-bible-John-merged).
+Run after train_unsloth.py. Output: models/<run_name>-merged (e.g. qwen3.5-4b-bible-John-v4-merged).
 
 Usage:
   python training/merge_adapters.py
-  python training/merge_adapters.py --lora-path models/qwen3-4b-bible-John --base-model models/base_model
+  python training/merge_adapters.py --lora-path models/qwen3.5-4b-bible-John-v4 --base-model models/base_model
 """
 from pathlib import Path
 import argparse
 import os
 
 # Defaults aligned with train_unsloth.py (run name = adapter folder)
-DEFAULT_LORA_NAME = "qwen3-4b-bible-John"
-MODEL_NAME = "Qwen/Qwen3-4B-Instruct-2507"
+DEFAULT_LORA_NAME = "qwen3.5-4b-bible-John-v5"
+MODEL_NAME = "Qwen/Qwen3.5-4B"
 
 
 def main() -> None:
@@ -60,9 +60,17 @@ def main() -> None:
         cap = torch.cuda.get_device_capability()
         if cap[0] >= 12:
             import unsloth.models.llama as _llama
-            import unsloth.models.qwen3 as _qwen3
             _llama.HAS_XFORMERS = False
-            _qwen3.HAS_XFORMERS = False
+            try:
+                import unsloth.models.qwen3 as _qwen3
+                _qwen3.HAS_XFORMERS = False
+            except ImportError:
+                pass
+            try:
+                import unsloth.models.qwen3_5 as _qwen3_5
+                _qwen3_5.HAS_XFORMERS = False
+            except ImportError:
+                pass
 
     # When base is local, Unsloth loads tokenizer from that path and transformers can fail (dict vs object).
     # Temporarily hide local tokenizer files so tokenizer loads from HF.
@@ -79,7 +87,7 @@ def main() -> None:
     try:
         model, tokenizer = FastLanguageModel.from_pretrained(
             model_name=base_path,
-            max_seq_length=2048,
+            max_seq_length=4096,
             load_in_4bit=False,
             dtype="bfloat16",
             tokenizer_name=MODEL_NAME if use_local_base else None,
