@@ -1,5 +1,6 @@
 """Validate evaluation_questions.json schema and content."""
 import json
+from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -9,6 +10,13 @@ QUESTIONS_PATH = PROJECT_ROOT / "prompts" / "evaluation_questions.json"
 
 REQUIRED_CATEGORIES = {"verse_lookup", "topical", "character", "cross_reference", "context"}
 REQUIRED_KEYS = {"question", "expected_answer", "category"}
+# Minimum number of questions per core category for balanced evaluation
+MIN_CATEGORY_COUNTS = {
+    "verse_lookup": 2,
+    "topical": 2,
+    "cross_reference": 2,
+    "context": 2,
+}
 
 
 @pytest.fixture
@@ -56,3 +64,19 @@ def test_minimum_category_coverage(questions: list[dict]) -> None:
     cats = {q.get("category") for q in questions}
     assert "verse_lookup" in cats, "Need verse_lookup questions for faithfulness/citation"
     assert "topical" in cats, "Need topical questions for thematic reasoning"
+
+
+def test_minimum_questions_per_category(questions: list[dict]) -> None:
+    """Each core category must have at least the minimum number of questions."""
+    counts = Counter(q.get("category") for q in questions)
+    for cat, min_count in MIN_CATEGORY_COUNTS.items():
+        actual = counts.get(cat, 0)
+        assert actual >= min_count, (
+            f"Category '{cat}' has {actual} questions, need at least {min_count}"
+        )
+
+
+def test_refusal_category_present(questions: list[dict]) -> None:
+    """Eval set should include refusal/boundary questions."""
+    cats = {q.get("category") for q in questions}
+    assert "refusal" in cats, "Need refusal questions to test boundary behavior"

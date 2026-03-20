@@ -1,6 +1,6 @@
 # Bible AI Assistant — Project Status & End Goal
 
-**Last updated:** March 2026 (v1 docs + RAG response hardening)
+**Last updated:** March 2026 (Gradio 6 demo UI + RAG retrieval hardening)
 
 ---
 
@@ -9,7 +9,7 @@
 ### 1. Core Infrastructure ✓
 - **RAG pipeline:** ChromaDB vector store + nomic-embed-text-v1.5 embeddings indexing 31,000+ Bible verses
 - **RAG server:** FastAPI middleware on port 8081 that retrieves verses, augments prompts, and post-processes model output (including `rag/response_cleanup.py`: Qwen `</think>` + plain “Thinking Process:” blocks)
-- **Gradio UI:** Text + voice chat (Faster-Whisper STT → RAG → Kokoro TTS)
+- **Gradio UI (6.x):** Landing page, RAG/TTS health check, text + voice (Faster-Whisper → RAG → Kokoro); `docs/DEMO_LAUNCH.md`, `requirements-ui.txt`, auto port if 7860 is busy
 
 ### 2. Cutting-Edge Upgrades (March 2026) ✓
 - **Upgrade 1:** Swapped base model to Qwen3.5-4B (newer, better performance)
@@ -30,7 +30,8 @@
 - Fixed RAG passage index CUDA OOM by reducing batch size for long passage embeddings
 - **Response cleanup:** shared `strip_model_thinking()` used by RAG server and `training/evaluate.py` so leaked chain-of-thought is stripped before users / eval see text
 - **RAG JSON correctness (non-streaming):** cleaned assistant text is always written to `choices[0].message.content` (fixes an edge case where replies ending in `.` / `?` / `!` / quotes skipped the final assignment and left raw Ollama output)
-- **Cleanup ordering:** paired `</think>`…`</think>` blocks are removed before flex `<think>`-style peeling so partial stripping cannot strand think bodies in the visible reply
+- **Cleanup ordering:** remove paired Qwen think-tag wrappers before flex `<think>`-style peeling so partial stripping cannot strand think bodies in the visible reply (`rag/response_cleanup.py`)
+- **Pinned verses & anchors:** explicit verse lookups and selected topical queries prepend Chroma-fetched verses so hybrid search cannot drop the asked reference; counseling-like phrasing adds a system guardrail message
 
 ---
 

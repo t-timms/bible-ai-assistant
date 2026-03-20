@@ -271,7 +271,11 @@ def load_verses(input_path: Path) -> list[dict]:
             if book and chapter and verse and text and len(str(text).strip()) >= 25:
                 out.append({"book": str(book), "chapter": int(chapter), "verse": int(verse), "text": str(text).strip()})
         return out
-    return []
+    raise ValueError(
+        f"Unsupported Bible JSON format in {input_path}: "
+        f"expected a dict (nested book/chapter/verse) or a list of verse objects, "
+        f"got {type(raw).__name__}"
+    )
 
 
 def _msg(system_prompt: str, user: str, assistant: str) -> dict:

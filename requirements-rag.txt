@@ -2,14 +2,16 @@
 # Does NOT pin transformers (unlike requirements.txt, which targets a legacy training stack).
 #
 #   pip install -r requirements-rag.txt
+#
+# For the Gradio UI, also: pip install -r requirements-ui.txt
 
 fastapi>=0.109.0
 uvicorn[standard]>=0.27.0
 httpx>=0.26.0
 chromadb>=0.4.0
 sentence-transformers>=2.2.0
-einops
+einops>=0.7.0
 rank_bm25>=0.2.2
-numpy
+numpy>=1.24.0
 pydantic>=2.0.0
 python-dotenv>=1.0.0

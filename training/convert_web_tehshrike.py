@@ -78,7 +78,11 @@ def main() -> None:
     all_verses = []
     for jpath in sorted(json_dir.glob("*.json")):
         book_name = filename_to_book_name(jpath.name)
-        arr = json.loads(jpath.read_text(encoding="utf-8"))
+        try:
+            arr = json.loads(jpath.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            print(f"  WARNING: Skipping {jpath.name} (malformed JSON: {e})")
+            continue
         verses = extract_verses_from_book_array(arr, book_name)
         all_verses.extend(verses)
         print(f"  {jpath.name}: {len(verses)} verses")

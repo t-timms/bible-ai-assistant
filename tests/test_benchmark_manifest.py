@@ -31,3 +31,11 @@ def test_manifest_has_suite_path(manifest: dict) -> None:
 
 def test_manifest_version_field(manifest: dict) -> None:
     assert "protocol_version" in manifest
+
+
+def test_manifest_version_is_positive_int(manifest: dict) -> None:
+    """Protocol version must be a positive integer to prevent accidental rollback."""
+    version = manifest.get("protocol_version")
+    assert isinstance(version, int) and version >= 1, (
+        f"protocol_version must be a positive integer, got: {version}"
+    )

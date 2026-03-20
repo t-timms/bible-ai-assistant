@@ -44,6 +44,11 @@ def main() -> None:
         )
     gguf_posix = gguf_path.as_posix()
 
+    if not SYSTEM_PROMPT_PATH.is_file():
+        raise FileNotFoundError(
+            f"System prompt not found: {SYSTEM_PROMPT_PATH}\n"
+            "Ensure prompts/system_prompt.txt exists in the project root."
+        )
     system_text = SYSTEM_PROMPT_PATH.read_text(encoding="utf-8").strip()
     content = f'''# Generated from prompts/system_prompt.txt — do not edit by hand; re-run generate_modelfile.py
 FROM {gguf_posix}

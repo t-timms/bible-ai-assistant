@@ -48,6 +48,7 @@ bible-ai-assistant/
 3. **Train:** Run bf16 LoRA fine-tuning (see `training/README.md`).
 4. **RAG:** Build ChromaDB index and start RAG server (see `rag/README.md`).
 5. **Run locally:** Ollama + RAG server (see `deployment/pc/`).
+6. **Gradio demo UI:** [docs/DEMO_LAUNCH.md](docs/DEMO_LAUNCH.md) — Ollama + RAG + `python ui/app.py` (landing page at http://127.0.0.1:7860). If you only installed RAG deps, run `pip install -r requirements-ui.txt` first.
 
 **Wrapping up a training cycle (no new training):** [docs/SHIP_v1_AND_POLISH_BACKLOG.md](docs/SHIP_v1_AND_POLISH_BACKLOG.md) + [docs/training_results/POST_TRAINING_CHECKLIST.md](docs/training_results/POST_TRAINING_CHECKLIST.md).
 

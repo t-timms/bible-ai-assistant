@@ -1,0 +1,16 @@
+# Gradio web UI (and optional in-process voice).
+# Install in the same env you use for RAG if the full requirements.txt was skipped:
+#
+#   pip install -r requirements-ui.txt
+#
+# ui/app.py targets Gradio 6.x (theme/css on launch(); Chatbot API updates).
+# For Gradio 4–5 only, pin: pip install "gradio>=4,<6" (may need older ui/app.py).
+#
+# Minimal text-only demo:
+#   pip install "gradio>=6.0,<7"
+
+gradio>=6.0,<7
+
+# Voice tab (STT + WAV write); skip if you only use Text
+faster-whisper>=1.0.0
+soundfile>=0.12.0

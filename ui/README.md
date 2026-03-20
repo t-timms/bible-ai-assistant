@@ -1,15 +1,45 @@
 # Gradio Web UI
 
-Web interface with **text** and **voice** tabs. Voice: microphone → Faster-Whisper → RAG+LLM → Kokoro TTS → playback.
+Landing page + **text** and **voice** chat. All LLM traffic goes through the **RAG server** (hybrid retrieval, response cleanup), then **Ollama**.
 
-## Run
+## Dependencies
 
-```bash
-conda activate bible-ai-assistant
-python ui/app.py
-# Open http://localhost:7860
+If you used **`requirements-rag.txt`** only, Gradio is not installed yet:
+
+```powershell
+pip install -r requirements-ui.txt
 ```
 
-Requires: RAG server on 8081, Kokoro TTS on 8880, Whisper (in-process). See guide Section 18.
+The UI is tested with **Gradio 6.x** (`requirements-ui.txt`). Gradio 6 moved `theme` / `css` to `launch()` and adjusted `Chatbot` props.
 
-Checkpoint: **v0.9.0** when Gradio UI with voice is ready for demo.
+## Launch
+
+**Full stack:** see **[docs/DEMO_LAUNCH.md](../docs/DEMO_LAUNCH.md)** or run `.\scripts\start_demo.ps1` from the repo root for copy-paste steps.
+
+Minimal (after RAG + Ollama are already up):
+
+```powershell
+conda activate <your-env>
+cd bible-ai-assistant
+python ui/app.py
+# http://127.0.0.1:7860
+```
+
+## Environment
+
+| Variable | Default |
+|----------|---------|
+| `RAG_SERVER_URL` | `http://127.0.0.1:8081` |
+| `OLLAMA_MODEL` | `bible-assistant-orpo` |
+| `GRADIO_HOST` | `127.0.0.1` |
+| `GRADIO_PORT` or `GRADIO_SERVER_PORT` | `7860` — if that port is busy, the app tries **7861, 7862, …** automatically and prints the URL |
+| `TTS_URL` | `http://localhost:8880` |
+
+The UI pings RAG `/health` on load and offers **Refresh connection status**. You can change the **Ollama model name** in the sidebar without restarting the app.
+
+## Voice
+
+- **STT:** Faster-Whisper in-process (GPU if available).
+- **TTS:** pip `kokoro` (local) or HTTP Kokoro on port **8880** (Docker). See `deployment/pc/voice_setup.md`.
+
+Checkpoint: **v0.9.0** when Gradio demo is showcase-ready.
