@@ -17,9 +17,9 @@ Usage:
 
 Then run: python training/dataset_builder.py --max-examples 50000
 """
-from pathlib import Path
 import json
 import re
+from pathlib import Path
 
 
 def filename_to_book_name(filename: str) -> str:

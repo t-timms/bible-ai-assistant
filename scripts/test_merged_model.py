@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Quick test of merged model with transformers (no GGUF/Ollama)."""
 import argparse
+
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 

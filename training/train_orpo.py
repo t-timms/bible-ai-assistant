@@ -12,8 +12,9 @@ Usage:
   python training/train_orpo.py --sft-path models/qwen3.5-4b-bible-John-v4 --no-wandb
 """
 # Fix Windows console encoding and W&B service timeout (must run before other imports)
-import sys
 import os
+import sys
+
 if sys.platform == "win32":
     os.environ.setdefault("PYTHONIOENCODING", "utf-8")
     os.environ.setdefault("WANDB__SERVICE_WAIT", "90")
@@ -25,8 +26,8 @@ if sys.platform == "win32":
     except Exception:
         pass
 
-from pathlib import Path
 import argparse
+from pathlib import Path
 
 MODEL_NAME = "Qwen/Qwen3.5-4B"
 MAX_SEQ_LENGTH = 4096
@@ -74,12 +75,12 @@ def main() -> None:
         )
 
     try:
-        import os
         import torch
-        import wandb
-        from unsloth import FastLanguageModel
-        from trl import ORPOTrainer, ORPOConfig
         from datasets import load_dataset
+        from trl import ORPOConfig, ORPOTrainer
+        from unsloth import FastLanguageModel
+
+        import wandb
     except ImportError as e:
         raise ImportError(
             "Install deps: pip install unsloth trl datasets wandb. "
@@ -169,8 +170,8 @@ def main() -> None:
     )
 
     # Load SFT weights into the LoRA adapter
-    from peft import set_peft_model_state_dict
     import safetensors.torch
+    from peft import set_peft_model_state_dict
     adapter_file = sft_path / "adapter_model.safetensors"
     if adapter_file.exists():
         sft_state = safetensors.torch.load_file(str(adapter_file))
@@ -205,7 +206,7 @@ def main() -> None:
     def format_for_orpo(examples):
         prompts, chosens, rejecteds = [], [], []
         for prompt_msgs, chosen_msgs, rejected_msgs in zip(
-            examples["prompt"], examples["chosen"], examples["rejected"]
+            examples["prompt"], examples["chosen"], examples["rejected"], strict=True
         ):
             prompt_text = tokenizer.apply_chat_template(
                 prompt_msgs, tokenize=False, add_generation_prompt=True
