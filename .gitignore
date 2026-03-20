@@ -4,6 +4,7 @@
 *.safetensors
 models/
 checkpoints/
+checkpoints-orpo/
 
 # Environment secrets
 .env
@@ -53,3 +54,13 @@ wandb/
 
 # Unsloth compiled cache
 unsloth_compiled_cache/
+
+# Personal learning and interview prep (not shared)
+personal/
+interview_notes/
+learning_notes/
+*_personal_notes*
+*_my_notes*
+docs/_personal/
+docs/interview_notes/
+study/

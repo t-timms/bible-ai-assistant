@@ -1,6 +1,6 @@
 # Bible AI Assistant
 
-A fine-tuned Bible Q&A assistant built on Qwen3 4B, deployed on the NVIDIA Jetson Orin Nano Super with a RAG layer, voice mode, OpenClaw agent integration, and a constitutional alignment system grounded in the Ten Commandments.
+A fine-tuned Bible Q&A assistant built on Qwen3.5-4B, with hybrid RAG (ChromaDB + dense + sparse retrieval), deployed locally via Ollama. Trained on ~1,800 diverse examples with bf16 LoRA and optional ORPO alignment.
 
 ## Demo
 
@@ -8,24 +8,18 @@ A fine-tuned Bible Q&A assistant built on Qwen3 4B, deployed on the NVIDIA Jetso
 
 ## Architecture
 
-- **Fine-tuning:** QLoRA on RTX 5070 Ti (16GB VRAM)
-- **Base model:** Qwen3-4B-Instruct-2507 (Alibaba)
-- **RAG:** ChromaDB + nomic-embed-text-v1.5 (31,102 verses)
-- **Inference:** llama.cpp (Q4_K_M) on Jetson Orin Nano Super
-- **Voice:** Faster-Whisper (STT) + Kokoro 82M (TTS)
-- **Agent:** OpenClaw via DigitalOcean VPS + Tailscale VPN
-- **Interface:** Telegram + Gradio Web UI with Voice
+- **Fine-tuning:** bf16 LoRA on Qwen3.5-4B (Unsloth, PEFT, TRL)
+- **Base model:** Qwen/Qwen3.5-4B
+- **RAG:** ChromaDB + nomic-embed-text-v1.5 + hybrid retrieval (dense + BM25 + reranker)
+- **Inference:** Ollama (GGUF f16 or Q4_K_M), optional llama.cpp on Jetson
+- **Voice:** Faster-Whisper (STT) + Kokoro TTS (optional Gradio UI)
 
 ## Skills Demonstrated
 
-- LLM fine-tuning with QLoRA (Unsloth, PEFT, TRL)
-- Retrieval-Augmented Generation (ChromaDB, nomic-embed)
-- Voice pipeline (Faster-Whisper STT, Kokoro TTS)
-- Model quantization and edge deployment (llama.cpp, GGUF)
-- AI agent orchestration (OpenClaw, Ollama)
-- Constitutional AI design and implementation
-- MLOps: experiment tracking (W&B), model versioning (HF Hub)
-- Production: Docker, systemd, Tailscale VPN, DigitalOcean
+- LLM fine-tuning with bf16 LoRA (Unsloth, PEFT, TRL)
+- Retrieval-Augmented Generation (ChromaDB, hybrid retrieval)
+- Model quantization and deployment (GGUF, Ollama)
+- MLOps: experiment tracking (W&B)
 
 ## Repository Structure
 
@@ -34,6 +28,8 @@ bible-ai-assistant/
 ├── data/           # Raw and processed Bible datasets
 ├── training/       # Fine-tuning scripts and config
 ├── rag/            # ChromaDB RAG server and index builder
+├── scripts/        # Utility scripts (leaderboard, tests)
+├── tests/          # Pytest unit tests
 ├── voice/          # STT (Faster-Whisper) and TTS (Kokoro) services
 ├── prompts/        # System prompt and evaluation questions
 ├── deployment/     # PC, Jetson, and VPS setup
@@ -47,11 +43,19 @@ bible-ai-assistant/
 
 ## Quick Start
 
-1. **Environment:** Create conda env and install dependencies (see [Environment Setup](#environment-setup) in the guide).
+1. **Environment:** Create conda env and install dependencies (see [docs/WALKTHROUGH.md](docs/WALKTHROUGH.md) Steps 4–5).
 2. **Data:** Build dataset in `data/processed/` (see `data/README.md`).
-3. **Train:** Run QLoRA fine-tuning (see `training/README.md`).
+3. **Train:** Run bf16 LoRA fine-tuning (see `training/README.md`).
 4. **RAG:** Build ChromaDB index and start RAG server (see `rag/README.md`).
-5. **Run locally:** Ollama + OpenClaw + RAG (see `deployment/pc/`).
+5. **Run locally:** Ollama + RAG server (see `deployment/pc/`).
+
+**Wrapping up a training cycle (no new training):** [docs/SHIP_v1_AND_POLISH_BACKLOG.md](docs/SHIP_v1_AND_POLISH_BACKLOG.md) + [docs/training_results/POST_TRAINING_CHECKLIST.md](docs/training_results/POST_TRAINING_CHECKLIST.md).
+
+## Changelog & quality
+
+- **[CHANGELOG.md](CHANGELOG.md)** — notable code and behavior changes (RAG cleanup, eval, benchmarks).
+- **Tests:** `pip install pytest` (or `pip install -e ".[dev]"`), then from the repo root: `python -m pytest tests/`. CI sets `PYTHONPATH=.` for the same layout (see `.github/workflows/ci.yml`).
+- **CI:** GitHub Actions runs **ruff** on `training/`, `rag/`, `scripts/`, `ui/`, `voice/` and **pytest** on `tests/` (see [.github/workflows/ci.yml](.github/workflows/ci.yml)).
 
 ## Author
 
@@ -59,4 +63,4 @@ Tremayne Timms
 
 ## License
 
-Model and code: Apache 2.0 where applicable. Scripture sources: public domain (KJV, WEB, etc.).
+Model and code: MIT. Scripture sources: public domain (KJV, WEB, etc.).

@@ -1,0 +1,15 @@
+# RAG + API only — safe to install in bible-orpo alongside transformers 5.x
+# Does NOT pin transformers (unlike requirements.txt, which targets a legacy training stack).
+#
+#   pip install -r requirements-rag.txt
+
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+httpx>=0.26.0
+chromadb>=0.4.0
+sentence-transformers>=2.2.0
+einops
+rank_bm25>=0.2.2
+numpy
+pydantic>=2.0.0
+python-dotenv>=1.0.0

@@ -1,0 +1,36 @@
+# Bible Assistant — versioned evaluation protocol (v1)
+# Bump protocol_id / version when you change the question suite, judge rubric, or metric definitions.
+
+protocol_id: bible_assistant_baseline_v1
+protocol_version: 1
+suite_path: prompts/evaluation_questions.json
+
+description: >
+  Regression and A/B harness aligned with common LLM product practice: fixed held-out prompts,
+  automated metrics, optional LLM-as-judge, and JSON artifacts for diffing across runs.
+  This is not a universal "industry standard" Bible benchmark — it is your frozen internal suite.
+
+metrics:
+  keyword:
+    summary: Fast overlap + citation regex + fabricated-reference heuristic
+    cli: python training/evaluate.py --protocol-id bible_assistant_baseline_v1 --ollama-model <name>
+  judge:
+    summary: Five 1–5 rubric dimensions (same judge model required for comparability)
+    cli: python training/evaluate.py --judge --protocol-id bible_assistant_baseline_v1 --ollama-model <name>
+
+judge:
+  # Default judge in evaluate.py; override with --judge-model. Example alternates: qwen3:32b, qwen3-coder:30b
+  default_model: qwen3.5:27b
+  default_url_env: OLLAMA_URL
+  dimensions:
+    - faithfulness
+    - citation
+    - hallucination
+    - helpfulness
+    - conciseness
+
+reproducibility_checklist:
+  - RAG server and Chroma index unchanged (or document commit + index build)
+  - Same Ollama model tag (e.g. bible-assistant-orpo vs bible-assistant-orpo-f16)
+  - Same judge model weights for --judge runs
+  - Record GPU/driver and llama.cpp / Ollama versions in run notes when comparing quantizations

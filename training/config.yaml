@@ -1,10 +1,10 @@
 # Bible AI Assistant - Training Config
-# QLoRA fine-tuning for Qwen3-4B-Instruct-2507
+# Qwen3.5-4B: use bf16 LoRA (load_in_4bit: false). Unsloth does NOT recommend 4-bit for Qwen3.5.
 
 model:
-  name: "Qwen/Qwen3-4B-Instruct-2507"
-  load_in_4bit: true
-  max_seq_length: 2048
+  name: "Qwen/Qwen3.5-4B"
+  load_in_4bit: false
+  max_seq_length: 2048  # 4096 OOMs on 16GB with bf16 LoRA; 2048 fits
 
 lora:
   r: 16
@@ -22,9 +22,10 @@ lora:
 
 training:
   output_dir: "checkpoints"
+  eval_split: 0.1  # Fraction of data held out for evaluation during training
   num_train_epochs: 3
-  per_device_train_batch_size: 4
-  gradient_accumulation_steps: 4
+  per_device_train_batch_size: 2   # 4 OOMs with 2048 seq; use grad_accum 8 for effective 16
+  gradient_accumulation_steps: 8
   learning_rate: 2.0e-4
   warmup_steps: 100
   save_steps: 500

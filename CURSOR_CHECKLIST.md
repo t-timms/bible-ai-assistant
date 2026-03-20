@@ -5,7 +5,7 @@ Read `.cursorrules` before starting ANY task. Every file must comply with the ar
 ---
 
 ## PHASE 1: Dataset (Priority: HIGH)
-**Goal:** Build a 30K-50K example Bible Q&A dataset for fine-tuning.
+**Goal:** Build ~1,800 diverse Bible Q&A examples for fine-tuning (quality over quantity to avoid overfitting).
 
 - [ ] Create `data/build_dataset.py`
   - Loads raw Bible text from `data/raw/` (JSON or CSV, all 66 books, KJV + NIV + ESV)
@@ -17,7 +17,7 @@ Read `.cursorrules` before starting ANY task. Every file must comply with the ar
     - Context: "What is the context of [verse]?" → surrounding passage explanation
   - Output format: JSONL with `{"instruction": "...", "input": "", "output": "..."}`
   - Save to `data/processed/bible_qa_dataset.jsonl`
-  - Target: minimum 30,000 examples
+  - Target: ~1,800 diverse examples (verse lookups, thematic, cross-reference, meta, refusals)
   - Include train/val split (90/10) saved as separate files
 
 - [ ] Create `data/raw/download_bible.py`
@@ -54,15 +54,15 @@ Read `.cursorrules` before starting ANY task. Every file must comply with the ar
 ---
 
 ## PHASE 3: Training Scripts (Priority: HIGH)
-**Goal:** Fine-tune Qwen3-4B-Instruct-2507 on the Bible dataset.
+**Goal:** Fine-tune Qwen3.5-4B on the Bible dataset.
 
 - [ ] Verify `training/train_unsloth.py`:
-  - Model: `Qwen/Qwen3-4B-Instruct-2507`
+  - Model: `Qwen/Qwen3.5-4B`
   - Uses `FastModel` from unsloth (or `FastLanguageModel` — both work)
   - `bf16=True` (NEVER `fp16=True`)
-  - LoRA config: `r=16`, `alpha=32`, `dropout=0.05`
+  - LoRA config: `r=16`, `alpha=32`, `dropout=0.1`
   - Target modules: `q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj`
-  - Dataset loaded from `data/processed/bible_qa_train.jsonl`
+  - Dataset loaded from `data/processed/train.json`
   - Chat template applied (Qwen3 uses ChatML `<|im_start|>` format)
   - W&B logging enabled
   - Saves checkpoints to `checkpoints/`
@@ -72,12 +72,12 @@ Read `.cursorrules` before starting ANY task. Every file must comply with the ar
 - [ ] Verify `training/merge_adapters.py`:
   - Loads base model + LoRA adapter from `checkpoints/`
   - Merges to full 16-bit model
-  - Saves to `models/bible-qwen3-4b-merged/`
+  - Saves to `models/qwen3.5-4b-bible-John-vN-merged/`
 
 - [ ] Create `training/quantize_gguf.sh` (or .bat for Windows):
   - Converts merged model to GGUF Q4_K_M using llama.cpp
-  - Saves to `models/bible-qwen3-q4km.gguf`
-  - Command: `python llama.cpp/convert_hf_to_gguf.py models/bible-qwen3-4b-merged/ --outtype q4_k_m --outfile models/bible-qwen3-q4km.gguf`
+  - Saves to `models/qwen3.5-4b-bible-John-vN-q4_k_m.gguf`
+  - Command: `python llama.cpp/convert_hf_to_gguf.py models/qwen3.5-4b-bible-John-vN-merged/ --outtype q4_k_m --outfile models/qwen3.5-4b-bible-John-vN-q4_k_m.gguf`
 
 ---
 
@@ -95,7 +95,7 @@ Read `.cursorrules` before starting ANY task. Every file must comply with the ar
 
 - [ ] Create `training/evaluate.py`:
   - Loads the fine-tuned model (via Ollama API at localhost:11434 or direct)
-  - Also loads base Qwen3-4B (untuned) for comparison
+  - Also loads base Qwen3.5-4B (untuned) for comparison
   - Runs all 50 questions through both models
   - Scores each response:
     - Verse accuracy: does the cited verse text match the actual verse?
@@ -179,7 +179,7 @@ Read `.cursorrules` before starting ANY task. Every file must comply with the ar
   - Setup instructions (5 steps max)
   - Demo screenshot or GIF
   - Skills demonstrated section:
-    - Fine-tuning (QLoRA, Unsloth)
+    - Fine-tuning (bf16 LoRA, Unsloth)
     - RAG (ChromaDB, nomic-embed-text-v1.5)
     - Constitutional AI alignment
     - Multi-model agent orchestration (OpenClaw)

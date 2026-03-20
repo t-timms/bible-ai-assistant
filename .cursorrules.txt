@@ -4,112 +4,78 @@
 
 ## Project overview
 
-This is a Bible AI assistant with two models in a router pattern:
+This is a Bible AI assistant — a fine-tuned Qwen3.5-4B model with RAG for grounded answers. Single model, no agent orchestration.
 
-1. AGENT BRAIN: Qwen3-Coder 32B running in Ollama on port 11434.
-   This is OpenClaw's primary model. It handles tool calling, web
-   search, session memory, Telegram routing, and all agentic tasks.
-   We NEVER modify this model's behavior. It works out of the box.
+1. BIBLE MODEL: Qwen3.5-4B fine-tuned on Scripture, running in Ollama as "bible-assistant".
+   Can be used directly (ollama run bible-assistant) or via the RAG server.
 
-2. BIBLE SPECIALIST: Qwen3-4B fine-tuned on Scripture, running in
-   Ollama as "bible-assistant". Accessed ONLY through the RAG server
-   on port 8081. It receives simple questions and returns clean
-   verse answers. It should NEVER receive OpenClaw prompt injection,
-   tool schemas, or agent instructions.
+2. RAG SERVER: FastAPI app (rag/rag_server.py) on port 8081.
+   Receives questions, retrieves relevant verses from ChromaDB using nomic-embed-text-v1.5,
+   prepends them as context, forwards to the Bible model via Ollama, returns the response.
+   Clients (Gradio, curl, any OpenAI-compatible client) point at http://localhost:8081/v1.
 
-3. RAG SERVER: FastAPI app (rag/rag_server.py) on port 8081.
-   It receives questions, retrieves relevant verses from ChromaDB
-   using nomic-embed-text-v1.5, prepends them as context, forwards
-   to the Bible model via Ollama, and returns the clean response.
-
-4. VOICE STACK (PC only):
+3. VOICE STACK (PC only):
    - STT: Faster-Whisper Large V3 Turbo (voice/stt_server.py)
    - TTS: Kokoro 82M via Docker on port 8880
 
-5. OPENCLAW: Agent framework running as a gateway. Uses the 32B
-   model for orchestration. Calls the Bible model as a custom skill
-   via HTTP to port 8081. Connects to Telegram and other channels.
-
 ## Critical architecture rules
-
-- The Bible model (4B) NEVER talks to OpenClaw directly.
-  OpenClaw talks to the 32B agent brain. The agent brain calls
-  the Bible model as a skill via the RAG server.
 
 - The RAG server's augmented prompt should be MINIMAL:
   "Context:\n[verses]\n\nQ: [question]"
-  No behavioral instructions. The system prompt in the Modelfile
-  handles all formatting rules.
+  No behavioral instructions. The system prompt in the Modelfile handles all formatting.
 
 - The system prompt lives in prompts/system_prompt.txt and is
-  baked into the Ollama Modelfile. It is NOT injected at runtime
-  by the RAG server.
+  baked into the Ollama Modelfile. It is NOT injected at runtime by the RAG server.
 
-- Post-processing in the RAG server should be MINIMAL. If we
-  need extensive regex cleanup, the problem is upstream (prompt
-  too complex, wrong model receiving OpenClaw instructions, etc).
+- Post-processing in the RAG server should be MINIMAL. If we need extensive regex cleanup,
+  the problem is upstream (prompt too complex), not more regex.
 
 ## File locations
 
 - rag/rag_server.py          — RAG middleware (port 8081)
 - rag/build_index.py         — Builds ChromaDB vector index
 - prompts/system_prompt.txt  — Bible model system prompt
+- prompts/system_prompt_training.txt — Short prompt for training (avoids instruction leaking)
 - training/train_unsloth.py  — Fine-tuning script
 - training/evaluate.py       — Model evaluation
 - ui/app.py                  — Gradio web UI with voice
 - voice/stt_server.py        — Whisper STT service
-- deployment/jetson/          — Edge deployment configs
-- ~/.openclaw/SOUL.md        — OpenClaw agent personality (MINIMAL)
-- ~/.openclaw/openclaw.json  — OpenClaw config (points to 32B)
-- ~/.openclaw/workspace/skills/bible-lookup/SKILL.md — Skill def
+- deployment/jetson/         — Edge deployment configs
 
 ## Tech stack
 
-- Python 3.11, conda env "bible-ai"
-- PyTorch nightly with CUDA 12.8+ (RTX 5070 Ti = Blackwell sm_120)
-- Training: Unsloth + QLoRA, bf16 (NEVER fp16)
-- Inference: Ollama serving both models
+- Python 3.11, conda env "bible-orpo" for Qwen3.5 training (transformers 5.x)
+- PyTorch with CUDA 12.8+ (RTX 5070 Ti = Blackwell sm_120)
+- Training: Unsloth + bf16 LoRA (NEVER fp16, NEVER 4-bit for Qwen3.5)
+- Inference: Ollama
 - RAG: ChromaDB + nomic-embed-text-v1.5 (requires task prefixes:
   "search_document: " for indexing, "search_query: " for retrieval)
 - TTS: Kokoro-FastAPI Docker container
 - STT: faster-whisper library
-- Agent: OpenClaw (Node.js 22+, installed globally via npm)
-- VPN: Tailscale (for Jetson <-> VPS connection)
 
 ## When editing rag_server.py
 
 - Keep the augmented prompt simple: context + question only
 - Do not add behavioral instructions to the RAG injection
 - Post-processing should only handle: thinking block removal,
-  punctuation cleanup, and the nuclear cutoff for leaked meta text
-- If the model echoes instructions, the fix is upstream (wrong
-  model receiving complex prompts), not more regex
+  punctuation cleanup, and stripping client metadata if present
+- If the model echoes instructions, the fix is upstream (training data, system prompt),
+  not more regex
 
 ## When editing system_prompt.txt
 
 - This goes in the Ollama Modelfile, not in runtime injection
-- Keep it focused: identity, rules, citation format, confidence
-  levels, response guidelines
+- Keep it focused: identity, rules, citation format, confidence levels, response guidelines
 - Do NOT use decorative separators (═══) — the model echoes them
 - Use simple --- or blank lines between sections
 - Fewer words = less the model can echo back
 
-## When editing SOUL.md
-
-- This is for the 32B agent brain, NOT the Bible model
-- Keep it under 10 lines
-- It should describe identity and when to use skills
-- No behavioral micromanagement — the 32B model is smart enough
-
 ## Common mistakes to avoid
 
-1. Pointing OpenClaw directly at the Bible 4B model
-   (causes instruction echoing — the 4B can't parse agent prompts)
-2. Adding "do not" instructions to fix echoing
-   (makes it worse — more text to echo)
-3. Using fp16 for training (causes NaN on Blackwell GPUs)
-4. Using CUDA 12.6 (sm_120 requires 12.8+)
-5. Using nomic-embed-text-v1 instead of v1.5
-   (v1.5 needs task prefixes but has better retrieval)
-6. Putting complex instructions in the RAG augmented prompt
+1. Adding "do not" instructions to fix echoing (makes it worse — more text to echo)
+2. Using fp16 for training (causes NaN on Blackwell GPUs)
+3. Using CUDA 12.6 (sm_120 requires 12.8+)
+4. Using nomic-embed-text-v1 instead of v1.5 (v1.5 needs task prefixes but has better retrieval)
+5. Putting complex instructions in the RAG augmented prompt
    (keep it to context + question, let the system prompt do the work)
+6. Using load_in_4bit for Qwen3.5 (Unsloth does not recommend; causes garbage output)

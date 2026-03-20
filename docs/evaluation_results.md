@@ -13,4 +13,4 @@ Record pass/fail and metrics from `training/evaluate.py` before each deployment.
 
 | Date       | Model/checkpoint     | Verse accuracy | Constitution | Fabrications | Notes |
 |------------|----------------------|----------------|--------------|--------------|-------|
-| YYYY-MM-DD | bible-qwen3-4b-lora   | —              | —            | 0            | First run |
+| YYYY-MM-DD | qwen3.5-4b-bible-John-vN | —              | —            | 0            | First run |

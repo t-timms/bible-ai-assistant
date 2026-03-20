@@ -1,29 +1,70 @@
 #!/usr/bin/env python3
 """
-Merge LoRA adapters into full model (merged_16bit) for export and quantization.
-Run after train_unsloth.py. Output: models/<run_name>-merged (e.g. qwen3.5-4b-bible-John-v4-merged).
+Merge LoRA adapters into full model (merged bf16) for export and quantization.
+Run after train_unsloth.py. Output: models/<run_name>-merged (e.g. qwen3.5-4b-bible-John-v8-merged).
+
+Qwen3.5 + Unsloth: saved adapters use keys with ``language_model.layers`` and ``lora_A.weight``.
+Native ``transformers`` + PEFT expect ``model.model.layers`` and ``lora_A.default.weight``.
+``FastLanguageModel`` + ``PeftModel.from_pretrained`` therefore skips all LoRA weights (silent merge
+failure → garbage output). This script remaps keys and uses ``get_peft_model`` + ``load_state_dict``.
 
 Usage:
   python training/merge_adapters.py
-  python training/merge_adapters.py --lora-path models/qwen3.5-4b-bible-John-v4 --base-model models/base_model
+  python training/merge_adapters.py --lora-path models/qwen3.5-4b-bible-John-v8
+  python training/merge_adapters.py --lora-path models/qwen3.5-4b-bible-John-v8 --base-model Qwen/Qwen3.5-4B
+  # If you trained with --model-path models/base_model, merge with the same path:
+  python training/merge_adapters.py --lora-path ... --base-model models/base_model
 """
-from pathlib import Path
+from __future__ import annotations
+
 import argparse
 import os
+from pathlib import Path
 
 # Defaults aligned with train_unsloth.py (run name = adapter folder)
-DEFAULT_LORA_NAME = "qwen3.5-4b-bible-John-v5"
+DEFAULT_LORA_NAME = "qwen3.5-4b-bible-John-v8"
 MODEL_NAME = "Qwen/Qwen3.5-4B"
+
+# Unsloth-saved Qwen3.5 LoRA → native HF + PEFT key layout
+_LORA_KEY_REMAP_OLD = "base_model.model.model.language_model.layers"
+_LORA_KEY_REMAP_NEW = "base_model.model.model.layers"
+
+
+def _remap_lora_state_dict(state_dict: dict) -> dict[str, object]:
+    out: dict[str, object] = {}
+    for key, tensor in state_dict.items():
+        nk = key.replace(_LORA_KEY_REMAP_OLD, _LORA_KEY_REMAP_NEW)
+        nk = nk.replace(".lora_A.weight", ".lora_A.default.weight").replace(
+            ".lora_B.weight", ".lora_B.default.weight"
+        )
+        out[nk] = tensor
+    return out
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--lora-path", type=str, default=None,
-                        help=f"Path to LoRA adapter (default: models/{DEFAULT_LORA_NAME})")
-    parser.add_argument("--base-model", type=str, default=None,
-                        help="Path to base model (default: models/base_model if exists, else HF)")
-    parser.add_argument("--output", type=str, default=None,
-                        help="Output folder for merged model (default: <lora_path>-merged)")
+    parser.add_argument(
+        "--lora-path",
+        type=str,
+        default=None,
+        help=f"Path to LoRA adapter (default: models/{DEFAULT_LORA_NAME})",
+    )
+    parser.add_argument(
+        "--base-model",
+        type=str,
+        default=None,
+        help=(
+            "Path or HF id for base weights (default: Qwen/Qwen3.5-4B, same as train_unsloth "
+            "without --model-path). Do NOT use models/base_model unless that exact folder "
+            "was used for training — a mismatched base causes shape errors at merge."
+        ),
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        help="Output folder for merged model (default: <lora_path>-merged)",
+    )
     args = parser.parse_args()
 
     project_root = Path(__file__).resolve().parents[1]
@@ -34,75 +75,67 @@ def main() -> None:
             f"LoRA checkpoint not found: {lora_path}. Run train_unsloth.py first."
         )
 
-    base_path = args.base_model
-    if base_path is None:
-        base_candidate = project_root / "models" / "base_model"
-        base_path = str(base_candidate) if base_candidate.exists() else MODEL_NAME
-    else:
-        base_path = str(Path(base_path).resolve())
+    adapter_file = lora_path / "adapter_model.safetensors"
+    if not adapter_file.exists():
+        raise FileNotFoundError(f"Missing {adapter_file}")
 
-    out_path = args.output
-    if out_path is None:
+    # Default matches train_unsloth.py when --model-path is omitted (HF hub).
+    # Auto-using models/base_model caused wrong-arch merges when that copy differed
+    # from the checkpoint the LoRA was trained on (e.g. different revision).
+    if args.base_model:
+        raw = args.base_model
+        p = Path(raw).expanduser()
+        base_path = str(p.resolve()) if p.is_dir() else raw
+    else:
+        base_path = MODEL_NAME
+
+    out_path: Path
+    if args.output is None:
         out_path = project_root / "models" / f"{lora_path.name}-merged"
     else:
-        out_path = Path(out_path).resolve()
+        out_path = Path(args.output).resolve()
     out_path.mkdir(parents=True, exist_ok=True)
 
     try:
         import torch
-        from unsloth import FastLanguageModel
-        from peft import PeftModel
+        from peft import PeftConfig, get_peft_model
+        from safetensors.torch import load_file
+        from transformers import AutoModelForCausalLM, AutoTokenizer
     except ImportError as e:
-        raise ImportError("Install unsloth and peft: pip install unsloth peft") from e
+        raise ImportError("Install peft, safetensors, transformers: pip install peft safetensors transformers") from e
 
-    # Blackwell: force SDPA so merge doesn't use xformers
-    if torch.cuda.is_available():
-        cap = torch.cuda.get_device_capability()
-        if cap[0] >= 12:
-            import unsloth.models.llama as _llama
-            _llama.HAS_XFORMERS = False
-            try:
-                import unsloth.models.qwen3 as _qwen3
-                _qwen3.HAS_XFORMERS = False
-            except ImportError:
-                pass
-            try:
-                import unsloth.models.qwen3_5 as _qwen3_5
-                _qwen3_5.HAS_XFORMERS = False
-            except ImportError:
-                pass
+    device_map = "auto" if torch.cuda.is_available() else "cpu"
+    print(f"Loading base model from {base_path!r} (device_map={device_map!r})...")
+    base_model = AutoModelForCausalLM.from_pretrained(
+        base_path,
+        dtype=torch.bfloat16,
+        device_map=device_map,
+        trust_remote_code=True,
+    )
 
-    # When base is local, Unsloth loads tokenizer from that path and transformers can fail (dict vs object).
-    # Temporarily hide local tokenizer files so tokenizer loads from HF.
-    use_local_base = (base_path != MODEL_NAME)
-    tokenizer_renames = []
-    if use_local_base:
-        base_dir = Path(base_path)
-        for f in ("tokenizer_config.json", "tokenizer.json", "special_tokens_map.json"):
-            p = base_dir / f
-            if p.exists():
-                bak = p.with_suffix(p.suffix + ".bak")
-                os.rename(p, bak)
-                tokenizer_renames.append((bak, p))
-    try:
-        model, tokenizer = FastLanguageModel.from_pretrained(
-            model_name=base_path,
-            max_seq_length=4096,
-            load_in_4bit=False,
-            dtype="bfloat16",
-            tokenizer_name=MODEL_NAME if use_local_base else None,
+    print(f"Loading PEFT config from {lora_path}...")
+    peft_config = PeftConfig.from_pretrained(str(lora_path))
+
+    print("Building PEFT model and loading remapped LoRA weights...")
+    model = get_peft_model(base_model, peft_config)
+    raw_sd = load_file(str(adapter_file))
+    remapped = _remap_lora_state_dict(raw_sd)
+    load_result = model.load_state_dict(remapped, strict=False)
+    n_lora_missing = sum(1 for k in load_result.missing_keys if "lora" in k)
+    if n_lora_missing:
+        raise RuntimeError(
+            f"LoRA weights missing after remap ({n_lora_missing} keys). "
+            "Check Unsloth/PEFT versions or adapter layout."
         )
-    finally:
-        for bak, orig in tokenizer_renames:
-            if bak.exists():
-                os.rename(bak, orig)
-    # Load LoRA adapter
-    model = PeftModel.from_pretrained(model, str(lora_path))
+    if load_result.unexpected_keys:
+        print(f"Warning: unexpected keys ignored: {load_result.unexpected_keys[:5]}...")
 
-    # Merge LoRA into base model in memory (Unsloth's save_pretrained_merged is bound to base, so use PEFT merge)
+    print("Merging LoRA into base weights...")
     model = model.merge_and_unload()
 
-    # Save merged model (bf16) and tokenizer for inference / GGUF conversion
+    tokenizer = AutoTokenizer.from_pretrained(base_path, trust_remote_code=True)
+
+    print(f"Saving merged model to {out_path}...")
     model.save_pretrained(str(out_path), safe_serialization=True)
     tokenizer.save_pretrained(str(out_path))
     print(f"Merged model saved to {out_path}")

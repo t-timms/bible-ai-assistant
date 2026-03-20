@@ -2,8 +2,6 @@
 
 This document walks you through the Bible AI Assistant project with explanations so you learn as you go. Follow in order.
 
-**See also:** [PROJECT_JOURNEY.md](PROJECT_JOURNEY.md) — the story behind key decisions (overfitting fix, simplified prompt, post-processing) for interviews and content.
-
 ---
 
 ## Step 1: Connect Your Code to GitHub ✅
@@ -101,7 +99,7 @@ You should see `CUDA available: True`, your GPU name, and **`sm_120`** in the ar
 
 ## Step 6: Log into Hugging Face and Weights & Biases
 
-**Why:** Hugging Face hosts the base model (Qwen3 4B) and will store your fine-tuned model. W&B (Weights & Biases) records training runs (loss curves, hyperparameters) so you can compare experiments. Both need one-time login from your terminal.
+**Why:** Hugging Face hosts the base model (Qwen3.5-4B) and will store your fine-tuned model. W&B (Weights & Biases) records training runs (loss curves, hyperparameters) so you can compare experiments. Both need one-time login from your terminal.
 
 ---
 
@@ -110,7 +108,7 @@ You should see `CUDA available: True`, your GPU name, and **`sm_120`** in the ar
 1. **Open:** https://huggingface.co/settings/tokens (log in or sign up if needed).
 2. **Choose token type:**
    - **Write** — Simplest. Full read + write (download base model, create repos, upload your fine-tuned model, update for benchmarking). Use this unless you want extra restrictions.
-   - **Fine-grained** — More secure: limit what the token can do (e.g. only write to **Model repos**, or only to a specific repo like `YOUR_USERNAME/bible-qwen3-4b`). If the token is ever leaked, only those resources are affected. Good for open source when you want one token just for this project.
+   - **Fine-grained** — More secure: limit what the token can do (e.g. only write to **Model repos**, or only to a specific repo like `YOUR_USERNAME/bible-qwen3.5-4b`). If the token is ever leaked, only those resources are affected. Good for open source when you want one token just for this project.
 3. **Create token:** Click **“Create new token”**.
    - **Name:** e.g. `bible-ai-assistant`.
    - **Type:** **Write** (easiest) or **Fine-grained** (see below).
@@ -161,18 +159,18 @@ wandb login
 
 ---
 
-## Step 7: Download Qwen3 4B Base Model
+## Step 7: Download Qwen3.5-4B Base Model
 
-**Why:** Qwen3-4B-Instruct-2507 is the model you’ll fine-tune on Bible Q&A. It’s about 8GB; downloading to `models/base_model/` keeps everything in one place and respects `.gitignore` (models are not committed).
+**Why:** Qwen3.5-4B-2507 is the model you’ll fine-tune on Bible Q&A. It’s about 8GB; downloading to `models/base_model/` keeps everything in one place and respects `.gitignore` (models are not committed).
 
 **Do this in Anaconda Prompt** with `bible-ai-assistant` activated, from the **project root** (e.g. `c:\Users\YOUR_USERNAME\Desktop\John\bible-ai-assistant`):
 
 ```bash
 # Download to models/base_model (creates folder; ~10–20 min, ~8GB). Exclude .msgpack to save space.
 # Preferred (new CLI):
-hf download Qwen/Qwen3-4B-Instruct-2507 --local-dir models/base_model --exclude "*.msgpack"
+hf download Qwen/Qwen3.5-4B --local-dir models/base_model --exclude "*.msgpack"
 # Legacy (still works, but deprecated):
-huggingface-cli download Qwen/Qwen3-4B-Instruct-2507 --local-dir models/base_model --exclude "*.msgpack"
+huggingface-cli download Qwen/Qwen3.5-4B --local-dir models/base_model --exclude "*.msgpack"
 ```
 
 **Note:** If you see a warning that `huggingface-cli download` is deprecated, use `hf download` next time. If you see “Xet Storage” / “hf_xet” messages, the download still uses regular HTTP; installing `pip install hf_xet` is optional for faster future downloads.
@@ -279,16 +277,16 @@ git push origin v0.2.0
 
 ---
 
-## Step 9: Phase 3 — Fine-tune Your Model (qwen3-4b-bible-John)
+## Step 9: Phase 3 — Fine-tune Your Model (Qwen3.5-4B)
 
 **What you’re about to do (big picture):**
 
 1. **Check your environment** – Conda, GPU, and data are ready.
 2. **Run the training script** – The script loads the base model, adds small “adapter” weights (LoRA), and trains them on your Bible Q&A data.
-3. **Save the adapter** – Only the new weights are saved (as **qwen3-4b-bible-John**), not the full 4B model, so it’s small and fast to use later.
+3. **Save the adapter** – Only the new weights are saved (as **qwen3.5-4b-bible-John**), not the full 4B model, so it’s small and fast to use later.
 
-**Why “qwen3-4b-bible-John”?**  
-- **qwen3-4b** = base model (Qwen3, 4 billion parameters).  
+**Why “qwen3.5-4b-bible-John”?**  
+- **qwen3.5-4b** = base model (Qwen3.5, 4 billion parameters).  
 - **bible** = trained on Bible (WEB) Q&A.  
 - **John** = your chosen name so this run and the saved folder are clearly yours.
 
@@ -304,7 +302,7 @@ cd c:\Users\ttimm\Desktop\John\bible-ai-assistant
 conda activate bible-ai-assistant
 ```
 
-You should see `(bible-ai-assistant)` at the start of your prompt. All commands assume you’re in this folder so paths like `data/processed/train.json` and `models/qwen3-4b-bible-John` work correctly.
+You should see `(bible-ai-assistant)` at the start of your prompt. All commands assume you’re in this folder so paths like `data/processed/train.json` and `models/qwen3.5-4b-bible-John` work correctly.
 
 ---
 
@@ -334,13 +332,13 @@ When you run the trainer, it will:
 
 | Step | What happens |
 |------|-------------------------------|
-| 1 | Load **Qwen3-4B-Instruct** (from Hugging Face or your local `models/base_model`). |
+| 1 | Load **Qwen3.5-4B** (from Hugging Face or your local `models/base_model`). |
 | 2 | Load **data/processed/train.json** (Bible Q&A in system/user/assistant format). |
 | 3 | Turn each Q&A into one text string using the model’s “chat template” (so the model sees it as a normal conversation). |
 | 4 | Add **LoRA** adapters (small extra weights) to the model and train only those for **2 epochs** (anti-overfitting: LR 1e-4, LoRA r=8, dropout 0.15, 10% eval split). |
-| 5 | Log progress to **Weights & Biases** (project: `bible-ai`, run name: **qwen3-4b-bible-John**). |
+| 5 | Log progress to **Weights & Biases** (project: `bible-ai`, run name: **qwen3.5-4b-bible-John**). |
 | 6 | Save checkpoints to **checkpoints/** every 500 steps. |
-| 7 | At the end, save the final LoRA adapter and tokenizer to **models/qwen3-4b-bible-John**. |
+| 7 | At the end, save the final LoRA adapter and tokenizer to **models/qwen3.5-4b-bible-John**. |
 
 **Why LoRA?** Training the full 4B parameters would need a lot of VRAM and time. LoRA trains only a small set of extra weights (adapters). You get most of the benefit with less memory and a smaller file to store and load.
 
@@ -351,7 +349,7 @@ When you run the trainer, it will:
 From the project root, run:
 
 ```powershell
-python training/train_unsloth.py --run-name qwen3-4b-bible-John
+python training/train_unsloth.py --run-name qwen3.5-4b-bible-John
 ```
 
 If you use the script’s default run name, you can also just run:
@@ -360,12 +358,12 @@ If you use the script’s default run name, you can also just run:
 python training/train_unsloth.py
 ```
 
-(The default is already set to **qwen3-4b-bible-John**, so the W&B run and the folder **models/qwen3-4b-bible-John** will use that name.)
+(The default is already set to **qwen3.5-4b-bible-John**, so the W&B run and the folder **models/qwen3.5-4b-bible-John** will use that name.)
 
 **Using a local base model (if you downloaded it earlier):**
 
 ```powershell
-python training/train_unsloth.py --run-name qwen3-4b-bible-John --model-path models/base_model
+python training/train_unsloth.py --run-name qwen3.5-4b-bible-John --model-path models/base_model
 ```
 
 **What you’ll see:** Loading messages for the model and dataset; training steps with loss values; logs every 50 steps and checkpoint saves every 500 steps. On an RTX 5070 Ti, expect roughly **2–6 hours** depending on data size and settings.
@@ -380,7 +378,7 @@ python training/train_unsloth.py --run-name qwen3-4b-bible-John --model-path mod
 ### Step 9e: Watch progress (optional)
 
 - **In the terminal:** Loss should generally go down over time.  
-- **In Weights & Biases:** Go to [wandb.ai](https://wandb.ai), open project **bible-ai**, and find the run **qwen3-4b-bible-John**. You’ll see loss curves and system stats.
+- **In Weights & Biases:** Go to [wandb.ai](https://wandb.ai), open project **bible-ai**, and find the run **qwen3.5-4b-bible-John**. You’ll see loss curves and system stats.
 
 If loss doesn’t decrease or you see NaNs, something may be wrong (e.g. learning rate too high, bad data). W&B helps you compare runs later.
 
@@ -391,7 +389,7 @@ If loss doesn’t decrease or you see NaNs, something may be wrong (e.g. learnin
 When the script exits normally, you’ll see something like:
 
 ```
-Saved LoRA adapter to c:\Users\ttimm\Desktop\John\bible-ai-assistant\models\qwen3-4b-bible-John
+Saved LoRA adapter to c:\Users\ttimm\Desktop\John\bible-ai-assistant\models\qwen3.5-4b-bible-John
 ```
 
 **What’s in that folder:** **adapter_config.json** and **adapter_model.safetensors** (the LoRA weights), plus **tokenizer** files so you can load the same tokenizer when you use the model.
@@ -400,10 +398,10 @@ Saved LoRA adapter to c:\Users\ttimm\Desktop\John\bible-ai-assistant\models\qwen
 
 | Goal | Command |
 |------|--------|
-| Train with default name (qwen3-4b-bible-John) | `python training/train_unsloth.py` |
+| Train with default name (qwen3.5-4b-bible-John) | `python training/train_unsloth.py` |
 | Train with custom name | `python training/train_unsloth.py --run-name YourName` |
 | Use local base model | `python training/train_unsloth.py --model-path models/base_model` |
-| Where adapter is saved | `models/qwen3-4b-bible-John` (or whatever you passed to `--run-name`) |
+| Where adapter is saved | `models/qwen3.5-4b-bible-John` (or whatever you passed to `--run-name`) |
 | Where config lives | `training/config.yaml` |
 
 ---
@@ -415,14 +413,14 @@ After training, merge the LoRA adapter into the base model, then run evaluation.
 **Merge adapters:**
 
 ```powershell
-# Default (uses models/qwen3-4b-bible-John)
+# Default (uses models/qwen3.5-4b-bible-John)
 python training/merge_adapters.py
 
 # For v2 or v3 runs, specify the LoRA path:
-python training/merge_adapters.py --lora-path models/qwen3-4b-bible-John-v3
+python training/merge_adapters.py --lora-path models/qwen3.5-4b-bible-John-v3
 ```
 
-This produces a full model (e.g. `models/qwen3-4b-bible-John-v3-merged`) that you can convert to GGUF. The output folder name matches `{lora_path}-merged`.
+This produces a full model (e.g. `models/qwen3.5-4b-bible-John-v3-merged`) that you can convert to GGUF. The output folder name matches `{lora_path}-merged`.
 
 **Evaluate:**
 
@@ -442,7 +440,7 @@ Follow this after **Phase 3** (training, merge, evaluation). Goal: convert your 
 
 **What you’re doing:**
 
-1. **Convert** the merged Hugging Face model (e.g. `models/qwen3-4b-bible-John-v3-merged`) to GGUF (float16) with `--outtype f16`.
+1. **Convert** the merged Hugging Face model (e.g. `models/qwen3.5-4b-bible-John-v3-merged`) to GGUF (float16) with `--outtype f16`.
 2. **Quantize** to Q4_K_M for smaller size and faster inference (Ollama / llama.cpp).
 3. **Create an Ollama model** using a Modelfile (system prompt + GGUF path).
 4. **Smoke test** with `ollama run bible-assistant "What does John 3:16 say?"`
@@ -485,10 +483,10 @@ From the **project root** (`bible-ai-assistant`), point the converter at your me
 
 ```powershell
 cd c:\Users\ttimm\Desktop\John\bible-ai-assistant
-python ..\llama.cpp\convert_hf_to_gguf.py models\qwen3-4b-bible-John-v3-merged --outfile models\qwen3-4b-bible-John-v3-f16.gguf --outtype f16
+python ..\llama.cpp\convert_hf_to_gguf.py models\qwen3.5-4b-bible-John-v3-merged --outfile models\qwen3.5-4b-bible-John-v3-f16.gguf --outtype f16
 ```
 
-For v2: use `models\qwen3-4b-bible-John-v2-merged` and `qwen3-4b-bible-John-v2-f16.gguf` instead.
+For v2: use `models\qwen3.5-4b-bible-John-v2-merged` and `qwen3.5-4b-bible-John-v2-f16.gguf` instead.
 
 If the script name or path differs (e.g. `convert-hf-to-gguf.py`), adjust. Some llama.cpp versions use different names; check the repo’s root for `convert*hf*gguf*.py`.
 
@@ -513,7 +511,7 @@ cmake --build . --config Release --target llama-quantize
 Then quantize to Q4_K_M (from `llama.cpp/build`):
 
 ```powershell
-.\bin\Release\llama-quantize.exe ..\..\bible-ai-assistant\models\qwen3-4b-bible-John-v3-f16.gguf ..\..\bible-ai-assistant\models\qwen3-4b-bible-John-v3-q4_k_m.gguf Q4_K_M
+.\bin\Release\llama-quantize.exe ..\..\bible-ai-assistant\models\qwen3.5-4b-bible-John-v3-f16.gguf ..\..\bible-ai-assistant\models\qwen3.5-4b-bible-John-v3-q4_k_m.gguf Q4_K_M
 ```
 
 (If the executable is elsewhere, run `dir bin\Release` to find it. Paths assume you’re in `llama.cpp/build`.)
@@ -532,7 +530,7 @@ Create the Modelfile from your system prompt:
 python deployment/pc/generate_modelfile.py
 ```
 
-This writes `deployment/pc/Modelfile` using `prompts/system_prompt.txt` and an **absolute path** to the GGUF so Ollama finds the local file (a relative path can be treated as a model name to pull). The generated Modelfile includes `num_predict 256`, `repeat_penalty 1.65`, and `repeat_last_n 128` to limit response length and discourage repetition. By default, `generate_modelfile.py` points to `qwen3-4b-bible-John-v3-q4_k_m.gguf`; edit its `GGUF_PATH` if you use a different run (e.g. v2 or f16).
+This writes `deployment/pc/Modelfile` using `prompts/system_prompt.txt` and an **absolute path** to the GGUF so Ollama finds the local file (a relative path can be treated as a model name to pull). The generated Modelfile includes `num_predict 256`, `repeat_penalty 1.65`, and `repeat_last_n 128` to limit response length and discourage repetition. By default, `generate_modelfile.py` points to `qwen3.5-4b-bible-John-v3-q4_k_m.gguf`; edit its `GGUF_PATH` if you use a different run (e.g. v2 or f16).
 
 **After editing `prompts/system_prompt.txt`** (e.g. tone guidelines, meta-questions), regenerate the Modelfile and recreate the Ollama model so changes take effect:
 ```powershell
@@ -540,10 +538,10 @@ python deployment/pc/generate_modelfile.py
 ollama create bible-assistant -f deployment/pc/Modelfile
 ```
 
-Or create `deployment/pc/Modelfile` by hand (copy from `Modelfile.template` and edit). Use an **absolute path** in `FROM` on Windows (e.g. `C:/Users/.../models/qwen3-4b-bible-John-v3-q4_k_m.gguf`) so `ollama create` does not try to pull from the registry. Include:
+Or create `deployment/pc/Modelfile` by hand (copy from `Modelfile.template` and edit). Use an **absolute path** in `FROM` on Windows (e.g. `C:/Users/.../models/qwen3.5-4b-bible-John-v3-q4_k_m.gguf`) so `ollama create` does not try to pull from the registry. Include:
 
 ```
-FROM C:/path/to/your/bible-ai-assistant/models/qwen3-4b-bible-John-v3-q4_k_m.gguf
+FROM C:/path/to/your/bible-ai-assistant/models/qwen3.5-4b-bible-John-v3-q4_k_m.gguf
 SYSTEM """..."""   # full contents of prompts/system_prompt.txt (simplified ~15 lines)
 PARAMETER temperature 0.2
 PARAMETER num_ctx 2048
@@ -601,12 +599,12 @@ Then continue to **Phase 5: RAG** (Step 12).
 
 ## Step 12: Phase 5 — RAG (Retrieval-Augmented Generation)
 
-After your model runs in Ollama (Step 11), add a **RAG layer** so answers are grounded in retrieved verses. The RAG server sits between the client (e.g. OpenClaw or a UI) and Ollama: it finds relevant Scripture for each user question, injects it into the prompt, then forwards to Ollama.
+After your model runs in Ollama (Step 11), add a **RAG layer** so answers are grounded in retrieved verses. The RAG server sits between the client (e.g. Gradio or any OpenAI-compatible API) and Ollama: it finds relevant Scripture for each user question, injects it into the prompt, then forwards to Ollama.
 
 **What you’re doing:**
 
 1. **Build a vector index** — Turn `data/raw/bible_web.json` into a ChromaDB index using **nomic-embed-text-v1.5** (with `search_document:` prefix). One-time step.
-2. **Run the RAG server** — FastAPI app that accepts OpenAI-style `/v1/chat/completions`, retrieves top-k verses for the last user message, augments the prompt, and forwards to Ollama. Handles **meta-questions** (e.g. “What can you do?”) without verse retrieval—the model answers directly. Strips OpenClaw metadata and suffix instructions (e.g. “Answer in quotes, then add explanation”) so capability questions get natural responses.
+2. **Run the RAG server** — FastAPI app that accepts OpenAI-style `/v1/chat/completions`, retrieves top-k verses for the last user message, augments the prompt, and forwards to Ollama. Handles **meta-questions** (e.g. “What can you do?”) without verse retrieval—the model answers directly. Strips client metadata and suffix instructions (e.g. “Answer in quotes, then add explanation”) so capability questions get natural responses.
 3. **Test** — Call the RAG server (or use `query_test.py` to sanity-check retrieval). Checkpoint: **v0.5.0**.
 
 **Checkpoint:** **v0.5.0** — RAG layer complete; ChromaDB indexed, server augments prompts and forwards to Ollama.
@@ -673,7 +671,7 @@ curl -X POST http://localhost:8081/v1/chat/completions -H "Content-Type: applica
 
 You should get a JSON response with the model’s answer, grounded in the retrieved verses the server injected.
 
-**Using from OpenClaw / UI:** Point the client at `http://localhost:8081/v1` instead of `http://localhost:11434/v1` so that all chat goes through RAG.
+**Using from Gradio or any client:** Point the client at `http://localhost:8081/v1` instead of `http://localhost:11434/v1` so that all chat goes through RAG.
 
 ---
 
@@ -689,9 +687,9 @@ You should get a JSON response with the model’s answer, grounded in the retrie
 
 ---
 
-## Step 13: Phase 6 — OpenClaw + Telegram
+## Step 13: Phase 6 — Voice, Deployment (Optional)
 
-After RAG is running (Step 12), add the **OpenClaw** agent and **Telegram** so you can chat with the Bible assistant from your phone or any client. OpenClaw talks to your RAG server (which forwards to Ollama); Telegram is one interface.
+After RAG is running (Step 12), you have a complete Bible AI pipeline: Gradio/curl → RAG → Ollama. Optional next steps:
 
 **What you’re doing:**
 
@@ -781,7 +779,7 @@ This way all chat goes through the RAG server, which retrieves verses and forwar
 - **OpenClaw can’t reach the LLM** — Ensure the RAG server is running on 8081 and that the endpoint in OpenClaw is `http://localhost:8081/v1` (and that you use `bible-assistant` as the model name).
 - **Telegram bot doesn’t respond** — Check that `TELEGRAM_BOT_TOKEN` is set in `.env` and that OpenClaw is running and connected to Telegram (see OpenClaw docs for gateway/connector setup).
 - **Wrong or empty answers** — Confirm RAG is working: run `python rag/query_test.py` and test the RAG server with curl (Step 12d). Then ensure OpenClaw is pointing at the RAG server, not directly at Ollama.
-- **"What can you do?" returns verses instead of capabilities** — The RAG server detects meta-questions and skips verse retrieval; if this still fails, ensure you are on the latest RAG server and that OpenClaw metadata is being stripped (check logs).
+- **"What can you do?" returns verses instead of capabilities** — The RAG server detects meta-questions and skips verse retrieval; if this still fails, ensure you are on the latest RAG server and that client metadata is being stripped (check logs).
 
 ---
 

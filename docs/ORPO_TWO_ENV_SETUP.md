@@ -8,12 +8,12 @@ This document describes why ORPO (Odds Ratio Preference Optimization) for Qwen3.
 
 | Stage | Environment | Key Dependency | Output |
 |-------|-------------|-----------------|--------|
-| **SFT** (Supervised Fine-Tuning) | `bible-ai-assistant` | transformers ≤ 4.57.2 | `models/qwen3.5-4b-bible-John-v4/` |
-| **ORPO** (Preference Alignment) | `bible-orpo` | transformers ≥ 5.1 | `models/qwen3.5-4b-bible-John-v5/` |
+| **SFT** (Supervised Fine-Tuning) | `bible-orpo` | transformers ≥ 5.1 | `models/qwen3.5-4b-bible-John-v6/` |
+| **ORPO** (Preference Alignment) | `bible-orpo` | transformers ≥ 5.1 | `models/qwen3.5-4b-bible-John-v7/` (optional) |
 | **Merge** | `bible-orpo` | transformers ≥ 5.1 (Qwen3.5) | `models/...-merged/` |
 | **Deploy** (GGUF, Ollama, eval) | none | — | Merged GGUF, Ollama, etc. |
 
-Both environments operate on the same model artifact: the LoRA adapter saved to disk. The pipeline is file-based; no special conda integration is required.
+**Critical:** SFT must run in `bible-orpo` (transformers 5.x) so the adapter uses native Qwen3.5 layout. SFT in `bible-ai-assistant` (transformers 4.57.2) produces a Qwen3-style adapter that corrupts the model on merge. See [QWEN35_MERGE_AND_DEPLOYMENT.md](QWEN35_MERGE_AND_DEPLOYMENT.md).
 
 ---
 
@@ -31,10 +31,10 @@ Both environments operate on the same model artifact: the LoRA adapter saved to 
 
 | Environment | transformers | Purpose |
 |-------------|--------------|---------|
-| `bible-ai-assistant` | ≤ 4.57.2 | SFT training; stable for Unsloth |
-| `bible-orpo` | ≥ 5.1 | ORPO training; native Qwen3.5 support |
+| `bible-orpo` | ≥ 5.1 | SFT and ORPO; native Qwen3.5 for both |
+| `bible-ai-assistant` | ≤ 4.57.2 | Deprecated for Qwen3.5; produces incompatible adapter |
 
-SFT stays on the older transformers. ORPO runs in a separate env with newer transformers. Each env uses the versions required for its stage.
+SFT and ORPO both run in `bible-orpo` for consistent native Qwen3.5 architecture. Merge then works correctly.
 
 ---
 
@@ -42,15 +42,15 @@ SFT stays on the older transformers. ORPO runs in a separate env with newer tran
 
 ```
 ┌─────────────────────────────────┐
-│  Env: bible-ai-assistant        │
-│  transformers ≤ 4.57.2         │
+│  Env: bible-orpo                │
+│  transformers ≥ 5.1             │
 │                                 │
-│  1. Load Qwen3.5-4B base       │
+│  1. Load Qwen3.5-4B base        │
 │  2. Train LoRA (SFT)            │
-│  3. Save adapter to disk       │
+│  3. Save adapter to disk        │
 └─────────────────────────────────┘
                  │
-                 │  models/qwen3.5-4b-bible-John-v4/
+                 │  models/qwen3.5-4b-bible-John-v6/
                  │  ├── adapter_model.safetensors
                  │  ├── adapter_config.json
                  │  └── tokenizer files
@@ -66,7 +66,7 @@ SFT stays on the older transformers. ORPO runs in a separate env with newer tran
 │  5. Save updated adapter        │
 └─────────────────────────────────┘
                  │
-                 │  models/qwen3.5-4b-bible-John-v5/
+                 │  models/qwen3.5-4b-bible-John-v7/
                  │  ├── adapter_model.safetensors  (SFT + ORPO)
                  │  └── ...
                  ▼
@@ -79,7 +79,7 @@ SFT stays on the older transformers. ORPO runs in a separate env with newer tran
 
 The handoff between environments is a standard LoRA adapter plus config:
 
-1. **SFT saves** to `models/qwen3.5-4b-bible-John-v4/`:
+1. **SFT saves** to `models/qwen3.5-4b-bible-John-v6/`:
    - `adapter_model.safetensors` — LoRA weights
    - `adapter_config.json` — rank, target modules, etc.
    - Tokenizer files
@@ -89,7 +89,7 @@ The handoff between environments is a standard LoRA adapter plus config:
    - Applies LoRA with the same config as SFT
    - Calls `set_peft_model_state_dict(model, sft_state)` to load SFT weights
    - Continues training with ORPO
-   - Saves to `models/qwen3.5-4b-bible-John-v5/`
+   - Saves to `models/qwen3.5-4b-bible-John-v7/`
 
 ORPO never modifies the base model directly; it reads the SFT adapter from disk and writes an updated adapter.
 
@@ -97,36 +97,35 @@ ORPO never modifies the base model directly; it reads the SFT adapter from disk 
 
 ## Setup Instructions
 
-### Environment 1: SFT (Existing)
+### Environment: bible-orpo (SFT + ORPO)
 
-Use the existing `bible-ai-assistant` environment with `transformers<=4.57.2`:
+Use `bible-orpo` for both SFT and ORPO. Native Qwen3.5 (transformers 5.x) is required for a working merge.
+
+**SFT:**
 
 ```bash
-conda activate bible-ai-assistant
-python training/train_unsloth.py --run-name qwen3.5-4b-bible-John-v4
+conda activate bible-orpo
+python training/train_unsloth.py --run-name qwen3.5-4b-bible-John-v6
 ```
 
-### Environment 2: ORPO (New)
-
-Create and use a separate environment with newer transformers:
+**ORPO** (after SFT):
 
 ```bash
-# Create environment
+python training/train_orpo.py --sft-path models/qwen3.5-4b-bible-John-v6
+```
+
+Output: `models/qwen3.5-4b-bible-John-v7/` (SFT + ORPO).
+
+### One-time setup for bible-orpo
+
+If `bible-orpo` does not exist:
+
+```bash
 conda create -n bible-orpo python=3.11 -y
 conda activate bible-orpo
-
-# Install PyTorch (CUDA 12.8 for RTX 5070 Ti)
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
-
-# Install training deps with newer transformers
 pip install "transformers>=5.1" unsloth trl datasets wandb bitsandbytes accelerate
-
-# Run ORPO (from project root)
-cd /path/to/bible-ai-assistant
-python training/train_orpo.py --sft-path models/qwen3.5-4b-bible-John-v4
 ```
-
-Output will be written to `models/qwen3.5-4b-bible-John-v5/` (or the run name specified).
 
 ### Merge and Deploy
 
@@ -134,7 +133,7 @@ Output will be written to `models/qwen3.5-4b-bible-John-v5/` (or the run name sp
 
 ```bash
 conda activate bible-orpo
-python training/merge_adapters.py --lora-path models/qwen3.5-4b-bible-John-v5
+python training/merge_adapters.py --lora-path models/qwen3.5-4b-bible-John-v6
 ```
 
 **Deploy** (no conda env required): GGUF conversion, quantize, `ollama create`, `ollama run`, evaluation. See [ENVIRONMENT_REQUIREMENTS.md](ENVIRONMENT_REQUIREMENTS.md).

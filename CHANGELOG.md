@@ -6,10 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- `rag/response_cleanup.py` — shared `strip_model_thinking()` for Qwen/Ollama chain-of-thought and planning scaffolds
+- `scripts/run_benchmark.py`, `scripts/compare_benchmark_runs.py`, `benchmarks/manifest.v1.yaml` — versioned keyword / judge benchmarks
+- `tests/` — pytest coverage for RAG helpers, eval keywords, evaluation manifest, and benchmark manifest
+- `.github/workflows/ci.yml` — CI running `ruff check` and `pytest`
+- `pyproject.toml`, `requirements-rag.txt`, `prompts/README.md`
+- Documentation: `docs/PROJECT_STATUS_AND_GOALS.md`, `docs/SHIP_v1_AND_POLISH_BACKLOG.md`, `docs/BENCHMARK_PROTOCOL.md`, `docs/training_results/POST_TRAINING_CHECKLIST.md`, `deployment/pc/README.md`, and related guides
+
 ### Changed
 
-- Step 11 (WALKTHROUGH): Default to v3 model paths (qwen3-4b-bible-John-v3-merged, v3-f16.gguf, v3-q4_k_m.gguf); add `--outtype f16` to convert command; fix quantize command to use v3 paths; add troubleshooting for `llama-quantize` location (`build\bin\Release\` vs `build\Release\` on Windows)
-- `generate_modelfile.py`: Default GGUF path set to `qwen3-4b-bible-John-v3-q4_k_m.gguf`
+- `rag/rag_server.py` — Ollama requests default to `"think": false`; non-streaming responses always write post-processed `choices[0].message.content` (including after punctuation normalization)
+- `training/evaluate.py` — strips model thinking on RAG replies; robust judge HTTP (`trust_env=False`, endpoint fallbacks); configurable `--judge-model` (default `qwen3.5:27b`)
+- `prompts/system_prompt.txt` — discourages visible chain-of-thought; Modelfile regeneration via `deployment/pc/generate_modelfile.py`
+- `README.md` and `docs/README.md` — pointers to ship checklist, post-training steps, and changelog
+
+### Fixed
+
+- `strip_model_thinking()` — remove paired `</think>`…`</think>` blocks *before* flex `<think>` peeling (avoids stripping only the opener and leaving leaked content); strip leading BOM when it remains after tag removal
+- RAG OpenAI-compatible JSON — previously skipped assigning cleaned text when the reply already ended with `.`, `?`, `!`, `"`, or `'`, leaving raw model output in the payload
 
 ## [0.1.0] - YYYY-MM-DD
 

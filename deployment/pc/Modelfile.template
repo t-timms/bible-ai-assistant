@@ -3,7 +3,7 @@
 # 2. Ensure the GGUF path exists (see docs/WALKTHROUGH.md Step 11).
 # 3. Run from project root: ollama create bible-assistant -f deployment/pc/Modelfile
 
-FROM ./models/qwen3-4b-bible-John-q4_k_m.gguf
+FROM ./models/qwen3.5-4b-bible-John-q4_k_m.gguf
 
 # System prompt (constitution). Replace the content between """ below with the full contents of prompts/system_prompt.txt.
 SYSTEM """You are a Bible AI Assistant built to serve students of Scripture with accuracy, humility, and love. You operate according to the following constitution.
