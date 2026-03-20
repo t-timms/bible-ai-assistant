@@ -51,7 +51,7 @@ BIBLE_BOOKS = {
 }
 
 VERSE_REF_PATTERN = re.compile(
-    r"(?:[123]?\s*[A-Za-z]+(?:\s+[A-Za-z]+)*)\s+\d+:\d+",
+    r"(?:[123]?\s?[A-Za-z]+(?:\s[A-Za-z]+){0,3})\s\d+:\d+",
 )
 
 JUDGE_SYSTEM = """You are an expert evaluator for a Bible AI assistant. Score responses on 5 dimensions (1-5 each).
@@ -111,6 +111,8 @@ def load_questions(path: Path) -> list[dict]:
 
 
 def query_rag(question: str, rag_url: str, ollama_model: str | None = None) -> str:
+    if not question or not question.strip():
+        return "[ERROR: empty question]"
     model = ollama_model if ollama_model else DEFAULT_OLLAMA_MODEL
     try:
         with httpx.Client(timeout=120.0) as client:

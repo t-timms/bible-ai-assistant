@@ -8,13 +8,14 @@ Pipeline:
   4. Cross-encoder reranking (bge-reranker-v2-m3) -> top K
   5. Parent-child passage expansion for thematic questions
 
-Run: uvicorn rag.rag_server:app --host 0.0.0.0 --port 8081
+Run: uvicorn rag.rag_server:app --host 127.0.0.1 --port 8081
 """
 import json as _json
+import logging
 import os
-import pickle
 import re
 from pathlib import Path
+from urllib.parse import urlparse
 
 import httpx
 import numpy as np
@@ -23,26 +24,93 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from rag.response_cleanup import strip_model_thinking
 
+logger = logging.getLogger(__name__)
+
 app = FastAPI(title="Bible AI RAG Server", version="1.0.0")
+
+# Maximum request body size (bytes) to prevent DoS via oversized payloads
+MAX_REQUEST_BODY_BYTES = 1_048_576  # 1 MB
 
 
 @app.exception_handler(Exception)
 async def _handle_unhandled(request: Request, exc: Exception):
     import traceback
+    logger.error("Unhandled exception: %s", traceback.format_exc())
     return JSONResponse(
         status_code=500,
-        content={"error": str(exc), "type": type(exc).__name__,
-                 "traceback": traceback.format_exc()},
+        content={"error": "Internal server error"},
     )
 
 
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+def _validate_ollama_url(url: str) -> str:
+    """Validate that OLLAMA_URL is a well-formed HTTP(S) URL."""
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"OLLAMA_URL must use http or https scheme, got: {url!r}")
+    if not parsed.netloc:
+        raise ValueError(f"OLLAMA_URL has no host: {url!r}")
+    return url
+
+
+OLLAMA_URL = _validate_ollama_url(os.getenv("OLLAMA_URL", "http://localhost:11434"))
 RAG_TOP_K = int(os.getenv("RAG_TOP_K", "5"))
 HYBRID_CANDIDATES = int(os.getenv("HYBRID_CANDIDATES", "20"))
+# Reciprocal Rank Fusion smoothing constant (standard default from the RRF paper)
 RRF_K = 60
 VERSES_COLLECTION = "bible_verses"
 PASSAGES_COLLECTION = "bible_passages"
 QUERY_PREFIX = "search_query: "
+
+# Topical questions: pin a few high-signal verses so hybrid retrieval + passage expansion
+# cannot drown the topic (e.g. marriage → unrelated "love" parables).
+_TOPICAL_PIN_TABLE: tuple[tuple[frozenset[str], tuple[str, ...]], ...] = (
+    (
+        frozenset({
+            "marriage", "married", "marry", "spouse", "husband", "wife",
+            "wedding", "divorce", "remarry",
+        }),
+        ("Genesis 2:24", "Ephesians 5:31", "Matthew 19:5", "Mark 10:9"),
+    ),
+    (
+        frozenset({"forgiveness", "forgive", "forgiving"}),
+        ("Matthew 6:14", "Ephesians 4:32", "Colossians 3:13"),
+    ),
+    (
+        frozenset({"money", "wealth", "rich", "greed", "steward"}),
+        ("1 Timothy 6:10", "Matthew 6:24", "Proverbs 3:9"),
+    ),
+)
+
+_COUNSELING_HINT = re.compile(
+    r"\b("
+    r"counseling|counsellor|counselor|counsel\s+me|\bcounsel\b|"
+    r"therapy|therapist|psychiatr|"
+    r"suicid|kill myself|end it all|self[- ]harm|"
+    r"depress|anxiety|panic attack|ptsd|trauma|"
+    r"marriage crisis|my marriage is|should i divorce|leaving my wife|leaving my husband|"
+    r"abuse[sd]?\s+me|domestic violence|"
+    r"pastoral care for me|pray\s+for\s+my\s+situation|need\s+someone\s+to\s+talk\s+to"
+    r")\b",
+    re.IGNORECASE,
+)
+
+_VERSE_REF_IN_QUESTION = re.compile(
+    r"\b((?:[123]\s)?[A-Za-z][A-Za-z]+(?:\s[A-Za-z]+){0,3}\s\d{1,3}:\d{1,3})\b",
+)
+
+_COUNSELING_SYSTEM_GUARD = (
+    "The user message may request personal counseling, therapy, crisis intervention, "
+    "or intimate life direction (e.g. marriage crisis, mental health, abuse). "
+    "You MUST NOT counsel, diagnose, or give tailored life advice. "
+    "Respond briefly with kindness: you are a Scripture study aid, not a pastor or clinician; "
+    "urge them to speak with a qualified pastor, licensed counselor, or appropriate crisis line. "
+    "You may cite 1–2 broadly relevant verses only if they fit, without applying them to their private situation."
+)
+
+EMPTY_MODEL_REPLY = (
+    "I didn't receive a complete reply from the model. "
+    "Please try again or shorten your question."
+)
 
 # ---------------------------------------------------------------------------
 # Lazy-loaded globals
@@ -84,8 +152,10 @@ def _get_rag():
     _verse_collection = _chroma_client.get_collection(VERSES_COLLECTION)
     try:
         _passage_collection = _chroma_client.get_collection(PASSAGES_COLLECTION)
-    except Exception:
+    except (ValueError, KeyError) as e:
+        logger.warning("Passage collection not found: %s", e)
         _passage_collection = None
+    # trust_remote_code required by nomic-embed-text-v1.5 for custom pooling
     _embedder = SentenceTransformer(
         "nomic-ai/nomic-embed-text-v1.5", trust_remote_code=True
     )
@@ -93,17 +163,33 @@ def _get_rag():
 
 
 def _get_bm25():
-    """Load pickled BM25 index."""
+    """Load BM25 index from JSON (preferred) or legacy pickle."""
     global _bm25_data
     if _bm25_data is not None:
         return _bm25_data
-    bm25_path = _get_project_root() / "rag" / "chroma_db" / "bm25_index.pkl"
-    if not bm25_path.exists():
-        return None
-    with open(bm25_path, "rb") as f:
-        _bm25_data = pickle.load(f)
-    print(f"[RAG] Loaded BM25 index ({len(_bm25_data['ids'])} docs)")
-    return _bm25_data
+    db_dir = _get_project_root() / "rag" / "chroma_db"
+    json_path = db_dir / "bm25_index.json"
+    pkl_path = db_dir / "bm25_index.pkl"
+
+    if json_path.exists():
+        from rank_bm25 import BM25Okapi
+        with open(json_path, encoding="utf-8") as f:
+            data = _json.load(f)
+        tokenized = [doc.lower().split() for doc in data["documents"]]
+        bm25 = BM25Okapi(tokenized)
+        _bm25_data = {"bm25": bm25, "ids": data["ids"], "documents": data["documents"]}
+        logger.info("Loaded BM25 index from JSON (%d docs)", len(data["ids"]))
+        return _bm25_data
+
+    if pkl_path.exists():
+        import pickle
+        logger.warning("Loading BM25 from legacy pickle — rebuild index to use safer JSON format")
+        with open(pkl_path, "rb") as f:
+            _bm25_data = pickle.load(f)
+        logger.info("Loaded BM25 index from pickle (%d docs)", len(_bm25_data["ids"]))
+        return _bm25_data
+
+    return None
 
 
 def _get_reranker():
@@ -114,10 +200,10 @@ def _get_reranker():
     try:
         from sentence_transformers import CrossEncoder
         _reranker = CrossEncoder("BAAI/bge-reranker-v2-m3")
-        print("[RAG] Loaded cross-encoder reranker (bge-reranker-v2-m3)")
+        logger.info("Loaded cross-encoder reranker (bge-reranker-v2-m3)")
         return _reranker
-    except Exception as e:
-        print(f"[RAG] Reranker unavailable: {e}")
+    except (ImportError, OSError) as e:
+        logger.warning("Reranker unavailable: %s", e)
         return None
 
 
@@ -133,11 +219,11 @@ def _dense_search(query: str, collection, embedder, n: int) -> list[tuple[str, s
         n_results=n,
         include=["documents", "metadatas", "distances"],
     )
-    out = []
+    out: list[tuple[str, str, float]] = []
     if results and results["ids"] and results["ids"][0]:
-        for i, (vid, doc) in enumerate(
-            zip(results["ids"][0], results["documents"][0], strict=True)
-        ):
+        ids_list = results["ids"][0]
+        docs_list = results["documents"][0]
+        for i, (vid, doc) in enumerate(zip(ids_list, docs_list, strict=True)):
             out.append((vid, doc, float(i)))
     return out
 
@@ -208,17 +294,130 @@ def _expand_to_passages(verse_ids: list[str], passage_collection) -> dict[str, s
                 meta = results["metadatas"][0]
                 ref = meta.get("reference", "")
                 expanded[vid] = _clean_doc_text(doc, ref)
-        except Exception:
-            pass
+        except (ValueError, KeyError) as e:
+            logger.debug("Passage expansion failed for %s: %s", vid, e)
     return expanded
 
 
-def _retrieve(user_message: str, top_k: int = RAG_TOP_K) -> str:
-    """Hybrid retrieval: Dense + BM25 -> RRF -> Rerank -> format context string."""
+def _normalize_verse_id(ref: str) -> str:
+    """Map common aliases to Chroma ids (e.g. Psalm 1:1 → Psalms 1:1)."""
+    ref = re.sub(r"\s+", " ", (ref or "").strip())
+    if not ref:
+        return ref
+    m = re.match(r"^(.+?)\s+(\d{1,3}:\d{1,3})$", ref)
+    if not m:
+        return ref
+    book, cv = m.group(1).strip(), m.group(2)
+    if book.lower() == "psalm":
+        book = "Psalms"
+    return f"{book} {cv}"
+
+
+def _extract_verse_ref_from_lookup(question: str) -> str | None:
+    """Book/chapter:verse named in a 'What does X say?' lookup, or None."""
+    if not _is_verse_lookup(question):
+        return None
+    # Drop leading "What does/is …" so the verse regex cannot match "What does Hebrews…"
+    t = question.strip()
+    low = t.lower()
+    for prefix in ("what does ", "what is ", "what says "):
+        if low.startswith(prefix):
+            t = t[len(prefix) :].strip()
+            low = t.lower()
+            break
+    m = _VERSE_REF_IN_QUESTION.search(t)
+    if not m:
+        return None
+    return _normalize_verse_id(m.group(1))
+
+
+def _topical_anchor_refs(question: str) -> list[str]:
+    """Extra verses to pin for broad topical questions (not verse lookups)."""
+    if _is_verse_lookup(question):
+        return []
+    q = question.lower()
+    for keywords, refs in _TOPICAL_PIN_TABLE:
+        if any(kw in q for kw in keywords):
+            return list(refs)
+    return []
+
+
+def _is_counseling_request(question: str) -> bool:
+    """Personal counseling / crisis / intimate life-direction phrasing."""
+    return bool(question and _COUNSELING_HINT.search(question))
+
+
+def _fetch_verses_by_refs(refs: list[str]) -> list[tuple[str, str]]:
+    """Load verse text by Chroma id; try Psalm/Psalms alias if needed."""
+    refs = [_normalize_verse_id(r) for r in refs if r and str(r).strip()]
+    if not refs:
+        return []
+    try:
+        verse_collection, _, _ = _get_rag()
+    except FileNotFoundError:
+        return []
+
+    results: list[tuple[str, str]] = []
+    seen_chroma_ids: set[str] = set()
+    for raw in refs:
+        candidates = [raw]
+        low = raw.lower()
+        if low.startswith("psalms ") and len(raw.split(" ", 1)) == 2:
+            candidates.append("Psalm " + raw.split(" ", 1)[1])
+        elif low.startswith("psalm ") and len(raw.split(" ", 1)) == 2:
+            candidates.append("Psalms " + raw.split(" ", 1)[1])
+
+        for cid in candidates:
+            if cid in seen_chroma_ids:
+                break
+            try:
+                res = verse_collection.get(ids=[cid], include=["documents"])
+                ids_r = res.get("ids") or []
+                docs_r = res.get("documents") or []
+            except (ValueError, KeyError) as e:
+                logger.debug("Verse lookup failed for %s: %s", cid, e)
+                continue
+            if not ids_r or not docs_r:
+                continue
+            vid, doc = ids_r[0], docs_r[0]
+            seen_chroma_ids.add(vid)
+            text = _clean_doc_text(doc, vid)
+            results.append((vid, text))
+            break
+
+    return results
+
+
+def _merge_pin_order(pin_refs: list[str]) -> list[str]:
+    """Dedupe while preserving order."""
+    out: list[str] = []
+    seen: set[str] = set()
+    for r in pin_refs:
+        n = _normalize_verse_id(r)
+        if not n or n in seen:
+            continue
+        seen.add(n)
+        out.append(n)
+    return out
+
+
+def _retrieve(user_message: str, top_k: int = RAG_TOP_K, pin_refs: list[str] | None = None) -> str:
+    """Hybrid retrieval: Dense + BM25 -> RRF -> Rerank -> format context string.
+
+    pin_refs: verse ids (e.g. Hebrews 11:1) prepended so explicit lookups are never
+    dropped when hybrid search ranks other verses higher.
+    """
+    pin_refs = _merge_pin_order(pin_refs or [])
+    pinned = _fetch_verses_by_refs(pin_refs)
+    pinned_ids = {vid for vid, _ in pinned}
+
     try:
         verse_collection, passage_collection, embedder = _get_rag()
     except FileNotFoundError:
-        return ""
+        if not pinned:
+            return ""
+        lines = [f"- **{vid}**: {text}" for vid, text in pinned]
+        return "\n".join(lines)
 
     # Stage 1: Parallel dense + BM25 search
     dense_results = _dense_search(user_message, verse_collection, embedder, HYBRID_CANDIDATES)
@@ -229,11 +428,15 @@ def _retrieve(user_message: str, top_k: int = RAG_TOP_K) -> str:
         _reciprocal_rank_fusion(dense_results, bm25_results) if bm25_results else dense_results
     )
 
-    if not fused:
+    if not fused and not pinned:
         return ""
 
-    # Stage 3: Cross-encoder reranking
-    reranked = _rerank(user_message, fused, top_k)
+    # Stage 3: Cross-encoder reranking (skip ids we already pinned)
+    if fused:
+        fused_filtered = [(vid, doc, s) for vid, doc, s in fused if vid not in pinned_ids]
+        reranked = _rerank(user_message, fused_filtered, top_k) if fused_filtered else []
+    else:
+        reranked = []
 
     # Stage 4: Format context (with passage expansion for thematic queries)
     is_lookup = _is_verse_lookup(user_message)
@@ -244,9 +447,11 @@ def _retrieve(user_message: str, top_k: int = RAG_TOP_K) -> str:
     else:
         passages = {}
 
-    lines = []
+    lines = [f"- **{vid}**: {text}" for vid, text in pinned]
     seen_passages = set()
     for vid, doc, _ in reranked:
+        if vid in pinned_ids:
+            continue
         if vid in passages and passages[vid] not in seen_passages:
             seen_passages.add(passages[vid])
             lines.append(f"- **{vid} (passage)**: {passages[vid]}")
@@ -304,8 +509,8 @@ def _strip_thinking_from_stream(sse_text: str) -> bytes:
             continue
     cleaned = _strip_thinking("".join(full_content))
     cleaned = _strip_repetition_and_meta(cleaned)
-    if not cleaned:
-        return b'data: {"choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n'
+    if not cleaned.strip():
+        cleaned = EMPTY_MODEL_REPLY
     out = 'data: {"choices":[{"index":0,"delta":{"role":"assistant","content":' + _json.dumps(cleaned) + '},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n'
     return out.encode("utf-8")
 
@@ -339,10 +544,10 @@ def _strip_openclaw_metadata(text: str) -> str:
     if not text or not isinstance(text, str):
         return text
     text = re.sub(
-        r"Sender\s*\(untrusted\s*metadata\)\s*:\s*```json\s*\{[^}]*\}\s*```\s*",
+        r"Sender\s*\(untrusted\s*metadata\)\s*:\s*```json\s*\{[^}]{0,2000}\}\s*```\s*",
         "", text, flags=re.IGNORECASE | re.DOTALL,
     )
-    text = re.sub(r"```json\s*\{[^}]*\}\s*```\s*", "", text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r"```json\s*\{[^}]{0,2000}\}\s*```\s*", "", text, flags=re.DOTALL | re.IGNORECASE)
     text = re.sub(r"\[\w{3}\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+\w+\]\s*", "", text)
     if "```" in text and not text.strip().startswith("["):
         parts = text.split("```")
@@ -362,10 +567,17 @@ def health() -> dict:
 
 @app.post("/v1/chat/completions")
 async def chat_completions(request: Request):
+    # Guard against oversized payloads
+    content_length = request.headers.get("content-length")
+    if content_length and int(content_length) > MAX_REQUEST_BODY_BYTES:
+        raise HTTPException(status_code=413, detail="Request body too large")
     body = await request.json()
     messages = body.get("messages", [])
+    if not isinstance(messages, list):
+        raise HTTPException(status_code=422, detail="'messages' must be an array")
     model = body.get("model", "bible-assistant")
     stream = body.get("stream", False)
+    last_q_for_policy: str | None = None
 
     last_user_content = None
     for m in reversed(messages):
@@ -397,6 +609,7 @@ async def chat_completions(request: Request):
             if q.lower().endswith(suffix.lower()):
                 q = q[:-len(suffix)].strip()
                 break
+        last_q_for_policy = q
         if _is_meta_question(q):
             for i in range(len(messages) - 1, -1, -1):
                 if messages[i].get("role") == "user":
@@ -404,9 +617,25 @@ async def chat_completions(request: Request):
                     break
             body = {**body, "messages": messages}
         else:
-            context = _retrieve(q, top_k=RAG_TOP_K)
-            if context:
-                augmented = "Context:\n" + context + "\n\nQ: " + q
+            pin_refs: list[str] = []
+            vr = _extract_verse_ref_from_lookup(q)
+            if vr:
+                pin_refs.append(vr)
+            topical_pins = _topical_anchor_refs(q)
+            pin_refs.extend(topical_pins)
+            context = _retrieve(q, top_k=RAG_TOP_K, pin_refs=pin_refs or None)
+            if context and context.strip():
+                notes: list[str] = []
+                if vr:
+                    notes.append(
+                        "The context includes the verse you were asked about; quote it exactly."
+                    )
+                if topical_pins and not _is_verse_lookup(q):
+                    notes.append(
+                        "Use only passages that fit the topic; do not substitute unrelated stories."
+                    )
+                note_block = ("\n\nNote: " + " ".join(notes)) if notes else ""
+                augmented = "Context:\n" + context + "\n\nQ: " + q + note_block
                 for i in range(len(messages) - 1, -1, -1):
                     if messages[i].get("role") == "user":
                         messages[i] = {**messages[i], "content": augmented}
@@ -433,6 +662,9 @@ async def chat_completions(request: Request):
         normalized.append({"role": role, "content": content})
     messages = normalized
 
+    if last_q_for_policy and _is_counseling_request(last_q_for_policy):
+        messages.insert(0, {"role": "system", "content": _COUNSELING_SYSTEM_GUARD})
+
     ollama_payload = {
         "model": model,
         "messages": messages,
@@ -445,7 +677,7 @@ async def chat_completions(request: Request):
     if "think" in body:
         ollama_payload["think"] = bool(body["think"])
 
-    url = f"{OLLAMA_URL.rstrip('/')}/v1/chat/completions"
+    url = OLLAMA_URL.rstrip("/") + "/v1/chat/completions"
     async with httpx.AsyncClient(timeout=120.0) as client:
         if stream:
             req = client.build_request("POST", url, json=ollama_payload)
@@ -478,23 +710,35 @@ async def chat_completions(request: Request):
             raise HTTPException(status_code=502, detail=f"Ollama error {r.status_code}: {r.text}")
         data = r.json()
         try:
-            content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-            if content:
-                content = _strip_thinking(content)
-                content = _strip_repetition_and_meta(content)
-                out = content.rstrip()
-                if out:
-                    if out[-1] in ",;:":
-                        out = out[:-1] + "."
-                    elif out[-1] not in ".?!\"'":
-                        for end in (". ", "? ", "! "):
-                            idx = out.rfind(end)
-                            if idx != -1:
-                                out = out[: idx + 1].rstrip()
-                                break
-                    # Always write back post-processed text (previously we skipped when
-                    # the last char was already .?!\"' — leaving raw Ollama output in JSON).
-                    data["choices"][0]["message"]["content"] = out
-        except (IndexError, KeyError, TypeError):
-            pass
+            raw = data.get("choices", [{}])[0].get("message", {}).get("content", "") or ""
+            content = _strip_thinking(raw) if raw else ""
+            content = _strip_repetition_and_meta(content) if content else ""
+            out = content.rstrip()
+            if out:
+                if out[-1] in ",;:":
+                    out = out[:-1] + "."
+                elif out[-1] not in ".?!\"'":
+                    for end in (". ", "? ", "! "):
+                        idx = out.rfind(end)
+                        if idx != -1:
+                            out = out[: idx + 1].rstrip()
+                            break
+                data["choices"][0]["message"]["content"] = out
+            else:
+                data["choices"][0]["message"]["content"] = EMPTY_MODEL_REPLY
+        except (IndexError, KeyError, TypeError) as e:
+            logger.debug("Post-processing skipped: %s", e)
         return data
+
+
+@app.on_event("shutdown")
+async def _cleanup():
+    """Release heavy model objects on shutdown."""
+    global _chroma_client, _verse_collection, _passage_collection, _embedder, _bm25_data, _reranker
+    _chroma_client = None
+    _verse_collection = None
+    _passage_collection = None
+    _embedder = None
+    _bm25_data = None
+    _reranker = None
+    logger.info("RAG server resources released")

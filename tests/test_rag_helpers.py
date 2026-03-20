@@ -1,9 +1,13 @@
 """Unit tests for RAG server string helpers (no ChromaDB or Ollama)."""
 # Import only the pure helper functions; avoids loading ChromaDB/embedder
 from rag.rag_server import (
+    _extract_verse_ref_from_lookup,
+    _is_counseling_request,
     _is_verse_lookup,
+    _normalize_verse_id,
     _strip_repetition_and_meta,
     _strip_thinking,
+    _topical_anchor_refs,
 )
 from rag.response_cleanup import strip_model_thinking
 
@@ -25,6 +29,30 @@ class TestIsVerseLookup:
 
     def test_case_insensitive(self) -> None:
         assert _is_verse_lookup("WHAT DOES john 3:16 SAY?") is True
+
+
+class TestVerseRefExtraction:
+    def test_hebrews_lookup(self) -> None:
+        assert _extract_verse_ref_from_lookup("What does Hebrews 11:1 say?") == "Hebrews 11:1"
+
+    def test_psalm_alias(self) -> None:
+        assert _normalize_verse_id("Psalm 23:1") == "Psalms 23:1"
+
+    def test_topical_marriage_pins(self) -> None:
+        refs = _topical_anchor_refs("What does the Bible say about marriage?")
+        assert "Genesis 2:24" in refs
+        assert "Ephesians 5:31" in refs
+
+    def test_topical_empty_for_lookup(self) -> None:
+        assert _topical_anchor_refs("What does John 3:16 say?") == []
+
+
+class TestCounselingDetection:
+    def test_marriage_crisis(self) -> None:
+        assert _is_counseling_request("I need you to counsel me through my marriage crisis.")
+
+    def test_plain_verse_not_counseling(self) -> None:
+        assert not _is_counseling_request("What does John 3:16 say?")
 
 
 class TestStripThinking:

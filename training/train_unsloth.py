@@ -21,7 +21,7 @@ if sys.platform == "win32":
             sys.stdout.reconfigure(encoding="utf-8")
         if hasattr(sys.stderr, "reconfigure"):
             sys.stderr.reconfigure(encoding="utf-8")
-    except Exception:
+    except (AttributeError, OSError):
         pass
 
 import argparse
@@ -153,14 +153,14 @@ def main() -> None:
     # Some transformers versions fail on local tokenizer config (dict vs object). Workaround:
     # temporarily hide local tokenizer files so Unsloth loads the tokenizer from HF instead.
     tokenizer_renames = []
-    if use_local_model:
-        for f in ("tokenizer_config.json", "tokenizer.json", "special_tokens_map.json"):
-            p = Path(model_path) / f
-            if p.exists():
-                bak = p.with_suffix(p.suffix + ".bak")
-                os.rename(p, bak)
-                tokenizer_renames.append((bak, p))
     try:
+        if use_local_model:
+            for f in ("tokenizer_config.json", "tokenizer.json", "special_tokens_map.json"):
+                p = Path(model_path) / f
+                if p.exists():
+                    bak = p.with_suffix(p.suffix + ".bak")
+                    os.rename(p, bak)
+                    tokenizer_renames.append((bak, p))
         model, tokenizer = FastLanguageModel.from_pretrained(
             model_name=model_path,
             max_seq_length=MAX_SEQ_LENGTH,
@@ -188,6 +188,7 @@ def main() -> None:
 
     # Qwen3.5 tokenizer from Unsloth is a VL processor that treats text as images. Use text-only tokenizer for dataset.
     from transformers import AutoTokenizer
+    # trust_remote_code required by Qwen3.5 tokenizer for custom chat template
     text_tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
 
     # Load dataset (messages format)

@@ -20,10 +20,11 @@ def main():
     args = parser.parse_args()
     model_path = args.model_path
     print(f"Loading model and tokenizer from {model_path}...")
+    # trust_remote_code required by Qwen3.5 for custom architecture modules
     tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
-        dtype=torch.bfloat16,
+        torch_dtype=torch.bfloat16,
         device_map="auto",
         trust_remote_code=True,
     )

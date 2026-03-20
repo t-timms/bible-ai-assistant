@@ -22,6 +22,7 @@ This folder contains the main guides and reference docs for the Bible AI Assista
 - **[ORPO_TWO_ENV_SETUP.md](ORPO_TWO_ENV_SETUP.md)** — SFT and ORPO in `bible-orpo` (transformers 5.x) for Qwen3.5-4B.
 - **[QWEN35_MERGE_AND_DEPLOYMENT.md](QWEN35_MERGE_AND_DEPLOYMENT.md)** — Merge architecture, diagnostics, and corrected pipeline.
 - **[deployment/pc/README.md](../deployment/pc/README.md)** — Ollama Modelfile, Q4 vs F16, A/B testing, thinking / cleanup notes.
+- **[DEMO_LAUNCH.md](DEMO_LAUNCH.md)** — Start Ollama + RAG + Gradio landing UI for demos.
 - **[BENCHMARK_PROTOCOL.md](BENCHMARK_PROTOCOL.md)** — Versioned eval suite, `run_benchmark.py`, A/B comparison.
 - **[architecture.md](architecture.md)** — Architecture and phase-by-phase deployment.
 - **[evaluation_results.md](evaluation_results.md)** — Evaluation run results.

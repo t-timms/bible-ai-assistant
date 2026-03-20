@@ -8,6 +8,7 @@ PROMPT = "<|im_start|>system\nYou are a Bible AI assistant.<|im_end|>\n<|im_star
 
 def main():
     print("Loading base model and tokenizer...")
+    # trust_remote_code required by Qwen3.5 for custom architecture modules
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
     model = AutoModelForCausalLM.from_pretrained(
         MODEL_NAME,

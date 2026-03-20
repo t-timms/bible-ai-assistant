@@ -31,10 +31,10 @@ _ORPHAN_FLEX_THINK_LINE = re.compile(
 )
 
 
-def _strip_leading_think_xml_flex(text: str) -> str:
+def _strip_leading_think_xml_flex(text: str, _max_iterations: int = 50) -> str:
     """Remove leading `<...think...>` chunks (handles nonstandard Qwen/Ollama tag bodies)."""
     t = text
-    while True:
+    for _ in range(_max_iterations):
         u = _LEAD_WS.sub("", t)
         if not u.startswith("<"):
             break
@@ -51,7 +51,7 @@ def _strip_leading_think_xml_flex(text: str) -> str:
 def _strip_leading_think_markers(text: str) -> str:
     """Peel stray think open/close tags from the start (handles invisible leading whitespace)."""
     t = _strip_leading_think_xml_flex(text)
-    while True:
+    for _ in range(50):
         m = _LEADING_TAG_CHUNK.match(t)
         if not m:
             break
@@ -98,7 +98,9 @@ def _strip_verbose_thinking_process(text: str) -> str:
     """Remove long Qwen plans: Thinking Process + **Retrieve Verse:** scaffolding."""
     if not text:
         return text
-    head = text[:12000].lower()
+    # Only scan the first portion of text for thinking process markers
+    _SCAN_LIMIT = 12000
+    head = text[:_SCAN_LIMIT].lower()
     if "thinking process:" not in head and "**analyze the request**" not in head:
         return text
     # Model often ends planning with **Retrieve Verse:** then the quote

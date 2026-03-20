@@ -20,6 +20,7 @@ def main() -> None:
 
     client = chromadb.PersistentClient(path=str(db_path), settings=Settings(anonymized_telemetry=False))
     collection = client.get_collection("bible_verses")
+    # trust_remote_code required by nomic-embed-text-v1.5 for custom pooling
     model = SentenceTransformer("nomic-ai/nomic-embed-text-v1.5", trust_remote_code=True)
 
     query = "What does John 3:16 say?"
@@ -32,6 +33,9 @@ def main() -> None:
 
     print(f"Query: {query}\n")
     print("Top 5 results:")
+    if not results["metadatas"] or not results["metadatas"][0]:
+        print("  (no results returned)")
+        return
     for meta, doc in zip(results["metadatas"][0], results["documents"][0], strict=True):
         ref = meta.get("reference", "?")
         text = doc.replace("search_document: ", "", 1) if doc.startswith("search_document:") else doc

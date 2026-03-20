@@ -105,9 +105,10 @@ def main() -> None:
 
     device_map = "auto" if torch.cuda.is_available() else "cpu"
     print(f"Loading base model from {base_path!r} (device_map={device_map!r})...")
+    # trust_remote_code required by Qwen3.5 for custom architecture modules
     base_model = AutoModelForCausalLM.from_pretrained(
         base_path,
-        dtype=torch.bfloat16,
+        torch_dtype=torch.bfloat16,
         device_map=device_map,
         trust_remote_code=True,
     )
@@ -132,6 +133,7 @@ def main() -> None:
     print("Merging LoRA into base weights...")
     model = model.merge_and_unload()
 
+    # trust_remote_code required by Qwen3.5 for custom tokenizer
     tokenizer = AutoTokenizer.from_pretrained(base_path, trust_remote_code=True)
 
     print(f"Saving merged model to {out_path}...")

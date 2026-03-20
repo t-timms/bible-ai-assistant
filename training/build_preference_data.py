@@ -35,6 +35,9 @@ def load_verses() -> list[dict]:
     else:
         raise FileNotFoundError(f"No Bible JSON in {raw_dir}")
 
+    if not raw:
+        raise ValueError(f"Bible JSON file is empty: {p}")
+
     if isinstance(raw, dict):
         flat = []
         for book, chapters in raw.items():

@@ -23,7 +23,7 @@ if sys.platform == "win32":
             sys.stdout.reconfigure(encoding="utf-8")
         if hasattr(sys.stderr, "reconfigure"):
             sys.stderr.reconfigure(encoding="utf-8")
-    except Exception:
+    except (AttributeError, OSError):
         pass
 
 import argparse
@@ -92,7 +92,7 @@ def main() -> None:
     try:
         from transformers.models.auto.configuration_auto import CONFIG_MAPPING
         supports_qwen3_5 = "qwen3_5" in CONFIG_MAPPING
-    except Exception:
+    except (ImportError, AttributeError):
         supports_qwen3_5 = False
 
     if supports_qwen3_5:
@@ -180,7 +180,7 @@ def main() -> None:
     else:
         adapter_bin = sft_path / "adapter_model.bin"
         if adapter_bin.exists():
-            sft_state = torch.load(str(adapter_bin), map_location="cpu")
+            sft_state = torch.load(str(adapter_bin), map_location="cpu", weights_only=True)
             set_peft_model_state_dict(model, sft_state)
             print(f"Loaded SFT adapter weights from {adapter_bin}")
         else:
@@ -191,6 +191,7 @@ def main() -> None:
 
     # Use text-only tokenizer for ORPO: model tokenizer may be a processor that treats text as images
     from transformers import AutoTokenizer
+    # trust_remote_code required by Qwen3.5 tokenizer for custom chat template
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token

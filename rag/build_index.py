@@ -9,7 +9,7 @@ Creates three artifacts in rag/chroma_db/:
 """
 import contextlib
 import json
-import pickle
+import logging
 from collections import defaultdict
 from pathlib import Path
 
@@ -25,6 +25,8 @@ try:
     from rank_bm25 import BM25Okapi
 except ImportError as e:
     raise ImportError("Install rank_bm25: pip install rank_bm25>=0.2.2") from e
+
+logger = logging.getLogger(__name__)
 
 BATCH_SIZE = 500
 VERSES_COLLECTION = "bible_verses"
@@ -69,7 +71,7 @@ def _build_verse_index(
     verses: list[dict], model: SentenceTransformer, client: chromadb.ClientAPI
 ) -> tuple[list[str], list[str]]:
     """Build individual verse collection. Returns (ids, documents) for BM25."""
-    with contextlib.suppress(Exception):
+    with contextlib.suppress(ValueError):
         client.delete_collection(VERSES_COLLECTION)
 
     collection = client.create_collection(
@@ -120,7 +122,7 @@ def _build_passage_index(
     except ImportError:
         pass
 
-    with contextlib.suppress(Exception):
+    with contextlib.suppress(ValueError):
         client.delete_collection(PASSAGES_COLLECTION)
 
     collection = client.create_collection(
@@ -134,7 +136,7 @@ def _build_passage_index(
         by_chapter[key].append(v)
 
     ids, metadatas, documents = [], [], []
-    for _key, chapter_verses in by_chapter.items():
+    for _, chapter_verses in by_chapter.items():
         chapter_verses.sort(key=lambda x: x["verse"])
         for i in range(0, len(chapter_verses), PASSAGE_STRIDE):
             window = chapter_verses[i:i + PASSAGE_WINDOW]
@@ -182,12 +184,17 @@ def _build_passage_index(
 
 
 def _build_bm25_index(ids: list[str], documents: list[str], db_path: Path) -> None:
-    """Build and pickle a BM25Okapi index for sparse retrieval."""
+    """Build BM25 index and save as JSON (safe serialization).
+
+    The BM25Okapi object itself is reconstructed at load time from the stored
+    documents, so we only persist the ids and document strings.
+    """
+    # Verify BM25 can be built (catches issues early)
     tokenized = [doc.lower().split() for doc in documents]
-    bm25 = BM25Okapi(tokenized)
-    bm25_path = db_path / "bm25_index.pkl"
-    with open(bm25_path, "wb") as f:
-        pickle.dump({"bm25": bm25, "ids": ids, "documents": documents}, f)
+    BM25Okapi(tokenized)
+    bm25_path = db_path / "bm25_index.json"
+    with open(bm25_path, "w", encoding="utf-8") as f:
+        json.dump({"ids": ids, "documents": documents}, f)
     print(f"  BM25 index saved to {bm25_path}")
 
 
@@ -201,6 +208,7 @@ def main() -> None:
     print(f"Loaded {len(verses)} verses.")
 
     print("Loading embedding model (nomic-embed-text-v1.5)...")
+    # trust_remote_code required by nomic-embed-text-v1.5 for custom pooling
     model = SentenceTransformer("nomic-ai/nomic-embed-text-v1.5", trust_remote_code=True)
 
     client = chromadb.PersistentClient(

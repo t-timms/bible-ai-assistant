@@ -9,24 +9,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - `rag/response_cleanup.py` — shared `strip_model_thinking()` for Qwen/Ollama chain-of-thought and planning scaffolds
+- **RAG retrieval hardening** — pin explicit verse refs for “What does X say?” lookups; topical anchor verses (marriage, forgiveness, money); Psalm→Psalms id normalization; counseling-pattern detection with an extra system guard in chat payloads
+- `EMPTY_MODEL_REPLY` fallback when the model returns empty content (non-stream and stream paths)
 - `scripts/run_benchmark.py`, `scripts/compare_benchmark_runs.py`, `benchmarks/manifest.v1.yaml` — versioned keyword / judge benchmarks
-- `tests/` — pytest coverage for RAG helpers, eval keywords, evaluation manifest, and benchmark manifest
-- `.github/workflows/ci.yml` — CI running `ruff check` and `pytest`
-- `pyproject.toml`, `requirements-rag.txt`, `prompts/README.md`
-- Documentation: `docs/PROJECT_STATUS_AND_GOALS.md`, `docs/SHIP_v1_AND_POLISH_BACKLOG.md`, `docs/BENCHMARK_PROTOCOL.md`, `docs/training_results/POST_TRAINING_CHECKLIST.md`, `deployment/pc/README.md`, and related guides
+- `requirements-ui.txt` — Gradio + voice deps for envs that only installed `requirements-rag.txt`
+- `docs/DEMO_LAUNCH.md`, `scripts/start_demo.ps1` — Ollama + RAG + Gradio launch checklist
+- **Gradio 6 UI** — landing hero, stack health check, model override field, amber theme, `theme`/`css` on `launch()`, auto-pick free port if `7860` is busy (`GRADIO_PORT` / `GRADIO_SERVER_PORT`)
+- `tests/` — RAG helpers (verse extraction, counseling detection, topical pins), eval keywords, manifests; CI runs `tests/` and `deployment/` with Ruff
 
 ### Changed
 
-- `rag/rag_server.py` — Ollama requests default to `"think": false`; non-streaming responses always write post-processed `choices[0].message.content` (including after punctuation normalization)
-- `training/evaluate.py` — strips model thinking on RAG replies; robust judge HTTP (`trust_env=False`, endpoint fallbacks); configurable `--judge-model` (default `qwen3.5:27b`)
-- `prompts/system_prompt.txt` — discourages visible chain-of-thought; Modelfile regeneration via `deployment/pc/generate_modelfile.py`
-- `README.md` and `docs/README.md` — pointers to ship checklist, post-training steps, and changelog
+- `rag/rag_server.py` — Ollama `"think": false` by default; non-streaming always assigns cleaned `message.content`; hybrid retrieval merges pinned verses with reranked results
+- `prompts/system_prompt.txt` — stronger topical relevance, counseling boundaries, verse-lookup accuracy
+- `training/evaluate.py` — strips thinking on RAG replies; judge HTTP `trust_env=False` and endpoint fallbacks; `--judge-model` (default `qwen3.5:27b`)
+- `README.md`, `docs/README.md`, `ui/README.md`, `requirements-rag.txt` — demo/UI install and env notes
+- **CI** — Python 3.10–3.12 matrix; coverage report without a fail-under threshold (training scripts are mostly CLI)
 
 ### Fixed
 
-- `strip_model_thinking()` — remove paired `</think>`…`</think>` blocks *before* flex `<think>` peeling (avoids stripping only the opener and leaving leaked content); strip leading BOM when it remains after tag removal
-- RAG OpenAI-compatible JSON — previously skipped assigning cleaned text when the reply already ended with `.`, `?`, `!`, `"`, or `'`, leaving raw model output in the payload
-- **GitHub Actions (lint)** — Ruff clean on `training/`, `rag/`, `scripts/`, `ui/`, `voice/` (import order, `zip(strict=True)`, `raise … from`, `contextlib.suppress`, per-file ignores for `evaluate.py` path bootstrap and `dataset_builder` format branches)
+- `strip_model_thinking()` — paired `</think>`…`</think>` before flex `think` peeling; leading BOM after tag removal
+- RAG OpenAI JSON — always persist cleaned assistant text (punctuation edge case)
+- **Ruff** — clean `training/`, `rag/`, `scripts/`, `ui/`, `tests/`, `deployment/` (per-file ignores where intentional)
+- **Verse ref extraction** — avoid matching “What does Hebrews…” as the reference; strip lookup prefixes before regex
+- **Gradio 6** — removed unsupported `Chatbot` `type=` / `show_copy_button`; moved `theme`/`css` to `launch()`
 
 ## [0.1.0] - YYYY-MM-DD
 
