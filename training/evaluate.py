@@ -320,7 +320,8 @@ def _run_keyword_eval(
 
         print(f"[{i + 1}/{len(questions)}] ({category}) {question}")
         response = query_rag(question, rag_url, ollama_model)
-        print(f"  -> {response[:150]}{'...' if len(response) > 150 else ''}")
+        preview = response[:150].encode("ascii", errors="replace").decode("ascii")
+        print(f"  -> {preview}{'...' if len(response) > 150 else ''}")
 
         verse_score = check_verse_accuracy(response, expected)
         citation = has_citation(response)
