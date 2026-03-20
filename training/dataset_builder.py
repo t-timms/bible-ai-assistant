@@ -15,9 +15,9 @@ Usage:
   python training/dataset_builder.py
   python training/dataset_builder.py --output data/processed/train.json
 """
+import argparse
 import json
 import random
-import argparse
 from pathlib import Path
 
 random.seed(42)

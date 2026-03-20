@@ -10,8 +10,9 @@ Usage:
   python training/train_unsloth.py --no-wandb   # Skip W&B (fallback if W&B has issues)
 """
 # Fix Windows console encoding and W&B service timeout (must run before other imports)
-import sys
 import os
+import sys
+
 if sys.platform == "win32":
     os.environ.setdefault("PYTHONIOENCODING", "utf-8")
     os.environ.setdefault("WANDB__SERVICE_WAIT", "90")  # Give W&B service more time to start
@@ -23,8 +24,8 @@ if sys.platform == "win32":
     except Exception:
         pass
 
-from pathlib import Path
 import argparse
+from pathlib import Path
 
 # Training config (aligned with config.yaml). Edit here or in config.yaml for reference.
 MODEL_NAME = "Qwen/Qwen3.5-4B"
@@ -69,11 +70,11 @@ def _load_config_yaml(project_root: Path) -> None:
         LOAD_IN_4BIT = m.get("load_in_4bit", LOAD_IN_4BIT)
         MAX_SEQ_LENGTH = m.get("max_seq_length", MAX_SEQ_LENGTH)
     if "lora" in cfg:
-        l = cfg["lora"]
-        LORA_R = l.get("r", LORA_R)
-        LORA_ALPHA = l.get("alpha", LORA_ALPHA)
-        LORA_DROPOUT = l.get("dropout", LORA_DROPOUT)
-        LORA_TARGET_MODULES = l.get("target_modules", LORA_TARGET_MODULES)
+        lora_cfg = cfg["lora"]
+        LORA_R = lora_cfg.get("r", LORA_R)
+        LORA_ALPHA = lora_cfg.get("alpha", LORA_ALPHA)
+        LORA_DROPOUT = lora_cfg.get("dropout", LORA_DROPOUT)
+        LORA_TARGET_MODULES = lora_cfg.get("target_modules", LORA_TARGET_MODULES)
     if "training" in cfg:
         t = cfg["training"]
         OUTPUT_DIR = t.get("output_dir", OUTPUT_DIR)
@@ -103,11 +104,13 @@ def main() -> None:
 
     try:
         import os
+
         import torch
-        import wandb
-        from unsloth import FastLanguageModel
-        from trl import SFTTrainer, SFTConfig
         from datasets import load_dataset
+        from trl import SFTConfig, SFTTrainer
+        from unsloth import FastLanguageModel
+
+        import wandb
     except ImportError as e:
         raise ImportError(
             "Install training deps: pip install unsloth trl datasets wandb. "
@@ -138,7 +141,6 @@ def main() -> None:
 
     if args.no_wandb:
         wandb.init(project="bible-ai", name=args.run_name, mode="disabled")
-        report_to = "none"
     else:
         # On Windows, give W&B service extra time to start; UTF-8 fix is at top of file
         wandb.init(
@@ -146,7 +148,6 @@ def main() -> None:
             name=args.run_name,
             settings=wandb.Settings(_service_wait=90),
         )
-        report_to = "wandb"
 
     # When loading from a local path, Unsloth loads the tokenizer from that path too.
     # Some transformers versions fail on local tokenizer config (dict vs object). Workaround:

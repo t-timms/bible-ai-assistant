@@ -26,6 +26,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - `strip_model_thinking()` — remove paired `</think>`…`</think>` blocks *before* flex `<think>` peeling (avoids stripping only the opener and leaving leaked content); strip leading BOM when it remains after tag removal
 - RAG OpenAI-compatible JSON — previously skipped assigning cleaned text when the reply already ended with `.`, `?`, `!`, `"`, or `'`, leaving raw model output in the payload
+- **GitHub Actions (lint)** — Ruff clean on `training/`, `rag/`, `scripts/`, `ui/`, `voice/` (import order, `zip(strict=True)`, `raise … from`, `contextlib.suppress`, per-file ignores for `evaluate.py` path bootstrap and `dataset_builder` format branches)
 
 ## [0.1.0] - YYYY-MM-DD
 

@@ -76,9 +76,9 @@ def _synthesize_local(text: str) -> str | None:
     """Use hexgrad/kokoro package locally (GPU if PyTorch supports it). Falls back to HTTP."""
     global _kokoro_pipeline
     try:
-        from kokoro import KPipeline
         import numpy as np
         import soundfile as sf
+        from kokoro import KPipeline
     except ImportError:
         return None
     try:

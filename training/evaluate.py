@@ -407,7 +407,7 @@ def _run_judge_eval(
     print(header)
     print("-" * 100)
 
-    totals = {d: 0.0 for d in dims}
+    totals = dict.fromkeys(dims, 0.0)
     total_n = 0
     for cat, cs in sorted(category_scores.items()):
         n = cs["total"]

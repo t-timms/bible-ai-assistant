@@ -18,7 +18,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import os
 from pathlib import Path
 
 # Defaults aligned with train_unsloth.py (run name = adapter folder)

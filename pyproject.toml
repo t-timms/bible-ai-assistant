@@ -74,6 +74,12 @@ exclude = ["chroma_db", "checkpoints", "checkpoints-orpo", "wandb", "unsloth_com
 select = ["E", "F", "I", "UP", "B", "C4", "SIM"]
 ignore = ["E501"]  # Line length handled by formatter
 
+# evaluate.py inserts repo root into sys.path before importing `rag` (script entrypoint).
+[tool.ruff.lint.per-file-ignores]
+"training/evaluate.py" = ["E402"]
+"training/dataset_builder.py" = ["SIM116"]  # _format_response: explicit branches read clearer than a dict of lambdas
+"ui/app.py" = ["I001"]  # Lazy imports inside try/ blocks (optional Kokoro / numpy)
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]

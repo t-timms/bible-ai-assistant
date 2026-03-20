@@ -2,6 +2,7 @@
 """Quick test of RAG retrieval quality. Run after build_index.py."""
 from pathlib import Path
 
+
 def main() -> None:
     try:
         import chromadb
@@ -31,7 +32,7 @@ def main() -> None:
 
     print(f"Query: {query}\n")
     print("Top 5 results:")
-    for meta, doc in zip(results["metadatas"][0], results["documents"][0]):
+    for meta, doc in zip(results["metadatas"][0], results["documents"][0], strict=True):
         ref = meta.get("reference", "?")
         text = doc.replace("search_document: ", "", 1) if doc.startswith("search_document:") else doc
         print(f"  {ref}: {text[:80]}...")

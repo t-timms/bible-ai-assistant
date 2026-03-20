@@ -10,9 +10,9 @@ Usage:
   python training/build_preference_data.py
   python training/build_preference_data.py --output data/processed/preferences.json
 """
+import argparse
 import json
 import random
-import argparse
 from pathlib import Path
 
 random.seed(42)

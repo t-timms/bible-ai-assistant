@@ -7,6 +7,7 @@ Creates three artifacts in rag/chroma_db/:
   2. bible_passages collection -- 5-verse passage windows for parent-child retrieval
   3. bm25_index.pkl           -- pickled BM25Okapi index for hybrid search
 """
+import contextlib
 import json
 import pickle
 from collections import defaultdict
@@ -17,13 +18,13 @@ from sentence_transformers import SentenceTransformer
 try:
     import chromadb
     from chromadb.config import Settings
-except ImportError:
-    raise ImportError("Install chromadb: pip install chromadb>=0.4.0")
+except ImportError as e:
+    raise ImportError("Install chromadb: pip install chromadb>=0.4.0") from e
 
 try:
     from rank_bm25 import BM25Okapi
-except ImportError:
-    raise ImportError("Install rank_bm25: pip install rank_bm25>=0.2.2")
+except ImportError as e:
+    raise ImportError("Install rank_bm25: pip install rank_bm25>=0.2.2") from e
 
 BATCH_SIZE = 500
 VERSES_COLLECTION = "bible_verses"
@@ -45,7 +46,7 @@ def _load_verses(raw_path: Path) -> list[dict]:
         )
 
     print(f"Loading verses from {bible_file}...")
-    with open(bible_file, "r", encoding="utf-8") as f:
+    with open(bible_file, encoding="utf-8") as f:
         data = json.load(f)
 
     if isinstance(data, list):
@@ -68,10 +69,8 @@ def _build_verse_index(
     verses: list[dict], model: SentenceTransformer, client: chromadb.ClientAPI
 ) -> tuple[list[str], list[str]]:
     """Build individual verse collection. Returns (ids, documents) for BM25."""
-    try:
+    with contextlib.suppress(Exception):
         client.delete_collection(VERSES_COLLECTION)
-    except Exception:
-        pass
 
     collection = client.create_collection(
         name=VERSES_COLLECTION,
@@ -121,10 +120,8 @@ def _build_passage_index(
     except ImportError:
         pass
 
-    try:
+    with contextlib.suppress(Exception):
         client.delete_collection(PASSAGES_COLLECTION)
-    except Exception:
-        pass
 
     collection = client.create_collection(
         name=PASSAGES_COLLECTION,
