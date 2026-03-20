@@ -76,11 +76,10 @@ def main() -> None:
 
     try:
         import torch
+        import wandb
         from datasets import load_dataset
         from trl import ORPOConfig, ORPOTrainer
         from unsloth import FastLanguageModel
-
-        import wandb
     except ImportError as e:
         raise ImportError(
             "Install deps: pip install unsloth trl datasets wandb. "
