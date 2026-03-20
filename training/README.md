@@ -1,16 +1,16 @@
 # Training
 
-QLoRA fine-tuning of Qwen3 4B on the Bible dataset.
+bf16 LoRA fine-tuning of Qwen3.5-4B on the Bible dataset.
 
 ## Scripts
 
 | Script | Purpose |
 |--------|---------|
-| `train_unsloth.py` | Main fine-tuning script (Unsloth + QLoRA). |
+| `train_unsloth.py` | Main fine-tuning script (Unsloth + bf16 LoRA). |
 | `train_orpo.py` | ORPO preference alignment (runs after SFT; requires separate env). See [ORPO Two-Env Setup](../docs/ORPO_TWO_ENV_SETUP.md). |
 | `merge_adapters.py` | Merge LoRA adapters into full model for export. |
 | `dataset_builder.py` | Build Q&A dataset from raw sources → `data/processed/train.json`. |
-| `evaluate.py` | Run evaluation test set; check for verse fabrication and constitution compliance. |
+| `evaluate.py` | Run evaluation test set; `--ollama-model`, `--protocol-id` for A/B. See `docs/BENCHMARK_PROTOCOL.md`. |
 | `config.yaml` | Hyperparameters (batch size, LR, epochs, etc.). |
 
 ## Environment
@@ -22,15 +22,15 @@ QLoRA fine-tuning of Qwen3 4B on the Bible dataset.
 
 ```bash
 conda activate bible-ai-assistant
-# After dataset is ready (data/processed/train.json). Default run name: qwen3-4b-bible-John
+# After dataset is ready (data/processed/train.json). Default run name: qwen3.5-4b-bible-John-v4
 python training/train_unsloth.py
 # Optional: use local base model or a different run name
-python training/train_unsloth.py --model-path models/base_model --run-name qwen3-4b-bible-John
+python training/train_unsloth.py --model-path models/base_model --run-name qwen3.5-4b-bible-John-v4
 python training/merge_adapters.py
 python training/evaluate.py
 ```
 
-Hyperparameters are read from `config.yaml` when available (PyYAML required). LoRA adapters are saved to `models/<run_name>` (e.g. `models/qwen3-4b-bible-John`). For a full step-by-step walkthrough, see **docs/WALKTHROUGH.md** (Step 9).
+Hyperparameters are read from `config.yaml` when available (PyYAML required). LoRA adapters are saved to `models/<run_name>` (e.g. `models/qwen3.5-4b-bible-John-v4`). For a full step-by-step walkthrough, see **docs/WALKTHROUGH.md** (Step 9).
 
 ## ORPO (Preference Alignment)
 
@@ -51,4 +51,4 @@ Output: `models/qwen3.5-4b-bible-John-v5/` (SFT + ORPO adapter). Merge with `mer
 
 ## Checkpoints
 
-- **v0.3.0:** Fine-tuning complete — Qwen3 4B trained on Bible Q&A. Push merged model to Hugging Face for backup.
+- **v0.3.0:** Fine-tuning complete — Qwen3.5-4B trained on Bible Q&A. Push merged model to Hugging Face for backup.

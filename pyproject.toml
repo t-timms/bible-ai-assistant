@@ -1,0 +1,82 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bible-ai-assistant"
+version = "0.1.0"
+description = "Bible-specialized AI assistant: fine-tuned Qwen3.5-4B, RAG, voice, constitutional guardrails."
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [{name = "John AI"}]
+keywords = ["bible", "llm", "rag", "fine-tuning", "ollama"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "transformers>=5.1.0",
+    "datasets>=2.18.0",
+    "peft>=0.10.0",
+    "trl>=0.8.0",
+    "accelerate>=0.33.0",
+    "bitsandbytes>=0.44.0",
+    "unsloth",
+    "wandb>=0.18.0",
+    "huggingface_hub",
+    "sentencepiece",
+    "chromadb>=0.4.0",
+    "sentence-transformers>=2.2.0",
+    "einops",
+    "rank_bm25>=0.2.2",
+    "numpy",
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "httpx>=0.26.0",
+    "gradio>=4.0.0",
+    "faster-whisper>=1.0.0",
+    "soundfile>=0.12.0",
+    "pydantic>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.4.0",
+    "numpy",
+    "httpx>=0.26.0",
+    "fastapi>=0.109.0",
+]
+
+[project.scripts]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["rag*", "training*", "ui*", "voice*", "deployment*", "scripts*"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+exclude = ["chroma_db", "checkpoints", "checkpoints-orpo", "wandb", "unsloth_compiled_cache"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4", "SIM"]
+ignore = ["E501"]  # Line length handled by formatter
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+filterwarnings = ["ignore::DeprecationWarning"]

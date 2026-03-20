@@ -20,7 +20,7 @@ This document maps the **Bible AI Assistant Guide v2** to an industry-standard, 
 - [ ] Create conda env `bible-ai-assistant` (Python 3.11). Install **PyTorch nightly** (CUDA 12.8+), not stable. Install `requirements.txt`.
 - [ ] Verify: `torch.cuda.is_available()`, `get_device_name(0)`, `sm_120` in `arch_list`.
 - [ ] `huggingface-cli login`, `wandb login`.
-- [ ] Download base model: `huggingface-cli download Qwen/Qwen3-4B-Instruct-2507 --local-dir models/base_model --exclude "*.msgpack"`.
+- [ ] Download base model: `huggingface-cli download Qwen/Qwen3.5-4B --local-dir models/base_model --exclude "*.msgpack"`.
 
 **Checkpoint:** v0.1.0 (or v0.1.1 after base model download). **Guide ref:** Section 5–7.
 
@@ -30,8 +30,8 @@ This document maps the **Bible AI Assistant Guide v2** to an industry-standard, 
 
 - [ ] Obtain raw Bible data (e.g. scrollmapper, World English Bible). Place in `data/raw/`.
 - [ ] Implement `training/dataset_builder.py`: output `data/processed/train.json` in Qwen3 chat format with system prompt. Include verse lookup, theology, constitution-testing, and uncertainty examples.
-- [ ] Target 30k–50k examples for first run. Commit `data/sample.json` as documentation.
-- [ ] **v0.2.0:** Dataset builder complete, 50k Bible Q&A generated (or your actual count).
+- [ ] Target ~1,800 diverse examples (verse lookups, thematic, cross-reference, etc.). Commit `data/sample.json` as documentation.
+- [ ] **v0.2.0:** Dataset builder complete, ~1,800 diverse Bible Q&A generated.
 
 **Guide ref:** Section 8.
 
@@ -39,11 +39,11 @@ This document maps the **Bible AI Assistant Guide v2** to an industry-standard, 
 
 ## Phase 3: Fine-tuning and evaluation
 
-- [ ] Implement `training/train_unsloth.py` (QLoRA, **bf16=True**). Use `config.yaml` and W&B.
+- [ ] Implement `training/train_unsloth.py` (bf16 LoRA, **bf16=True**). Use `config.yaml` and W&B.
 - [ ] Train; monitor loss in W&B. Save screenshots to `docs/training_results/`.
-- [ ] Implement `training/merge_adapters.py`; produce `models/bible-qwen3-4b-merged`.
+- [ ] Implement `training/merge_adapters.py`; produce `models/qwen3.5-4b-bible-John-vN-merged`.
 - [ ] Implement `training/evaluate.py` using `prompts/evaluation_questions.json`. Ensure zero fabricated verses and constitution pass.
-- [ ] **v0.3.0:** Fine-tuning complete — Qwen3 4B trained on Bible Q&A. Optionally push merged model to Hugging Face.
+- [ ] **v0.3.0:** Fine-tuning complete — Qwen3.5-4B trained on Bible Q&A. Optionally push merged model to Hugging Face.
 
 **Guide ref:** Section 9–10.
 
@@ -71,13 +71,12 @@ This document maps the **Bible AI Assistant Guide v2** to an industry-standard, 
 
 ---
 
-## Phase 6: Development stack and Telegram
+## Phase 6: Development stack
 
-- [ ] Configure OpenClaw: SOUL.md (constitution), config pointing to `http://localhost:8081/v1`. Run OpenClaw + Ollama + RAG together.
-- [ ] Create Telegram bot via @BotFather; add `TELEGRAM_BOT_TOKEN` to `.env`.
-- [ ] **v0.6.0:** Full dev stack — Ollama + OpenClaw + RAG + Telegram.
+- [ ] Run full stack: Ollama + RAG server. Test with Gradio, curl, or any OpenAI-compatible client at `http://localhost:8081/v1`.
+- [ ] **v0.6.0:** Full dev stack — Ollama + RAG. (Agent/Telegram integration is a separate project.)
 
-**Guide ref:** Section 13, 17.
+**Guide ref:** Section 12–13.
 
 ---
 
@@ -94,9 +93,9 @@ This document maps the **Bible AI Assistant Guide v2** to an industry-standard, 
 ## Phase 8: Edge and production
 
 - [ ] Jetson: transfer GGUF and chroma_db; install llama.cpp; systemd services; Tailscale.
-- [ ] **v0.7.0:** Jetson deployment live — llama.cpp serving Qwen3 4B.
-- [ ] VPS: DigitalOcean droplet; Node.js 22, OpenClaw, Tailscale; point to Jetson Tailscale IP.
-- [ ] **v0.8.0:** Production deployment — OpenClaw on VPS, model on Jetson.
+- [ ] **v0.7.0:** Jetson deployment live — llama.cpp serving Qwen3.5-4B.
+- [ ] VPS (optional): For production, deploy RAG + model to a server; use Tailscale for secure access. Agent/Telegram integration can be a separate project.
+- [ ] **v0.8.0:** Production deployment — model + RAG on Jetson or server.
 
 **Guide ref:** Section 15–16.
 

@@ -7,7 +7,7 @@
    ollama create bible-assistant -f Modelfile
    ollama run bible-assistant "What does John 3:16 say?"
    ```
-4. **OpenClaw:** Point OpenClaw to the RAG server at `http://localhost:8081/v1`, not directly to Ollama. The RAG server forwards to Ollama at `http://localhost:11434`.
+4. **Clients:** Point any OpenAI-compatible client (Gradio, curl, API) to the RAG server at `http://localhost:8081/v1` for verse-grounded answers. The RAG server forwards to Ollama at `http://localhost:11434`.
 
 ---
 

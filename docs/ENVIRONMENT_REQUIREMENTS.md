@@ -8,7 +8,7 @@ This document specifies when conda environments are required versus when they ar
 
 | Phase | Conda Env Required? | Notes |
 |-------|---------------------|-------|
-| **SFT training** | Yes — `bible-ai-assistant` | Unsloth, transformers ≤4.57.2 |
+| **SFT training** | Yes — `bible-orpo` | transformers ≥5.1, native Qwen3.5; see [QWEN35_MERGE_AND_DEPLOYMENT.md](QWEN35_MERGE_AND_DEPLOYMENT.md) |
 | **ORPO training** | Yes — `bible-orpo` | transformers ≥5.1, native Qwen3.5 |
 | **Merge adapters** | Yes — `bible-orpo` | Qwen3.5-4B needs transformers 5.x |
 | **GGUF conversion** | No | Any Python with torch, or base Python |
@@ -23,18 +23,18 @@ This document specifies when conda environments are required versus when they ar
 ### SFT (Supervised Fine-Tuning)
 
 ```bash
-conda activate bible-ai-assistant
-python training/train_unsloth.py --run-name qwen3.5-4b-bible-John-v4
+conda activate bible-orpo
+python training/train_unsloth.py --run-name qwen3.5-4b-bible-John-v6
 ```
 
-- **Environment:** `bible-ai-assistant`
-- **Why:** Unsloth, PyTorch, transformers ≤4.57.2, W&B
+- **Environment:** `bible-orpo`
+- **Why:** transformers ≥5.1 for native Qwen3.5; SFT in `bible-ai-assistant` produces incompatible adapter. See [QWEN35_MERGE_AND_DEPLOYMENT.md](QWEN35_MERGE_AND_DEPLOYMENT.md)
 
 ### ORPO (Preference Alignment)
 
 ```bash
 conda activate bible-orpo
-python training/train_orpo.py --sft-path models/qwen3.5-4b-bible-John-v4
+python training/train_orpo.py --sft-path models/qwen3.5-4b-bible-John-v6
 ```
 
 - **Environment:** `bible-orpo`
@@ -44,10 +44,10 @@ python training/train_orpo.py --sft-path models/qwen3.5-4b-bible-John-v4
 
 ```bash
 conda activate bible-orpo
-python training/merge_adapters.py --lora-path models/qwen3.5-4b-bible-John-v5
+python training/merge_adapters.py --lora-path models/qwen3.5-4b-bible-John-v6
 ```
 
-- **Environment:** `bible-orpo` (Qwen3.5-4B) or `bible-ai-assistant` (Qwen3-4B)
+- **Environment:** `bible-orpo` (Qwen3.5-4B) or `bible-ai-assistant` (legacy Qwen3-4B; deprecated for Qwen3.5)
 - **Why:** Merge uses Unsloth; Qwen3.5-4B requires transformers 5.x for correct loading
 
 ---
@@ -96,8 +96,6 @@ python training/evaluate.py
 
 ## Quick Reference
 
-**Use `bible-orpo` for:** ORPO training, merge (Qwen3.5-4B)
-
-**Use `bible-ai-assistant` for:** SFT training
+**Use `bible-orpo` for:** SFT, ORPO, merge (Qwen3.5-4B)
 
 **No env needed for:** GGUF conversion, llama-quantize, Ollama CLI, evaluation

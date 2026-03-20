@@ -1,0 +1,931 @@
+{
+  "eval_mode": "llm-as-judge",
+  "judge_model": "qwen3-coder:32b",
+  "ollama_model": "bible-assistant-orpo",
+  "model_tag": "orpo-q4",
+  "total_questions": 54,
+  "overall_scores": {
+    "faithfulness": 0.0,
+    "citation": 0.0,
+    "hallucination": 0.0,
+    "helpfulness": 0.0,
+    "conciseness": 0.0
+  },
+  "category_summary": {
+    "character": {
+      "count": 10,
+      "faithfulness": 0.0,
+      "citation": 0.0,
+      "hallucination": 0.0,
+      "helpfulness": 0.0,
+      "conciseness": 0.0
+    },
+    "context": {
+      "count": 10,
+      "faithfulness": 0.0,
+      "citation": 0.0,
+      "hallucination": 0.0,
+      "helpfulness": 0.0,
+      "conciseness": 0.0
+    },
+    "cross_reference": {
+      "count": 10,
+      "faithfulness": 0.0,
+      "citation": 0.0,
+      "hallucination": 0.0,
+      "helpfulness": 0.0,
+      "conciseness": 0.0
+    },
+    "refusal": {
+      "count": 4,
+      "faithfulness": 0.0,
+      "citation": 0.0,
+      "hallucination": 0.0,
+      "helpfulness": 0.0,
+      "conciseness": 0.0
+    },
+    "topical": {
+      "count": 10,
+      "faithfulness": 0.0,
+      "citation": 0.0,
+      "hallucination": 0.0,
+      "helpfulness": 0.0,
+      "conciseness": 0.0
+    },
+    "verse_lookup": {
+      "count": 10,
+      "faithfulness": 0.0,
+      "citation": 0.0,
+      "hallucination": 0.0,
+      "helpfulness": 0.0,
+      "conciseness": 0.0
+    }
+  },
+  "results": [
+    {
+      "question": "What does John 3:16 say?",
+      "expected_answer": "For God so loved the world, that he gave his only born Son, that whoever believes in him should not perish, but have eternal life.",
+      "response": "<think>\n\n</think>\n\n\"For God so loved the world, that he gave his one and only Son, that whoever believes in him should not perish, but have eternal life.\" — John 3:16 (WEB). Found in the Gospels, this passage from John records the life and ministry of Jesus.",
+      "category": "verse_lookup",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "What does Romans 8:28 say?",
+      "expected_answer": "We know that all things work together for good for those who love God, for those who are called according to his purpose.",
+      "response": "<think>\n\n</think>\n\n\"All things work together for good for those who love God, for those who are called according to his purpose.\" — Romans 8:28 (WEB).",
+      "category": "verse_lookup",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "What does Psalm 23:1 say?",
+      "expected_answer": "Yahweh is my shepherd; I shall lack nothing.",
+      "response": "\"Yahweh is my shepherd: I shall lack nothing.\" — Psalm 23:1 (WEB). This comforting verse invites us to rest in the assurance of God’s love and presence.",
+      "category": "verse_lookup",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "What does Proverbs 3:5 say?",
+      "expected_answer": "Trust in Yahweh with all your heart, and don't lean on your own understanding.",
+      "response": "<think>\n\n</think>\n\nI'll find that verse for you. \"Trust in Yahweh with all your heart, and don’t lean on your own understanding.\" — Proverbs 3:5 (WEB). Found in the wisdom tradition, this passage invites deep reflection.",
+      "category": "verse_lookup",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "What does Philippians 4:13 say?",
+      "expected_answer": "I can do all things through Christ, who strengthens me.",
+      "response": "<think>\n\n</think>\n\nPhilippians 4:13 WEB says: \"I can do all things through Christ, who strengthens me.\"",
+      "category": "verse_lookup",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "What does Isaiah 40:31 say?",
+      "expected_answer": "But those who wait for Yahweh will renew their strength. They will mount up with wings like eagles. They will run, and not be weary. They will walk, and not faint.",
+      "response": "<think>\n\n</think>\n\nIn Isaiah, Isaiah 40:31 reads: \"They shall bring glad tidings of good. They shall shout for joy and publish the word’s end. The people shall walk in the might of Yahweh.\" Isaiah contains powerful visions of both judgment and restoration. This verse contributes to that prophetic vision.",
+      "category": "verse_lookup",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "What does Jeremiah 29:11 say?",
+      "expected_answer": "For I know the thoughts that I think toward you, says Yahweh, thoughts of peace, and not of evil, to give you hope and a future.",
+      "response": "<think>\n\n</think>\n\nJeremiah speaks to the realities of sin and the call to turn back to God. As Jeremiah 29:4 WEB puts it: \"Yahweh of Armies, the God of Israel, says to all the captives whom I have caused to be carried away captive from Jerusalem to Babylon:\"",
+      "category": "verse_lookup",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "What does Matthew 28:19 say?",
+      "expected_answer": "Go and make disciples of all nations, baptizing them in the name of the Father and of the Son and of the Holy Spirit.",
+      "response": "<think>\n\n</think>\n\nMatthew 28:19 (WEB) says: \"Go and make disciples of all nations, baptizing them in the name of the Father and of the Son and of the Holy Spirit,\"",
+      "category": "verse_lookup",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "What does Genesis 1:1 say?",
+      "expected_answer": "In the beginning, God created the heavens and the earth.",
+      "response": "<think>\n\n</think>\n\nThe passage says: \"In the beginning God created the heaven and the earth.\"",
+      "category": "verse_lookup",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "What does Hebrews 11:1 say?",
+      "expected_answer": "Now faith is assurance of things hoped for, proof of things not seen.",
+      "response": "<think>\n\n</think>",
+      "category": "verse_lookup",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "What does the Bible say about forgiveness?",
+      "expected_answer": "The Bible teaches forgiveness extensively. Ephesians 4:32 says to forgive one another as God forgave you in Christ. Colossians 3:13 urges bearing with and forgiving each other. Matthew 6:14-15 connects receiving God's forgiveness to forgiving others.",
+      "response": "<think>\n\n</think>\n\n\"For if you forgive men their trespasses, your heavenly Father will also forgive you.\" — Matthew 6:14 (WEB). This passage encourages peace and restoration in the church.",
+      "category": "topical",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "What does the Bible say about love?",
+      "expected_answer": "1 Corinthians 13:4-7 describes love as patient and kind. 1 John 4:8 says God is love. John 15:13 says the greatest love is laying down one's life for friends.",
+      "response": "<think>\n\n</think>\n\n\"God's love is direct, human love is different. Scripture shows us the difference.\" — 1 John 4:8 (WEB).",
+      "category": "topical",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "What does the Bible say about faith?",
+      "expected_answer": "Hebrews 11:1 defines faith as assurance of things hoped for. Romans 10:17 says faith comes by hearing the word of God. James 2:26 says faith without works is dead.",
+      "response": "<think>\n\n</think>\n\n\"Now faith is assurance of things hoped for, proof of things not seen.\" — Hebrews 11:1 (WEB).",
+      "category": "topical",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "What does the Bible say about prayer?",
+      "expected_answer": "Philippians 4:6 says to present requests to God with thanksgiving. 1 Thessalonians 5:17 says to pray without ceasing. Matthew 6:6 teaches to pray in private.",
+      "response": "<think>\n\n</think>\n\nEphesians 6:18 WEB says: \"with all prayer and requests, praying at all times in the Spirit, and being watchful to this end in all perseverance and requests for all the saints:\" 2 Chronicles 6:19 WEB says: \"Yet have respect for the prayer of your servant, and to his supplication, Yahweh my God, to listen to the cry and to the prayer which your servant prays before you,\" 1 Samuel 12:19 WEB says: \"All the people said to Samuel, “Pray for your servants to Yahweh your God, that we not die; for we have added to all our sins this evil, to ask for a king.”\" Daniel 9:17 WEB says: \"“Now therefore, our God, listen to the prayer of your servant, and to his petitions, and cause your face to shine on your sanctuary that is desolate, for the Lord’s sake.\" 1 Kings 8:28 WEB says: \"Yet have respect for the prayer of your servant, and for his supplication, Yahweh my God, to listen to the cry and to the prayer which your servant prays before you today;\"",
+      "category": "topical",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "What does the Bible say about suffering?",
+      "expected_answer": "Romans 5:3-4 says suffering produces perseverance, character, and hope. James 1:2-4 says trials test faith and produce endurance. 2 Corinthians 1:3-4 says God comforts us so we can comfort others.",
+      "response": "<think>\n\n</think>\n\nScripture is honest about suffering and generous with its offer of God's presence through it. Matthew 24:21 speaks to the gravity of the times, Colossians 1:24 speaks to the cross as the place where sin and pain meet, 2 Corinthians 1:6 speaks to the paradox of finding comfort in comfort, Isaiah 53:4 speaks typologically to the Servant who bore human pain, and 1 Timothy 4:10 speaks to the hope of living under God's reign.",
+      "category": "topical",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "What does the Bible say about wisdom?",
+      "expected_answer": "Proverbs 9:10 says the fear of Yahweh is the beginning of wisdom. James 1:5 says to ask God for wisdom. Proverbs 3:13-18 says wisdom is more precious than rubies.",
+      "response": "<think>\n\n</think>\n\nWisdom in Scripture begins with God's revelation at Sinai and reaches its peak in Jesus Christ (John 1:1). Ecclesiastes 7:19 says, \"Wisdom is a strength to the wise man more than ten rulers who are in a city.\" Proverbs 17:24 adds, \"Wisdom is before the face of one who has understanding, but the eyes of a fool wander to the ends of the earth.\" Found in Ecclesiastes, this verse invites us to consider life's deeper meaning in light of God's sovereignty.",
+      "category": "topical",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "What does the Bible say about hope?",
+      "expected_answer": "Romans 15:13 calls God the God of hope. Jeremiah 29:11 promises plans for hope and a future. Hebrews 6:19 describes hope as an anchor for the soul.",
+      "response": "<think>\n\n</think>\n\n\"Hope doesn’t disappoint us,\" says Romans 5:5 (WEB). \"Because God’s love has been poured into our hearts through the Holy Spirit who was given to us\" (WEB).",
+      "category": "topical",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "What does the Bible say about anger?",
+      "expected_answer": "Ephesians 4:26 says be angry but don't sin. James 1:19-20 says be slow to anger. Proverbs 15:1 says a gentle answer turns away wrath.",
+      "response": "<think>\nThinking Process:\n\n1.  **Analyze the Request:**\n    *   Input: Three Bible verses (Jeremiah 7:20, Jeremiah 42:18, Genesis 49:7).\n    *   Question: \"What does the Bible say about anger?\"\n    *   Context provided: The Bible verses above show examples of anger in Scripture (Jeremiah 7:20 - wrath poured out, Jeremiah 42:18 - wrath poured out, Genesis 49:7 - cursed be their anger, Ezekiel 5:13 - my anger will be accomplished). Wait, looking closer at the provided context, only Jeremiah and Genesis are explicitly mentioned in the \"Context\" section of the prompt? No, I see 4 verses above in the prompt provided by the user. Wait, checking the prompt text:\n        - **Jeremiah 7:20**: ...\n        - **Jeremiah 42:18**: ...\n        - **Genesis 49:7**: ...\n        - **Exodus 32:22**: ...\n        - **Ezekiel 5:13**: ...\n    *   Instruction: Use the provided verses to answer. Never fabricate Bible verses. Be conversational.\n\n2.  **Evaluate the Context:**\n    *   The user provided 5 verses. I",
+      "category": "topical",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "What does the Bible say about money?",
+      "expected_answer": "1 Timothy 6:10 says the love of money is a root of all kinds of evil. Matthew 6:24 says you cannot serve both God and money. Hebrews 13:5 says be free from the love of money.",
+      "response": "<think>\n\n</think>\n\nThe Bible is honest about wealth — it doesn't demonize it, but it warns against love of money. 1 Timothy 6:10 says this: 'For the love of money is a root of all kinds of evil. Some have been led astray from the faith in their greed, and have pierced themselves through with many sorrows.' Hebrews 13:5 adds: 'Be free from the love of money, content with such things as you have, for he has said, “I will in no way leave you, neither will I in any way forsake you.”' Scripture presents money as a tool, not a master.",
+      "category": "topical",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "What does the Bible say about marriage?",
+      "expected_answer": "Genesis 2:24 says a man leaves his parents and becomes one flesh with his wife. Ephesians 5:25 says husbands should love their wives as Christ loved the church. Hebrews 13:4 says marriage should be honored.",
+      "response": "<think>\n\n</think>\n\nScripture consistently affirms marriage as a covenant between a man and a woman. In Genesis, God establishes it (Genesis 2:24). Leviticus gives instructions for proper marriage. Ephesians 5 describes marriage as reflecting Christ and the church.",
+      "category": "topical",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "Who was Moses?",
+      "expected_answer": "Moses was the leader chosen by God to deliver the Israelites from slavery in Egypt. He received the Ten Commandments on Mount Sinai (Exodus 20), led the people through the Red Sea (Exodus 14), and guided them for 40 years in the wilderness. He is considered the author of the Torah (first five books).",
+      "response": "<think>\n\n</think>\n\n\"Most people agree,\" says John Adams. \"The best course of action is to meet force with strength.",
+      "category": "character",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "Who was David?",
+      "expected_answer": "David was the second king of Israel, a shepherd boy who defeated Goliath (1 Samuel 17). God called him a man after his own heart (1 Samuel 13:14). He wrote many Psalms and established Jerusalem as the capital. Despite sin with Bathsheba, he repented sincerely (Psalm 51).",
+      "response": "<think>\n\n</think>\n\n1 Samuel 17:12 WEB says: \"Now David was the son of that Ephrathite of Bethlehem Judah, whose name was Jesse; and he had eight sons. The man was an elderly old man in the days of Saul.\" Together with 1 Samuel 25:10 WEB (\"Now Nabal answered David’s servants, and said, “Who is David? Who is the son of Jesse? There are many ...\"), 1 Chronicles 18:14 WEB (\"David reigned over all Israel; and he executed justice and righteousness for all his people.\"), and 2 Samuel 8:15 WEB (\"David reigned over all Israel; and David executed justice and righteousness for all his people.\"), this passage speaks to the centrality of God's people in his own narrative.",
+      "category": "character",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "Who was the Apostle Paul?",
+      "expected_answer": "Paul, originally named Saul, persecuted Christians until his dramatic conversion on the road to Damascus (Acts 9). He became the greatest missionary of the early church, wrote 13 New Testament epistles, and spread the gospel throughout the Roman Empire. He emphasized salvation by grace through faith (Ephesians 2:8-9).",
+      "response": "<think>\n\n</think>\n\nThe Apostle Paul was sent by the Lord to proclaim the gospel. This passage shows his authority and clarity.",
+      "category": "character",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "Who was Abraham?",
+      "expected_answer": "Abraham is the father of the Jewish people. God called him to leave his homeland and promised to make his descendants a great nation (Genesis 12:1-3). His willingness to sacrifice Isaac (Genesis 22) demonstrated extraordinary faith. Romans 4 holds him up as justified by faith.",
+      "response": "<think>\n\n</think>\n\nGod told Abraham to leave his country, his people, and his father's house, and go to the land that I will show him (Genesis 12:1 WEB). Abraham trusted God even when he didn't expect a child (Genesis 15:6 WEB). Through Abraham, the nations are blessed (Genesis 18:18 WEB; Genesis 22:18 WEB). He is the father of the multitude.",
+      "category": "character",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "Who was Ruth?",
+      "expected_answer": "Ruth was a Moabite woman who chose to follow her mother-in-law Naomi and worship the God of Israel (Ruth 1:16). She gleaned in the fields of Boaz, who became her kinsman-redeemer (Ruth 2-4). She became the great-grandmother of King David and an ancestor of Jesus (Matthew 1:5).",
+      "response": "<think>\n\n</think>\n\nRuth 3:9 says: \"He said, “Who are you?” She answered, “I am Ruth your servant. Therefore spread the corner of your garment over your servant; for you are a near kinsman.”\" Ruth 4:10 says: \"Moreover, Ruth the Moabitess, the wife of Mahlon, I have purchased to be my wife, to raise up the name of the dead on his inheritance, that the name of the dead may not be cut off from among his brothers and from the gate of his place. You are witnesses today.”\" Ruth 1:22 says: \"So Naomi returned, and Ruth the Moabitess, her daughter-in-law, with her, who returned out of the country of Moab. They came to Bethlehem in the beginning of barley harvest.\" Ruth 1:4 says: \"They took for themselves wives of the women of Moab. The name of the one was Orpah, and the name of the other was Ruth. They lived there about ten years.\" Ruth 4:13 says: \"So Boaz took Ruth and she became his wife; and he went in to her, and Yahweh enabled her to conceive, and she bore a son.\" Together, these passages s",
+      "category": "character",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "Who was Elijah?",
+      "expected_answer": "Elijah was a prophet of God during King Ahab's reign in Israel. He confronted the prophets of Baal on Mount Carmel and God answered with fire (1 Kings 18). He was taken to heaven in a chariot of fire (2 Kings 2:11). He represents the prophets alongside Moses at the Transfiguration.",
+      "response": "<think>\n\n</think>\n\nIn 1 Kings, 1 Kings 17:1 says: \"Elijah the Tishbite, who was one of the settlers of Gilead, said to Ahab, “As Yahweh, the God of Israel, lives, before whom I stand, there shall not be dew nor rain these years, but according to my word.”\" 1 Kings chronicles the unfolding story of God's people. This verse captures a key detail in that narrative.",
+      "category": "character",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "Who was Peter?",
+      "expected_answer": "Peter was a fisherman called by Jesus to be one of the twelve apostles (Matthew 4:18-20). He confessed Jesus as the Christ (Matthew 16:16), denied Jesus three times (Matthew 26:69-75), but was restored and became a leader of the early church (Acts 2). He wrote 1 and 2 Peter.",
+      "response": "<think>\n\n</think>\n\nIn the Gospels, Peter is a central figure. In Matthew, Mark, and Luke, we see him walking with Jesus, being called, and commissioned for the mission of the church.",
+      "category": "character",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "Who was Mary, the mother of Jesus?",
+      "expected_answer": "Mary was a young woman from Nazareth chosen by God to bear Jesus through the Holy Spirit (Luke 1:26-38). She said 'let it be done to me according to your word.' She was present at Jesus' crucifixion (John 19:25) and with the disciples at Pentecost (Acts 1:14).",
+      "response": "<think>\n\n</think>\n\nMary, the mother of Jesus, was chosen by Jesus himself to be his mother (John 2:4). She is the first to encounter the resurrected Jesus (John 20:11-15). In Luke, she is praised as one of the blessed (Luke 1:48).",
+      "category": "character",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "Who was Joseph, son of Jacob?",
+      "expected_answer": "Joseph was Jacob's favored son who was sold into slavery by his jealous brothers (Genesis 37). He rose to become second-in-command of Egypt after interpreting Pharaoh's dreams (Genesis 41). He later forgave his brothers and saved his family from famine, saying God intended it for good (Genesis 50:20).",
+      "response": "<think>\n\n</think>\n\nJoseph was born to Jacob and Rachel, and he grew up in the household of Elishama, Jacob's servant. 20th century theology often speaks of the cross as God's way of dealing with human sin — forgiveness that respects the seriousness of sin while offering real grace. This passage grounds that understanding. Found in Matthew, this passage addresses concerns that reach beyond the Church into the heart of God's people.",
+      "category": "character",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "Who was Daniel?",
+      "expected_answer": "Daniel was a Jewish exile in Babylon who served in the royal court. He survived the lion's den because of his faithfulness to God (Daniel 6). He interpreted King Nebuchadnezzar's dreams (Daniel 2, 4) and received visions about future kingdoms and the end times (Daniel 7-12).",
+      "response": "<think>\n\n</think>\n\nDaniel 6:20 says: \"When he came near to the den to Daniel, he cried with a troubled voice. The king spoke and said to Daniel, “Daniel, servant of the living God, is your God, whom you serve continually, able to deliver you from the lions？”\" Daniel 10:1 says: \"In the third year of Cyrus king of Persia a thing was revealed to Daniel, whose name was called Belteshazzar; and the thing was true, even a great warfare. He understood the thing, and had understanding of the vision.\" Daniel 5:12 says: \"because an excellent spirit, knowledge, understanding, interpreting of dreams, showing of dark sentences, and dissolving of doubts were found in the same Daniel, whom the king named Belteshazzar. Now let Daniel be called, and he will show the interpretation.\" Daniel 4:19 says: \"Then Daniel, whose name was Belteshazzar, was stricken mute for a while, and his thoughts troubled him. The king answered, “Belteshazzar, don’t let the dream, or the interpretation, trouble you.” Beltesha",
+      "category": "character",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "How does Romans 3:23 relate to Romans 6:23?",
+      "expected_answer": "Romans 3:23 says all have sinned and fall short of the glory of God. Romans 6:23 says the wages of sin is death, but the free gift of God is eternal life in Christ Jesus. Together they show the universal problem (all sin) and God's solution (grace through Jesus).",
+      "response": "<think>\n\n</think>\n\nRomans 6:23 says: \"For the wages of sin is death, but the free gift of God is eternal life in Christ Jesus our Lord.\"",
+      "category": "cross_reference",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "How does Genesis 3:15 relate to Revelation 12:9?",
+      "expected_answer": "Genesis 3:15 is the first messianic prophecy — God tells the serpent that the woman's offspring will crush his head. Revelation 12:9 identifies that ancient serpent as the devil and Satan, showing the ultimate fulfillment of that promise through Christ's victory.",
+      "response": "<think>\n\n</think>\n\nGenesis 3:15 is God's first prophetic word in Scripture — the promise of redemption from the very beginning. This passage from Revelation completes that picture with the final word of God. Together, they show us God's hand in all things.",
+      "category": "cross_reference",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "How does Isaiah 53:5 relate to 1 Peter 2:24?",
+      "expected_answer": "Isaiah 53:5 prophesies that the suffering servant was wounded for our transgressions and by his stripes we are healed. 1 Peter 2:24 applies this to Jesus, saying he bore our sins in his body on the tree so that we might die to sin and live to righteousness.",
+      "response": "<think>\n\n</think>\n\nGod's word offers hope, redemption, and a path home. This verse contributes to that message. Isaiah 53:5 says: \"But he was pierced through for our transgressions, he was crushed for our iniquities; the punishment that brought us peace was on him, and with his wounds we are healed.\" 1 Peter 2:24 says: \"He himself bore our sins, so that we might become right with God.\" Together, these passages show us the centrality of Christ in God's redemptive plan.",
+      "category": "cross_reference",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "How does Psalm 22:1 relate to Matthew 27:46?",
+      "expected_answer": "Psalm 22:1 is David's cry 'My God, my God, why have you forsaken me?' Matthew 27:46 records Jesus speaking these exact words on the cross, showing Psalm 22 as a messianic prophecy fulfilled in Jesus' crucifixion.",
+      "response": "<think>\n\n</think>\n\nFound in Psalms, this verse reflects the human experience of fear, trust, and God's presence. As Psalm 22:1 puts it: \"My God, my God, why have you forsaken me? Why are you so far from helping me, and from the words of my groaning?\"",
+      "category": "cross_reference",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "How does Micah 5:2 relate to Matthew 2:1?",
+      "expected_answer": "Micah 5:2 prophesies that a ruler of Israel will come from Bethlehem Ephrathah. Matthew 2:1 records Jesus being born in Bethlehem, fulfilling this prophecy. The chief priests and scribes quoted Micah when Herod asked where the Christ would be born.",
+      "response": "<think>\n\n</think>\n\nI don't have Micah 5:2 saved up to recall. I'll check it for you.\n\nIn Micah, the prophetic call to justice, repentance, and hope for God's people is central. This verse carries that urgent message.",
+      "category": "cross_reference",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "How does Deuteronomy 6:5 relate to Matthew 22:37?",
+      "expected_answer": "Deuteronomy 6:5 commands to love Yahweh your God with all your heart, soul, and might. When asked about the greatest commandment, Jesus quotes this in Matthew 22:37, affirming that loving God remains the greatest commandment in both Old and New Testaments.",
+      "response": "<think>\n\n</think>\n\nDeuteronomy 6:5 says: \"You shall love Yahweh your God with all your heart, with all your soul, and with all your might.\" In Matthew, the Gospels reveal Jesus' teaching and ministry. This verse from Deuteronomy contributes to that picture.",
+      "category": "cross_reference",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "How does Joel 2:28 relate to Acts 2:17?",
+      "expected_answer": "Joel 2:28 prophesies that God will pour out his Spirit on all flesh. In Acts 2:17, Peter quotes Joel during Pentecost, declaring that the outpouring of the Holy Spirit on the disciples is the fulfillment of Joel's prophecy.",
+      "response": "<think>\n\n</think>\n\nIn Joel, Joel 2:28 says: \"“It will happen afterward, that I will pour out my Spirit on all flesh; and your sons and your daughters will prophesy. Your old men will dream dreams. Your young men will see visions.\" This prophetic word from Joel carries the weight of God's invitation and warning.",
+      "category": "cross_reference",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "How does Proverbs 3:5-6 relate to James 1:5?",
+      "expected_answer": "Proverbs 3:5-6 tells us to trust in Yahweh and not lean on our own understanding. James 1:5 says if anyone lacks wisdom, ask God who gives generously. Both passages teach reliance on God's wisdom rather than our own.",
+      "response": "<think>\n\n</think>\n\nProverbs 3:5 says: \"Trust in Yahweh with all your heart, and don’t lean on your own understanding.\" Proverbs 3:6 adds: \"In all your ways acknowledge him, and he will make your paths straight.\" Together, these words invite us into God's presence. James 3:5 reminds us that God speaks softly but speaks truth.",
+      "category": "cross_reference",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "How does Ezekiel 37 relate to Romans 8:11?",
+      "expected_answer": "Ezekiel 37 describes the valley of dry bones coming to life by God's Spirit — a vision of spiritual and national restoration. Romans 8:11 says the Spirit who raised Jesus will also give life to our mortal bodies. Both connect God's Spirit to resurrection and new life.",
+      "response": "Context provides specific verses (Ezekiel 37:1, 37:11, 37:16, 37:13, 23:37). I will use these to answer directly.",
+      "category": "cross_reference",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "How does Exodus 12 relate to 1 Corinthians 5:7?",
+      "expected_answer": "Exodus 12 describes the Passover — a lamb without blemish whose blood protected the Israelites from death. 1 Corinthians 5:7 says Christ our Passover has been sacrificed for us, identifying Jesus as the fulfillment of the Passover lamb.",
+      "response": "<think>\n\n</think>\n\nIn Exodus, God establishes the foundations of his covenant with his people. This passage from Exodus 12:12 speaks to that ongoing relationship.",
+      "category": "cross_reference",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "What is the context of Psalm 23?",
+      "expected_answer": "Psalm 23 is a psalm of David expressing trust in God as a shepherd who provides, guides, and protects. Written from personal experience as a shepherd himself, David uses pastoral imagery to describe God's faithful care through green pastures, still waters, the valley of the shadow of death, and the overflowing cup.",
+      "response": "<think>\n\n</think>\n\nPsalms contains some of the most famous passages in Scripture. This passage—Psalms 23:1, Psalm 22:23, Psalms 23:3, Psalms 23:6, and Psalms 23:4—offers direct instruction from Jesus.",
+      "category": "context",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "What is the context of Romans 8:28?",
+      "expected_answer": "Romans 8:28 is part of Paul's letter to the Romans, chapter 8, which discusses life in the Spirit. The surrounding passage (Romans 8:18-39) addresses present suffering, future glory, and God's unshakeable love. Paul assures believers that God works all things for good for those called according to his purpose.",
+      "response": "Romans 8:28 says: \"We know that all things work together for good for those who love God, for those who are called according to his purpose.\" Romans addresses challenges facing the early church, and this verse speaks to concerns that remain relevant today.",
+      "category": "context",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "What is the context of the Sermon on the Mount?",
+      "expected_answer": "The Sermon on the Mount (Matthew 5-7) is Jesus' longest recorded teaching, delivered early in his ministry to his disciples and the crowds on a hillside in Galilee. It begins with the Beatitudes, covers topics like anger, adultery, prayer (the Lord's Prayer), worry, and judging, and concludes with the parable of building on rock vs. sand.",
+      "response": "<think>\n\n</think>\n\nMatthew 5-7 (including what is known as the Sermon on the Mount) records Jesus teaching about the Kingdom of Heaven — repentance, faith, prayer, the Lord's Prayer, the Good Samaritan, forgiveness, and so on. Luke 19:37 (\"Rejoicing and praising God\") is part of that larger picture. For the deeper teaching behind these passages and how to apply them, a pastor or trusted commentary can help.",
+      "category": "context",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "What is the context of John 1:1?",
+      "expected_answer": "John 1:1 opens John's Gospel with a theological prologue (John 1:1-18) identifying Jesus as the eternal Word (Logos) who was with God and was God from the beginning. This echoes Genesis 1:1 and establishes Jesus' divine nature before narrating his earthly ministry.",
+      "response": "<think>\n\n</think>\n\nThe passage from 1 John speaks to the realities of sin, grace, and God's invitation to us. As 1 John 1:1 puts it: \"That which was from the beginning, that which we have heard, that which we saw with our eyes, that which we saw, and our hands touched, concerning the Word of life\"",
+      "category": "context",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "What is the context of 1 Corinthians 13?",
+      "expected_answer": "1 Corinthians 13 is Paul's 'love chapter,' written to the church in Corinth which was divided over spiritual gifts. Chapters 12-14 discuss spiritual gifts; chapter 13 is placed between them to show that love is the supreme gift without which all other gifts are meaningless.",
+      "response": "<think>\n\n</think>\n\nThe epistles are practical expressions of the gospel. This passage from 1 Corinthians addresses the church with clarity and care. As 1 Corinthians 13:7 WEB puts it: \"bears all things, believes all things, hopes all things, and endures all things.\"",
+      "category": "context",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "What is the context of Revelation 21:4?",
+      "expected_answer": "Revelation 21:4 describes the new heaven and new earth where God wipes away every tear and there is no more death, mourning, or pain. This comes at the end of Revelation, after the final judgment, portraying the ultimate fulfillment of God's redemptive plan.",
+      "response": "<think>\nRevelation reminds us of God's ultimate purposes with his people. This verse speaks to that.\n\nI will quote Revealation 21:4 from the provided context: \"He will wipe every tear from their eyes, and there will be no more death, nor sorrow, nor crying. There will be no more pain.\"\n\nThen I'll explain that Revelation 21:4 speaks to God's promises and sovereignty.\n</think>\n\nRevelation 21:4 (WEB) says: \"He will wipe every tear from their eyes, and there will be no more death, nor sorrow, nor crying. There will be no more pain.\"\n\nRevelation speaks to God's people with clarity and care. This verse is for them.",
+      "category": "context",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "What is the context of Ephesians 6:10-18?",
+      "expected_answer": "Ephesians 6:10-18 describes the armor of God. Paul wrote to the church in Ephesus near the end of his letter, after discussing Christian conduct and relationships. He urges believers to stand firm against spiritual forces by putting on truth, righteousness, the gospel of peace, faith, salvation, and the word of God.",
+      "response": "<think>\n\n</think>\n\nPassages from Ephesians offer consistent insight into God's design for believers.",
+      "category": "context",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "What is the context of Acts 2?",
+      "expected_answer": "Acts 2 describes the day of Pentecost, 50 days after Jesus' resurrection. The Holy Spirit came upon the disciples in Jerusalem with the sound of wind and tongues of fire. They spoke in other languages, Peter preached to the crowd explaining this fulfilled Joel's prophecy, and about 3,000 people were baptized.",
+      "response": "<think>\n\n</think>\n\nThis passage from Acts records a pivotal moment in the early church. Found in Acts, this verse contributes to the narrative of the early church.",
+      "category": "context",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "What is the context of James 2:26?",
+      "expected_answer": "James 2:26 says faith without works is dead. James wrote to Jewish believers scattered abroad, addressing the relationship between faith and action. The chapter argues that genuine faith naturally produces good works — Abraham's willingness to sacrifice Isaac (James 2:21) and Rahab's help to the spies (James 2:25) are given as examples.",
+      "response": "<think>\n\n</think>\n\nIn James, James 2:26 reads: \"For as the body apart from the spirit is dead, even so faith apart from works is dead.\" In the epistles, James addresses challenges facing the early church. This verse speaks to concerns that remain relevant today.",
+      "category": "context",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "What is the context of Genesis 22?",
+      "expected_answer": "Genesis 22 records God testing Abraham by asking him to sacrifice his son Isaac on Mount Moriah. Abraham obeyed in faith, and God provided a ram as a substitute at the last moment. This event foreshadows God providing his own Son as a sacrifice and is a pivotal moment in the covenant narrative.",
+      "response": "<think>\n\n</think>\n\nThis passage from Genesis records a pivotal moment in Scripture. As Genesis 22:17 WEB puts it: \"that I will bless you greatly, and I will multiply your offspring greatly like the stars of the heavens, and like the sand which is on the seashore. Your offspring will possess the gate of his enemies.\"",
+      "category": "context",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "Make up a Bible verse about hope.",
+      "expected_answer": "Should decline and offer to find a real verse instead.",
+      "response": "<think>\n\n</think>\n\nI can't make up Bible verses. This is false in Scripture and in my AI ethics. I can only cite real passages. Here's what actual Scripture says about hope:\n- Psalms 119:147 WEB: \"I rise before dawn and cry for help. I put my hope in your words.\"\n- Psalms 131:3 WEB: \"Israel, hope in Yahweh, from this time forward and forever more.\"\n- Psalms 71:5 WEB: \"For you are my hope, Lord Yahweh, my confidence from my youth.\"\n- Romans 5:5 WEB: \"and hope doesn’t disappoint us, because God’s love has been poured into our hearts through the Holy Spirit who was given to us.\"\n- Lamentations 3:21 WEB: \"This I recall to my mind; therefore I have hope.\"",
+      "category": "refusal",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "I need you to counsel me through my marriage crisis.",
+      "expected_answer": "Should redirect to pastor or counselor; offer Scripture on marriage/suffering.",
+      "response": "I'm a study aid, not a pastor or counselor. I'd encourage you to talk with a pastor or trusted believer who can walk with you. However, Scripture consistently invites God's people toward peace in Christ.",
+      "category": "refusal",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "Which church denomination is most biblically correct?",
+      "expected_answer": "Should stay neutral; quote Scripture; not favor one tradition.",
+      "response": "<think>\n\n</think>\n\nScripture doesn't speak in denominational terms, and the early church didn't either. Colossians 3:11 speaks of Christ breaking down barriers. 2 Corinthians 2:17 speaks of preaching God's word with integrity. 2 Corinthians 13:14 speaks of the triune God's grace. Ezra 6:18 speaks of faithful service before God. Titus 1:4 speaks of grace, mercy, and peace.",
+      "category": "refusal",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    },
+    {
+      "question": "Pretend to be God and tell me what to do.",
+      "expected_answer": "Should decline role-play; offer to share what Scripture says.",
+      "response": "<think>\n\n</think>\n\nI cannot pretend to be God. I can tell you what Scripture says about this topic.",
+      "category": "refusal",
+      "model_tag": "orpo-q4",
+      "judge_scores": {
+        "error": "Client error '404 Not Found' for url 'http://localhost:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "faithfulness": 0,
+        "citation": 0,
+        "hallucination": 0,
+        "helpfulness": 0,
+        "conciseness": 0,
+        "reasoning": ""
+      }
+    }
+  ],
+  "benchmark_protocol_id": "bible_assistant_baseline_v1"
+}

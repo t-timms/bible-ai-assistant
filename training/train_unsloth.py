@@ -1,20 +1,36 @@
 #!/usr/bin/env python3
 """
-QLoRA fine-tuning of Qwen3 4B with Unsloth.
-Requires: conda env bible-ai-assistant, PyTorch nightly (CUDA 12.8+), data/processed/train.json.
+bf16 LoRA fine-tuning of Qwen3.5-4B with Unsloth.
+Requires: conda env bible-orpo (transformers 5.x), PyTorch (CUDA 12.8+), data/processed/train.json.
 Use bf16=True (never fp16) on RTX 5070 Ti (Blackwell).
 
 Usage:
   python training/train_unsloth.py
-  python training/train_unsloth.py --run-name qwen3-4b-run-1
+  python training/train_unsloth.py --run-name qwen3.5-4b-bible-John-v4
+  python training/train_unsloth.py --no-wandb   # Skip W&B (fallback if W&B has issues)
 """
+# Fix Windows console encoding and W&B service timeout (must run before other imports)
+import sys
+import os
+if sys.platform == "win32":
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+    os.environ.setdefault("WANDB__SERVICE_WAIT", "90")  # Give W&B service more time to start
+    try:
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8")
+        if hasattr(sys.stderr, "reconfigure"):
+            sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 from pathlib import Path
 import argparse
 
 # Training config (aligned with config.yaml). Edit here or in config.yaml for reference.
-MODEL_NAME = "Qwen/Qwen3-4B-Instruct-2507"
-LOAD_IN_4BIT = True
-MAX_SEQ_LENGTH = 2048
+MODEL_NAME = "Qwen/Qwen3.5-4B"
+# Qwen3.5: Unsloth does NOT recommend QLoRA 4-bit (quantization differences cause garbage output). Use bf16 LoRA.
+LOAD_IN_4BIT = False
+MAX_SEQ_LENGTH = 4096
 LORA_R = 16
 LORA_ALPHA = 32
 LORA_DROPOUT = 0.15
@@ -74,8 +90,9 @@ def _load_config_yaml(project_root: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--run-name", type=str, default="qwen3-4b-bible-John", help="W&B run name and folder for saved adapter (e.g. models/qwen3-4b-bible-John)")
+    parser.add_argument("--run-name", type=str, default="qwen3.5-4b-bible-John-v4", help="W&B run name and folder for saved adapter (e.g. models/qwen3.5-4b-bible-John-v4)")
     parser.add_argument("--model-path", type=str, default=None, help="Local path to base model (default: use HF MODEL_NAME)")
+    parser.add_argument("--no-wandb", action="store_true", help="Disable W&B logging (use if W&B service fails on Windows)")
     args = parser.parse_args()
 
     project_root = Path(__file__).resolve().parents[1]
@@ -102,16 +119,34 @@ def main() -> None:
         cap = torch.cuda.get_device_capability()
         if cap[0] >= 12:
             import unsloth.models.llama as _llama
-            import unsloth.models.qwen3 as _qwen3
             _llama.HAS_XFORMERS = False
-            _qwen3.HAS_XFORMERS = False
+            try:
+                import unsloth.models.qwen3 as _qwen3
+                _qwen3.HAS_XFORMERS = False
+            except ImportError:
+                pass
+            try:
+                import unsloth.models.qwen3_5 as _qwen3_5
+                _qwen3_5.HAS_XFORMERS = False
+            except ImportError:
+                pass
 
     model_path = args.model_path or MODEL_NAME
     use_local_model = bool(args.model_path)
     if args.model_path:
         model_path = str(Path(args.model_path).resolve())
 
-    wandb.init(project="bible-ai", name=args.run_name)
+    if args.no_wandb:
+        wandb.init(project="bible-ai", name=args.run_name, mode="disabled")
+        report_to = "none"
+    else:
+        # On Windows, give W&B service extra time to start; UTF-8 fix is at top of file
+        wandb.init(
+            project="bible-ai",
+            name=args.run_name,
+            settings=wandb.Settings(_service_wait=90),
+        )
+        report_to = "wandb"
 
     # When loading from a local path, Unsloth loads the tokenizer from that path too.
     # Some transformers versions fail on local tokenizer config (dict vs object). Workaround:
@@ -130,6 +165,7 @@ def main() -> None:
             max_seq_length=MAX_SEQ_LENGTH,
             dtype="bfloat16",  # Required for Blackwell (RTX 5070 Ti)
             load_in_4bit=LOAD_IN_4BIT,
+            load_in_16bit=not LOAD_IN_4BIT,  # bf16 LoRA when not using 4-bit (required for Qwen3.5)
             tokenizer_name=MODEL_NAME if use_local_model else None,
         )
     finally:
@@ -149,6 +185,10 @@ def main() -> None:
         random_state=3407,
     )
 
+    # Qwen3.5 tokenizer from Unsloth is a VL processor that treats text as images. Use text-only tokenizer for dataset.
+    from transformers import AutoTokenizer
+    text_tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
+
     # Load dataset (messages format)
     full_dataset = load_dataset("json", data_files=str(train_file), split="train")
 
@@ -156,7 +196,7 @@ def main() -> None:
     def format_messages(examples):
         texts = []
         for messages in examples["messages"]:
-            text = tokenizer.apply_chat_template(
+            text = text_tokenizer.apply_chat_template(
                 messages,
                 tokenize=False,
                 add_generation_prompt=False,
@@ -166,16 +206,24 @@ def main() -> None:
 
     full_dataset = full_dataset.map(format_messages, batched=True, remove_columns=full_dataset.column_names)
 
-    # Pre-tokenize in the main process to avoid Windows multiprocessing (UnslothSFTTrainer not found in workers)
+    # Pre-tokenize with text-only tokenizer (avoids VL processor treating prompt text as base64 images)
+    # Pad to max_length so collator gets same-length sequences; mask padding in labels with -100
+    if text_tokenizer.pad_token is None:
+        text_tokenizer.pad_token = text_tokenizer.eos_token
+
     def tokenize_fn(examples):
-        out = tokenizer(
+        out = text_tokenizer(
             examples["text"],
             truncation=True,
             max_length=MAX_SEQ_LENGTH,
-            padding=False,
+            padding="max_length",
             return_tensors=None,
         )
-        out["labels"] = [ids[:] for ids in out["input_ids"]]
+        pad_id = text_tokenizer.pad_token_id
+        out["labels"] = [
+            [idx if idx != pad_id else -100 for idx in ids]
+            for ids in out["input_ids"]
+        ]
         return out
 
     full_dataset = full_dataset.map(tokenize_fn, batched=True, remove_columns=["text"], desc="Tokenizing")
@@ -201,7 +249,7 @@ def main() -> None:
         eval_steps=SAVE_STEPS,
         load_best_model_at_end=True,
         metric_for_best_model="eval_loss",
-        report_to="wandb",
+        report_to="none" if args.no_wandb else "wandb",
         bf16=BF16,
         max_seq_length=MAX_SEQ_LENGTH,
         dataset_kwargs={"skip_prepare_dataset": True},
@@ -217,7 +265,7 @@ def main() -> None:
 
     trainer.train()
 
-    # Save LoRA adapter: folder name matches run name (e.g. qwen3-4b-bible-John)
+    # Save LoRA adapter: folder name matches run name (e.g. qwen3.5-4b-bible-John)
     out_path = project_root / "models" / args.run_name
     out_path.mkdir(parents=True, exist_ok=True)
     model.save_pretrained(str(out_path))

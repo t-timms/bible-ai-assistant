@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ruff
+        run: pip install ruff>=0.4.0
+
+      - name: Run ruff
+        run: ruff check training/ rag/ scripts/ ui/ voice/ --exclude chroma_db,checkpoints,checkpoints-orpo,wandb,unsloth_compiled_cache
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest>=7.0 httpx PyYAML
+
+      - name: Run unit tests
+        run: python -m pytest tests/ -v --tb=short -x
+        env:
+          PYTHONPATH: .

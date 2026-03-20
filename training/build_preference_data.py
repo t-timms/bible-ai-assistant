@@ -3,7 +3,7 @@
 Build preference dataset for ORPO training.
 
 Generates ~500 preference pairs (prompt, chosen, rejected) covering failure modes
-documented in PROJECT_JOURNEY.md: hallucinated verses, instruction leaking,
+(documented in docs/architecture.md): hallucinated verses, instruction leaking,
 repetition, "Answer:" prefix, over-verbose responses, and Bible-for-everything.
 
 Usage:

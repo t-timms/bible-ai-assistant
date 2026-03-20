@@ -196,7 +196,12 @@ def voice_chat(audio, history: list) -> tuple[list, str | None]:
 
 with gr.Blocks(title="Bible AI Assistant") as demo:
     gr.Markdown("# Bible AI Assistant")
-    gr.Markdown("Ask about Scripture via text or voice. Requires RAG server (port 8081) and Kokoro TTS (port 8880).")
+    gr.Markdown(
+        "Ask about Scripture via text or voice. Requires RAG server (port 8081) and Kokoro TTS (port 8880). "
+        "**Disclaimer:** This is a study aid, not pastoral care or counseling. For spiritual direction, consult a pastor or trusted believer. "
+        "Built to serve God by pointing people to his Word—free, local, and accessible. "
+        "Accessibility: Tab to navigate, Enter to send."
+    )
     chatbot = gr.Chatbot(height=400, label="Chat")
     msg = gr.Textbox(placeholder="Ask a question...", label="Message")
 
