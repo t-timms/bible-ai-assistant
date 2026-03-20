@@ -106,11 +106,10 @@ def main() -> None:
         import os
 
         import torch
+        import wandb
         from datasets import load_dataset
         from trl import SFTConfig, SFTTrainer
         from unsloth import FastLanguageModel
-
-        import wandb
     except ImportError as e:
         raise ImportError(
             "Install training deps: pip install unsloth trl datasets wandb. "

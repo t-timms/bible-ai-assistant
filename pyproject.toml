@@ -78,6 +78,8 @@ ignore = ["E501"]  # Line length handled by formatter
 [tool.ruff.lint.per-file-ignores]
 "training/evaluate.py" = ["E402"]
 "training/dataset_builder.py" = ["SIM116"]  # _format_response: explicit branches read clearer than a dict of lambdas
+"training/train_unsloth.py" = ["I001"]  # Imports inside try/except for dependency checking
+"training/train_orpo.py" = ["I001"]  # Imports inside try/except for dependency checking
 "ui/app.py" = ["I001", "SIM115"]  # Lazy imports; NamedTemporaryFile(delete=False) for Gradio file paths
 "tests/test_evaluate_keyword.py" = ["E402"]  # sys.path before training.evaluate
 "deployment/pc/generate_modelfile.py" = ["SIM108"]  # explicit if/else for GGUF path resolution
