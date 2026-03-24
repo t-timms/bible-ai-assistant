@@ -32,6 +32,7 @@ training:
   logging_steps: 50
   bf16: true   # REQUIRED for Blackwell (RTX 5070 Ti). Do not use fp16.
   report_to: "wandb"
+  random_state: 3407  # Seed for train/eval split and LoRA init
 
 data:
   train_file: "data/processed/train.json"

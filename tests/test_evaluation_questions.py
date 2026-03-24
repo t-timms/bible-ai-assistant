@@ -1,4 +1,5 @@
 """Validate evaluation_questions.json schema and content."""
+
 import json
 from collections import Counter
 from pathlib import Path

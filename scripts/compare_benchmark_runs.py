@@ -4,6 +4,7 @@ Compare two benchmark JSON artifacts (keyword or judge mode).
 
   python scripts/compare_benchmark_runs.py docs/benchmark_runs/20260319_orpo-q4_judge.json docs/benchmark_runs/20260319_orpo-f16_judge.json
 """
+
 from __future__ import annotations
 
 import argparse
@@ -30,10 +31,14 @@ def main() -> None:
     print("BENCHMARK A/B COMPARISON")
     print("=" * 72)
     print(f"A: {args.run_a.name}")
-    print(f"   ollama_model={a.get('ollama_model', '?')}  tag={a.get('model_tag', '-')}  mode={mode_a}")
+    print(
+        f"   ollama_model={a.get('ollama_model', '?')}  tag={a.get('model_tag', '-')}  mode={mode_a}"
+    )
     print(f"   protocol={a.get('benchmark_protocol_id', '-')}")
     print(f"B: {args.run_b.name}")
-    print(f"   ollama_model={b.get('ollama_model', '?')}  tag={b.get('model_tag', '-')}  mode={mode_b}")
+    print(
+        f"   ollama_model={b.get('ollama_model', '?')}  tag={b.get('model_tag', '-')}  mode={mode_b}"
+    )
     print(f"   protocol={b.get('benchmark_protocol_id', '-')}")
 
     if mode_a != mode_b:

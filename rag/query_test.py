@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Quick test of RAG retrieval quality. Run after build_index.py."""
+
 from pathlib import Path
 
 
@@ -9,7 +10,9 @@ def main() -> None:
         from chromadb.config import Settings
         from sentence_transformers import SentenceTransformer
     except ImportError as e:
-        print("Install chromadb and sentence-transformers. pip install chromadb sentence-transformers")
+        print(
+            "Install chromadb and sentence-transformers. pip install chromadb sentence-transformers"
+        )
         raise SystemExit(1) from e
 
     project_root = Path(__file__).resolve().parents[1]
@@ -18,7 +21,9 @@ def main() -> None:
         print(f"ChromaDB not found at {db_path}. Run: python rag/build_index.py")
         raise SystemExit(1)
 
-    client = chromadb.PersistentClient(path=str(db_path), settings=Settings(anonymized_telemetry=False))
+    client = chromadb.PersistentClient(
+        path=str(db_path), settings=Settings(anonymized_telemetry=False)
+    )
     collection = client.get_collection("bible_verses")
     # trust_remote_code required by nomic-embed-text-v1.5 for custom pooling
     model = SentenceTransformer("nomic-ai/nomic-embed-text-v1.5", trust_remote_code=True)
@@ -38,7 +43,9 @@ def main() -> None:
         return
     for meta, doc in zip(results["metadatas"][0], results["documents"][0], strict=True):
         ref = meta.get("reference", "?")
-        text = doc.replace("search_document: ", "", 1) if doc.startswith("search_document:") else doc
+        text = (
+            doc.replace("search_document: ", "", 1) if doc.startswith("search_document:") else doc
+        )
         print(f"  {ref}: {text[:80]}...")
     # Sanity: John 3:16 should often be in top 5 for this query
     refs = [m.get("reference", "") for m in results["metadatas"][0]]

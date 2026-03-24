@@ -3,6 +3,7 @@
 Print a leaderboard of model evaluations from docs/evaluation_results_*.json.
 Run from project root: python scripts/leaderboard.py
 """
+
 import json
 from pathlib import Path
 
@@ -30,7 +31,14 @@ def main():
             cite = data.get("total_citations", 0)
             total = data.get("total_questions", 1)
             hall = data.get("total_hallucinations", 0)
-            rows.append((tag, acc, mode, {"verse_accuracy": acc, "citations": f"{cite}/{total}", "hallucinations": hall}))
+            rows.append(
+                (
+                    tag,
+                    acc,
+                    mode,
+                    {"verse_accuracy": acc, "citations": f"{cite}/{total}", "hallucinations": hall},
+                )
+            )
 
     # Sort: judge avg desc, then keyword verse_accuracy desc
     def key(r):
@@ -50,7 +58,9 @@ def main():
                 print(f"    {k}: {v}")
         else:
             print(f"    Verse accuracy: {val:.0%}")
-            print(f"    Citations: {extra.get('citations', '?')}  Hallucinations: {extra.get('hallucinations', '?')}")
+            print(
+                f"    Citations: {extra.get('citations', '?')}  Hallucinations: {extra.get('hallucinations', '?')}"
+            )
     print("\n" + "=" * 70)
 
 

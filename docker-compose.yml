@@ -1,0 +1,59 @@
+# Bible AI Assistant — Local development stack
+#
+# Prerequisites:
+#   1. Ollama installed and running on the host: `ollama serve`
+#   2. Model pulled:  `ollama run bible-assistant-orpo`
+#   3. ChromaDB index built: `build-index`  (or: python rag/build_index.py)
+#
+# Usage:
+#   docker compose up --build     # first run (builds images)
+#   docker compose up             # subsequent runs
+#   docker compose down           # stop and remove containers
+#   docker compose logs -f        # stream logs
+#
+# Services:
+#   rag-server  → http://localhost:8081  (RAG + FastAPI)
+#   gradio-ui   → http://localhost:7860  (Gradio web interface)
+#
+# Ollama runs on the host and is reached via host.docker.internal:11434.
+# On Linux, add --add-host=host.docker.internal:host-gateway to the rag-server
+# service if host.docker.internal is not automatically available.
+
+services:
+  rag-server:
+    build:
+      context: .
+      dockerfile: deployment/pc/Dockerfile.rag
+    image: bible-ai-rag:latest
+    ports:
+      - "8081:8081"
+    environment:
+      OLLAMA_URL: "http://host.docker.internal:11434"
+      RAG_HOST: "0.0.0.0"
+      RAG_PORT: "8081"
+    volumes:
+      # Mount pre-built ChromaDB index read-only (build with: build-index)
+      - ./rag/chroma_db:/app/rag/chroma_db:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8081/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+  gradio-ui:
+    build:
+      context: .
+      dockerfile: deployment/pc/Dockerfile.ui
+    image: bible-ai-ui:latest
+    ports:
+      - "7860:7860"
+    environment:
+      RAG_SERVER_URL: "http://rag-server:8081"
+      GRADIO_HOST: "0.0.0.0"
+      GRADIO_PORT: "7860"
+    depends_on:
+      rag-server:
+        condition: service_healthy
+    restart: unless-stopped

@@ -59,7 +59,7 @@ wandb/
 # Unsloth compiled cache
 unsloth_compiled_cache/
 
-# Personal learning and interview prep (not shared)
+# Personal / operational files — not for public repo
 personal/
 interview_notes/
 learning_notes/
@@ -68,3 +68,9 @@ learning_notes/
 docs/_personal/
 docs/interview_notes/
 study/
+
+# Development artifacts at repo root
+CURSOR_CHECKLIST.md
+
+# Personal devotional content mixed into technical docs
+docs/SERVING_GOD.md

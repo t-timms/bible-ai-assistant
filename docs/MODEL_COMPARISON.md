@@ -115,6 +115,18 @@ The SFT-only model is **not usable for production**. This is the core motivation
 - Q4 quantization trades some quality for 70% size reduction with acceptable degradation
 - Cross-reference questions are the hardest category for both variants
 
+**On the counter-intuitive hallucination result (Q4_K_M lower than F16):**
+
+The Q4_K_M model shows 20% hallucination vs 26% for F16 — lower is better, so Q4 appears safer. This result is likely a **metric artefact at small n**, not a genuine quality difference:
+
+1. **n=54 is too small for reliable hallucination rate comparisons.** The difference is 11 vs 14 hits — a delta of 3 questions. At n=54 with a true rate of ~23%, the 95% confidence interval (normal approximation) spans ±12%, meaning both values are statistically indistinguishable.
+
+2. **Q4 truncates verbose responses.** Quantized models sometimes produce shorter responses to avoid uncertainty. A shorter answer may contain fewer opportunity windows for hallucinated verse references, mechanically reducing the hallucination count without the model actually being "better."
+
+3. **Cross-reference questions dominate hallucinations.** 4/10 cross-reference questions hallucinate in both variants (the same absolute count). The overall rate difference comes from other categories where small sample randomness dominates.
+
+**Conclusion:** Run both models on n≥200 with a fixed random seed before drawing quality conclusions from hallucination rate comparisons.
+
 ### Understanding the Metrics
 
 **Why is verse accuracy low?**

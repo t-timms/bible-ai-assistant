@@ -7,6 +7,7 @@ Run the versioned Bible Assistant benchmark and save JSON under docs/benchmark_r
 
 See docs/BENCHMARK_PROTOCOL.md
 """
+
 from __future__ import annotations
 
 import argparse
@@ -35,7 +36,9 @@ def _load_protocol_id(manifest_path: Path) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run versioned benchmark → docs/benchmark_runs/")
-    parser.add_argument("--label", type=str, required=True, help="Short run label, e.g. orpo-q4, orpo-f16")
+    parser.add_argument(
+        "--label", type=str, required=True, help="Short run label, e.g. orpo-q4, orpo-f16"
+    )
     parser.add_argument(
         "--ollama-model",
         type=str,

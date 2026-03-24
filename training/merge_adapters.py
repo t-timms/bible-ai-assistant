@@ -15,10 +15,14 @@ Usage:
   # If you trained with --model-path models/base_model, merge with the same path:
   python training/merge_adapters.py --lora-path ... --base-model models/base_model
 """
+
 from __future__ import annotations
 
 import argparse
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # Defaults aligned with train_unsloth.py (run name = adapter folder)
 DEFAULT_LORA_NAME = "qwen3.5-4b-bible-John-v8"
@@ -67,8 +71,15 @@ def main() -> None:
     args = parser.parse_args()
 
     project_root = Path(__file__).resolve().parents[1]
-    lora_path = Path(args.lora_path) if args.lora_path else project_root / "models" / DEFAULT_LORA_NAME
-    lora_path = lora_path.resolve()
+    if args.lora_path:
+        lora_path = Path(args.lora_path).resolve()
+    else:
+        lora_path = (project_root / "models" / DEFAULT_LORA_NAME).resolve()
+        logger.warning(
+            "No --lora-path provided. Using hardcoded default: %s — "
+            "pass --lora-path <path> to merge a different adapter.",
+            lora_path,
+        )
     if not lora_path.exists():
         raise FileNotFoundError(
             f"LoRA checkpoint not found: {lora_path}. Run train_unsloth.py first."
@@ -101,10 +112,12 @@ def main() -> None:
         from safetensors.torch import load_file
         from transformers import AutoModelForCausalLM, AutoTokenizer
     except ImportError as e:
-        raise ImportError("Install peft, safetensors, transformers: pip install peft safetensors transformers") from e
+        raise ImportError(
+            "Install peft, safetensors, transformers: pip install peft safetensors transformers"
+        ) from e
 
     device_map = "auto" if torch.cuda.is_available() else "cpu"
-    print(f"Loading base model from {base_path!r} (device_map={device_map!r})...")
+    logger.info("Loading base model from %r (device_map=%r)...", base_path, device_map)
     # trust_remote_code required by Qwen3.5 for custom architecture modules
     base_model = AutoModelForCausalLM.from_pretrained(
         base_path,
@@ -113,10 +126,10 @@ def main() -> None:
         trust_remote_code=True,
     )
 
-    print(f"Loading PEFT config from {lora_path}...")
+    logger.info("Loading PEFT config from %s...", lora_path)
     peft_config = PeftConfig.from_pretrained(str(lora_path))
 
-    print("Building PEFT model and loading remapped LoRA weights...")
+    logger.info("Building PEFT model and loading remapped LoRA weights...")
     model = get_peft_model(base_model, peft_config)
     raw_sd = load_file(str(adapter_file))
     remapped = _remap_lora_state_dict(raw_sd)
@@ -128,18 +141,18 @@ def main() -> None:
             "Check Unsloth/PEFT versions or adapter layout."
         )
     if load_result.unexpected_keys:
-        print(f"Warning: unexpected keys ignored: {load_result.unexpected_keys[:5]}...")
+        logger.warning("Unexpected keys ignored: %s...", load_result.unexpected_keys[:5])
 
-    print("Merging LoRA into base weights...")
+    logger.info("Merging LoRA into base weights...")
     model = model.merge_and_unload()
 
     # trust_remote_code required by Qwen3.5 for custom tokenizer
     tokenizer = AutoTokenizer.from_pretrained(base_path, trust_remote_code=True)
 
-    print(f"Saving merged model to {out_path}...")
+    logger.info("Saving merged model to %s...", out_path)
     model.save_pretrained(str(out_path), safe_serialization=True)
     tokenizer.save_pretrained(str(out_path))
-    print(f"Merged model saved to {out_path}")
+    logger.info("Merged model saved to %s", out_path)
 
 
 if __name__ == "__main__":

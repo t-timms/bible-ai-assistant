@@ -23,43 +23,74 @@ classifiers = [
 ]
 
 dependencies = [
-    "transformers>=5.1.0",
-    "datasets>=2.18.0",
-    "peft>=0.10.0",
-    "trl>=0.8.0",
-    "accelerate>=0.33.0",
-    "bitsandbytes>=0.44.0",
-    "unsloth",
-    "wandb>=0.18.0",
-    "huggingface_hub",
-    "sentencepiece",
-    "chromadb>=0.4.0",
-    "sentence-transformers>=2.2.0",
-    "einops",
-    "rank_bm25>=0.2.2",
-    "numpy",
-    "fastapi>=0.109.0",
-    "uvicorn[standard]>=0.27.0",
-    "httpx>=0.26.0",
-    "gradio>=4.0.0",
-    "faster-whisper>=1.0.0",
-    "soundfile>=0.12.0",
+    # Minimal cross-component core — does not pull CUDA, training, or UI deps.
+    # Use component extras for targeted installs:
+    #   pip install -e .[rag]          RAG server only
+    #   pip install -e .[ui]           Gradio UI + voice
+    #   pip install -e .[train]        Training pipeline (install PyTorch separately first)
+    #   pip install -e .[rag,ui]       RAG + UI together
+    #   pip install -e .[rag,ui,dev]   Development setup
     "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
     "python-dotenv>=1.0.0",
     "PyYAML>=6.0",
 ]
 
 [project.optional-dependencies]
+rag = [
+    "chromadb>=0.4.0,<1.0.0",
+    "sentence-transformers>=2.2.0,<4.0.0",
+    "einops>=0.7.0,<1.0.0",
+    "rank_bm25>=0.2.2,<1.0.0",
+    "numpy>=1.24.0,<3.0.0",
+    "fastapi>=0.109.0,<1.0.0",
+    "uvicorn[standard]>=0.27.0,<1.0.0",
+    "httpx>=0.26.0,<1.0.0",
+    "pydantic>=2.0.0,<3.0.0",
+    "pydantic-settings>=2.0.0,<3.0.0",
+    "python-dotenv>=1.0.0,<2.0.0",
+    "slowapi>=0.1.9,<1.0.0",
+    "python-json-logger>=3.0.0,<4.0.0",
+    "prometheus-fastapi-instrumentator>=7.0.0,<8.0.0",
+]
+ui = [
+    "gradio>=6.0,<6.15",
+    "faster-whisper>=1.0.0,<2.0.0",
+    "soundfile>=0.12.0,<1.0.0",
+    "httpx>=0.26.0,<1.0.0",
+]
+train = [
+    "transformers>=4.40.0,<5.0.0",
+    "datasets>=2.18.0,<4.0.0",
+    "peft>=0.10.0,<1.0.0",
+    "trl>=0.8.0,<1.0.0",
+    "accelerate>=0.33.0,<2.0.0",
+    "bitsandbytes>=0.44.0,<1.0.0",
+    "unsloth>=2024.1",
+    "wandb>=0.18.0,<1.0.0",
+    "huggingface_hub>=0.20.0,<2.0.0",
+    "sentencepiece>=0.2.0,<1.0.0",
+    "PyYAML>=6.0,<7.0",
+]
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
+    "anyio[trio]>=3.0",
     "ruff>=0.4.0",
     "numpy",
     "httpx>=0.26.0",
     "fastapi>=0.109.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "sentence-transformers>=2.2.0",
+    "rank-bm25>=0.2.2",
+    "hypothesis>=6.100.0",
+    "pre-commit>=3.7.0",
 ]
 
 [project.scripts]
+rag-server = "rag.rag_server:serve"
+build-index = "rag.build_index:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -90,3 +121,34 @@ python_files = ["test_*.py"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
 filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.coverage.run]
+omit = [
+    # Require torch/unsloth/CUDA — not testable without the full ML stack
+    "training/train_unsloth.py",
+    "training/train_orpo.py",
+    "training/dataset_builder.py",
+    "training/convert_web_tehshrike.py",
+    # Require a running ChromaDB instance
+    "rag/build_index.py",
+    # Manual/interactive test scripts
+    "rag/query_test.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+]
+
+[tool.bandit]
+exclude_dirs = ["tests", "chroma_db", "checkpoints", "checkpoints-orpo", ".venv"]
+skips = [
+    "B101",  # assert statements in tests
+    "B615",  # HuggingFace from_pretrained() without revision pin.
+             # All occurrences are in training/ and scripts/ (developer-only tools, never
+             # exposed to external input). The production RAG server (rag/) contains zero
+             # from_pretrained() calls. Pinning a revision would break Unsloth's FastLanguageModel
+             # loader and is non-standard in fine-tuning workflows.
+]

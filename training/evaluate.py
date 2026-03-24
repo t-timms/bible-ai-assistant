@@ -11,15 +11,18 @@ Usage:
   python training/evaluate.py --judge --model-tag base # evaluate base model
   python training/evaluate.py --ollama-model bible-assistant-orpo  # A/B variant
 """
+
 from __future__ import annotations
 
 import argparse
 import json
+import logging
 import re
 import sys
-import time
 from pathlib import Path
 from urllib.parse import urlparse
+
+_eval_logger = logging.getLogger(__name__)
 
 import httpx
 
@@ -38,16 +41,73 @@ DEFAULT_JUDGE_MODEL = "qwen3.5:27b"
 DEFAULT_OLLAMA_MODEL = "bible-assistant"
 
 BIBLE_BOOKS = {
-    "genesis", "exodus", "leviticus", "numbers", "deuteronomy", "joshua", "judges",
-    "ruth", "1 samuel", "2 samuel", "1 kings", "2 kings", "1 chronicles", "2 chronicles",
-    "ezra", "nehemiah", "esther", "job", "psalm", "psalms", "proverbs", "ecclesiastes",
-    "song of solomon", "isaiah", "jeremiah", "lamentations", "ezekiel", "daniel", "hosea",
-    "joel", "amos", "obadiah", "jonah", "micah", "nahum", "habakkuk", "zephaniah",
-    "haggai", "zechariah", "malachi", "matthew", "mark", "luke", "john", "acts",
-    "romans", "1 corinthians", "2 corinthians", "galatians", "ephesians", "philippians",
-    "colossians", "1 thessalonians", "2 thessalonians", "1 timothy", "2 timothy", "titus",
-    "philemon", "hebrews", "james", "1 peter", "2 peter", "1 john", "2 john", "3 john",
-    "jude", "revelation",
+    "genesis",
+    "exodus",
+    "leviticus",
+    "numbers",
+    "deuteronomy",
+    "joshua",
+    "judges",
+    "ruth",
+    "1 samuel",
+    "2 samuel",
+    "1 kings",
+    "2 kings",
+    "1 chronicles",
+    "2 chronicles",
+    "ezra",
+    "nehemiah",
+    "esther",
+    "job",
+    "psalm",
+    "psalms",
+    "proverbs",
+    "ecclesiastes",
+    "song of solomon",
+    "isaiah",
+    "jeremiah",
+    "lamentations",
+    "ezekiel",
+    "daniel",
+    "hosea",
+    "joel",
+    "amos",
+    "obadiah",
+    "jonah",
+    "micah",
+    "nahum",
+    "habakkuk",
+    "zephaniah",
+    "haggai",
+    "zechariah",
+    "malachi",
+    "matthew",
+    "mark",
+    "luke",
+    "john",
+    "acts",
+    "romans",
+    "1 corinthians",
+    "2 corinthians",
+    "galatians",
+    "ephesians",
+    "philippians",
+    "colossians",
+    "1 thessalonians",
+    "2 thessalonians",
+    "1 timothy",
+    "2 timothy",
+    "titus",
+    "philemon",
+    "hebrews",
+    "james",
+    "1 peter",
+    "2 peter",
+    "1 john",
+    "2 john",
+    "3 john",
+    "jude",
+    "revelation",
 }
 
 VERSE_REF_PATTERN = re.compile(
@@ -136,6 +196,7 @@ def query_rag(question: str, rag_url: str, ollama_model: str | None = None) -> s
 # Fast keyword scoring (original mode)
 # ---------------------------------------------------------------------------
 
+
 def has_citation(response: str) -> bool:
     return bool(VERSE_REF_PATTERN.search(response))
 
@@ -173,6 +234,7 @@ def check_hallucination(response: str) -> bool:
 # LLM-as-judge scoring
 # ---------------------------------------------------------------------------
 
+
 def _apply_score_clamps(scores: dict) -> dict:
     out = dict(scores)
     dims = ["faithfulness", "citation", "hallucination", "helpfulness", "conciseness"]
@@ -194,9 +256,7 @@ def judge_response(
     judge_model: str,
 ) -> dict:
     """Send response to the judge model and parse 5-dimension scores."""
-    prompt = JUDGE_TEMPLATE.format(
-        question=question, expected=expected, response=response[:2000]
-    )
+    prompt = JUDGE_TEMPLATE.format(question=question, expected=expected, response=response)
     messages = [
         {"role": "system", "content": JUDGE_SYSTEM},
         {"role": "user", "content": prompt},
@@ -278,16 +338,16 @@ def judge_response(
                 except Exception as e:
                     attempts.append(f"/api/generate: {e}")
     except Exception as e:
-        return _empty_scores(
-            f"{e}. Tried judge at {base}. Verify Ollama: curl {base}/api/tags"
-        )
+        return _empty_scores(f"{e}. Tried judge at {base}. Verify Ollama: curl {base}/api/tags")
 
     if not content.strip():
-        return _empty_scores(
-            "No judge response. "
+        msg = (
+            "LLM judge unavailable — all endpoints failed. "
             + ("; ".join(attempts) if attempts else "unknown failure")
-            + f". Verify Ollama at {base} (curl {base}/api/tags)."
+            + f". Verify Ollama at {base}: run `ollama list` and confirm {judge_model!r} is available."
         )
+        _eval_logger.error(msg)
+        raise RuntimeError(msg)
 
     scores = _extract_scores_json(content)
     if not scores:
@@ -301,6 +361,7 @@ def judge_response(
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+
 
 def _run_keyword_eval(
     questions: list[dict],
@@ -328,17 +389,22 @@ def _run_keyword_eval(
         hallucinated = check_hallucination(response)
 
         result = {
-            "question": question, "expected_answer": expected,
-            "response": response[:1000], "category": category,
+            "question": question,
+            "expected_answer": expected,
+            "response": response[:1000],
+            "category": category,
             "verse_accuracy": round(verse_score, 2),
-            "citation_present": citation, "hallucination_detected": hallucinated,
+            "citation_present": citation,
+            "hallucination_detected": hallucinated,
         }
         results.append(result)
 
         if category not in category_scores:
             category_scores[category] = {
-                "total": 0, "verse_accuracy_sum": 0.0,
-                "citations": 0, "hallucinations": 0,
+                "total": 0,
+                "verse_accuracy_sum": 0.0,
+                "citations": 0,
+                "hallucinations": 0,
             }
         cs = category_scores[category]
         cs["total"] += 1
@@ -379,14 +445,19 @@ def _run_judge_eval(
         # Judge has no streaming progress; first call can take minutes (model load + 27B infer).
         print(f"  Judge: scoring with {judge_model} (wait — no output until done)...", flush=True)
         scores = judge_response(question, expected, response, judge_url, judge_model)
-        print(f"  Judge: F={scores.get('faithfulness', '?')} C={scores.get('citation', '?')} "
-              f"H={scores.get('hallucination', '?')} He={scores.get('helpfulness', '?')} "
-              f"Co={scores.get('conciseness', '?')}")
+        print(
+            f"  Judge: F={scores.get('faithfulness', '?')} C={scores.get('citation', '?')} "
+            f"H={scores.get('hallucination', '?')} He={scores.get('helpfulness', '?')} "
+            f"Co={scores.get('conciseness', '?')}"
+        )
 
         result = {
-            "question": question, "expected_answer": expected,
-            "response": response[:1000], "category": category,
-            "model_tag": model_tag, "judge_scores": scores,
+            "question": question,
+            "expected_answer": expected,
+            "response": response[:1000],
+            "category": category,
+            "model_tag": model_tag,
+            "judge_scores": scores,
         }
         results.append(result)
 
@@ -398,8 +469,6 @@ def _run_judge_eval(
         cs["total"] += 1
         for d in dims:
             cs[f"{d}_sum"] += scores.get(d, 0)
-
-        time.sleep(0.5)
 
     # Summary table
     print("\n" + "=" * 100)
@@ -469,14 +538,18 @@ def _print_keyword_summary(category_scores: dict) -> None:
     for cat, cs in sorted(category_scores.items()):
         n = cs["total"]
         avg_acc = cs["verse_accuracy_sum"] / n if n else 0
-        print(f"{cat:<20} {n:>5} {avg_acc:>9.0%} {cs['citations']:>7}/{n:<2} {cs['hallucinations']:>5}/{n}")
+        print(
+            f"{cat:<20} {n:>5} {avg_acc:>9.0%} {cs['citations']:>7}/{n:<2} {cs['hallucinations']:>5}/{n}"
+        )
         total_all += n
         acc_all += cs["verse_accuracy_sum"]
         cite_all += cs["citations"]
         hall_all += cs["hallucinations"]
     print("-" * 80)
     overall_acc = acc_all / total_all if total_all else 0
-    print(f"{'OVERALL':<20} {total_all:>5} {overall_acc:>9.0%} {cite_all:>7}/{total_all:<2} {hall_all:>5}/{total_all}")
+    print(
+        f"{'OVERALL':<20} {total_all:>5} {overall_acc:>9.0%} {cite_all:>7}/{total_all:<2} {hall_all:>5}/{total_all}"
+    )
     print("=" * 80)
 
 
@@ -501,7 +574,9 @@ def _save_keyword_results(
         "category_summary": {
             cat: {
                 "count": cs["total"],
-                "avg_verse_accuracy": round(cs["verse_accuracy_sum"] / cs["total"], 3) if cs["total"] else 0,
+                "avg_verse_accuracy": round(cs["verse_accuracy_sum"] / cs["total"], 3)
+                if cs["total"]
+                else 0,
                 "citations": cs["citations"],
                 "hallucinations": cs["hallucinations"],
             }
@@ -520,18 +595,24 @@ def _save_keyword_results(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Evaluate Bible AI assistant.")
     parser.add_argument("--rag-url", type=str, default=RAG_URL_DEFAULT)
-    parser.add_argument("--judge", action="store_true",
-                        help="Use LLM-as-judge instead of keyword scoring")
-    parser.add_argument("--judge-url", type=str, default=JUDGE_URL_DEFAULT,
-                        help="Ollama URL for judge model")
+    parser.add_argument(
+        "--judge", action="store_true", help="Use LLM-as-judge instead of keyword scoring"
+    )
+    parser.add_argument(
+        "--judge-url", type=str, default=JUDGE_URL_DEFAULT, help="Ollama URL for judge model"
+    )
     parser.add_argument(
         "--judge-model",
         type=str,
         default=DEFAULT_JUDGE_MODEL,
         help="Ollama model name for judge (must exist: ollama list). Default: qwen3.5:27b",
     )
-    parser.add_argument("--model-tag", type=str, default="sft+orpo",
-                        help="Tag for this model variant (e.g. base, sft, sft+orpo)")
+    parser.add_argument(
+        "--model-tag",
+        type=str,
+        default="sft+orpo",
+        help="Tag for this model variant (e.g. base, sft, sft+orpo)",
+    )
     parser.add_argument(
         "--ollama-model",
         type=str,
@@ -544,8 +625,12 @@ def main() -> None:
         default="",
         help="Benchmark protocol id saved in JSON (e.g. bible_assistant_baseline_v1)",
     )
-    parser.add_argument("--output", type=str, default=None,
-                        help="Output file path (default: docs/evaluation_results.json)")
+    parser.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        help="Output file path (default: docs/evaluation_results.json)",
+    )
     args = parser.parse_args()
 
     project_root = Path(__file__).resolve().parents[1]
