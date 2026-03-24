@@ -4,7 +4,7 @@
 
 A locally-hosted Bible Q&A assistant fine-tuned on Qwen3.5-4B with hybrid RAG retrieval, ORPO preference alignment, and optional voice interaction. Built end-to-end: dataset curation, training, evaluation, deployment.
 
-![Bible AI Assistant Demo](docs/demo/demo.gif)
+![Bible AI Assistant Demo](docs/demo/demo_screenshot.png)
 
 ---
 
@@ -214,7 +214,7 @@ Every push and pull request runs four parallel jobs:
 | Component | Spec |
 |-----------|------|
 | GPU | NVIDIA RTX 5070 Ti (16 GB VRAM, Blackwell) |
-| RAM | 64 GB DDR5 |
+| RAM | 96 GB DDR5 |
 | OS | Windows 11 |
 | Training time | ~18 min SFT + ~20 min ORPO |
 
