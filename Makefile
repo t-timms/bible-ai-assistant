@@ -11,16 +11,34 @@ DOCKER_COMP := docker compose
 # ── Help ──────────────────────────────────────────────────────────────────────
 .PHONY: help
 help:
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
-		| awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
+	$(info )
+	$(info Bible AI Assistant - available commands)
+	$(info ----------------------------------------)
+	$(info   demo           Start full stack via Docker Compose)
+	$(info   demo-build     Rebuild Docker images then start)
+	$(info   down           Stop and remove all containers)
+	$(info   logs           Stream logs from all running containers)
+	$(info   model          Pull the Ollama model)
+	$(info   index          Build the ChromaDB vector index)
+	$(info   install        Install all dependencies into active env)
+	$(info   test           Run the full test suite with coverage)
+	$(info   lint           Lint and auto-fix with Ruff)
+	$(info   security       CVE scan + SAST)
+	$(info   ci             Full local CI pipeline)
+	$(info )
+	@:
 
 # ── Demo (Docker) ─────────────────────────────────────────────────────────────
+.PHONY: check-docker
+check-docker:
+	@docker info > /dev/null 2>&1 || (echo "ERROR: Docker is not running. Start Docker Desktop first." && exit 1)
+
 .PHONY: demo
-demo: ## Start full stack via Docker Compose (RAG server + Gradio UI)
+demo: check-docker ## Start full stack via Docker Compose (RAG server + Gradio UI)
 	$(DOCKER_COMP) up
 
 .PHONY: demo-build
-demo-build: ## Rebuild Docker images then start (use after code changes)
+demo-build: check-docker ## Rebuild Docker images then start (use after code changes)
 	$(DOCKER_COMP) up --build
 
 .PHONY: down
