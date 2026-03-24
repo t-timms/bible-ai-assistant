@@ -14,9 +14,9 @@ help:
 	$(info )
 	$(info Bible AI Assistant - available commands)
 	$(info ----------------------------------------)
-	$(info   ollama         Start the Ollama inference server)
-	$(info   demo           Start full stack via Docker Compose)
+	$(info   demo           Start full stack - auto-starts Ollama if needed)
 	$(info   demo-build     Rebuild Docker images then start)
+	$(info   ollama         Start Ollama manually in this terminal)
 	$(info   down           Stop and remove all containers)
 	$(info   logs           Stream logs from all running containers)
 	$(info   status         Show health of all running services)
@@ -32,11 +32,15 @@ help:
 
 # ── Demo (Docker) ─────────────────────────────────────────────────────────────
 .PHONY: demo
-demo: ## Start full stack via Docker Compose (RAG server + Gradio UI)
+demo: ## Start full stack — auto-starts Ollama if not already running
+	@curl -sf http://localhost:11434/api/tags > /dev/null 2>&1 \
+		|| (ollama serve > /tmp/ollama.log 2>&1 & sleep 3)
 	$(DOCKER_COMP) up
 
 .PHONY: demo-build
-demo-build: ## Rebuild Docker images then start (use after code changes)
+demo-build: ## Rebuild Docker images then start — auto-starts Ollama if needed
+	@curl -sf http://localhost:11434/api/tags > /dev/null 2>&1 \
+		|| (ollama serve > /tmp/ollama.log 2>&1 & sleep 3)
 	$(DOCKER_COMP) up --build
 
 .PHONY: down

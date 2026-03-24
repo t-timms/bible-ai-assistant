@@ -9,12 +9,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - **Makefile task runner** — `make demo`, `make demo-build`, `make down`, `make logs`, `make status`, `make ollama`, `make model`, `make index`, `make test`, `make lint`, `make security`, `make ci`; replaces manual command sequences with a single entry point
-- **Kokoro TTS service** — `docker-compose.yml` now includes a third service (`ghcr.io/remsky/kokoro-fastapi-cpu`) on port 8880 with a named volume for model caching; end-to-end voice pipeline (STT → RAG → TTS) now runs entirely in Docker
+- **Single-command launch** — `make demo` auto-detects whether Ollama is running and starts it in the background if not; no second terminal required
+- **Kokoro TTS service** — `docker-compose.yml` now includes a third service (`ghcr.io/remsky/kokoro-fastapi-cpu`) on port 8880 with a named volume for model caching and a healthcheck; `gradio-ui` waits for TTS to be healthy before starting; end-to-end voice pipeline (STT → RAG → TTS) now runs entirely in Docker
 - `deployment/pc/Dockerfile.ui` — `HF_HOME=/app/.cache/huggingface` with correct ownership; created home directory for `appuser` so Faster-Whisper model cache writes succeed
+- CI badge added to README
 
 ### Fixed
 
 - `deployment/pc/Dockerfile.rag` — replaced editable install (`-e`) with two-step non-editable install: deps cached in one layer, package installed separately with `--no-deps`; resolves `ModuleNotFoundError: No module named 'rag.rag_server'` on container startup
+- `deployment/pc/Dockerfile.ui` — same two-step install pattern for consistency; source copied in builder stage
 - `pyproject.toml` — corrected author from placeholder `"John AI"` to `"Tremayne Timms"`
 
 ---
