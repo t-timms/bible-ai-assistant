@@ -23,14 +23,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd --gid 1001 appgroup && \
-    useradd --uid 1001 --gid appgroup --no-create-home appuser
+    useradd --uid 1001 --gid appgroup --create-home appuser
 
 WORKDIR /app
 
 COPY --from=builder /install /usr/local
 COPY ui/ ./ui/
 
-RUN chown -R appuser:appgroup /app
+# HF model cache lives inside /app so appuser can write to it.
+ENV HF_HOME=/app/.cache/huggingface
+RUN mkdir -p /app/.cache/huggingface && chown -R appuser:appgroup /app
 USER appuser
 
 EXPOSE 7860

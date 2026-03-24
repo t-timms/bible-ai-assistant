@@ -14,10 +14,12 @@ help:
 	$(info )
 	$(info Bible AI Assistant - available commands)
 	$(info ----------------------------------------)
+	$(info   ollama         Start the Ollama inference server)
 	$(info   demo           Start full stack via Docker Compose)
 	$(info   demo-build     Rebuild Docker images then start)
 	$(info   down           Stop and remove all containers)
 	$(info   logs           Stream logs from all running containers)
+	$(info   status         Show health of all running services)
 	$(info   model          Pull the Ollama model)
 	$(info   index          Build the ChromaDB vector index)
 	$(info   install        Install all dependencies into active env)
@@ -29,16 +31,12 @@ help:
 	@:
 
 # ── Demo (Docker) ─────────────────────────────────────────────────────────────
-.PHONY: check-docker
-check-docker:
-	@docker info > /dev/null 2>&1 || (echo "ERROR: Docker is not running. Start Docker Desktop first." && exit 1)
-
 .PHONY: demo
-demo: check-docker ## Start full stack via Docker Compose (RAG server + Gradio UI)
+demo: ## Start full stack via Docker Compose (RAG server + Gradio UI)
 	$(DOCKER_COMP) up
 
 .PHONY: demo-build
-demo-build: check-docker ## Rebuild Docker images then start (use after code changes)
+demo-build: ## Rebuild Docker images then start (use after code changes)
 	$(DOCKER_COMP) up --build
 
 .PHONY: down
@@ -49,14 +47,24 @@ down: ## Stop and remove all containers
 logs: ## Stream logs from all running containers
 	$(DOCKER_COMP) logs -f
 
-# ── Model / Data ──────────────────────────────────────────────────────────────
+# ── Ollama ────────────────────────────────────────────────────────────────────
+.PHONY: ollama
+ollama: ## Start the Ollama inference server (keep this terminal open)
+	ollama serve
+
 .PHONY: model
-model: ## Pull and verify the Ollama model (bible-assistant-orpo)
+model: ## Pull the Ollama model (bible-assistant-orpo)
 	ollama pull bible-assistant-orpo
 
+# ── Model / Data ──────────────────────────────────────────────────────────────
 .PHONY: index
 index: ## Build the ChromaDB vector index (activate conda env first)
 	build-index
+
+# ── Status ────────────────────────────────────────────────────────────────────
+.PHONY: status
+status: ## Show health of all running services
+	@docker compose ps
 
 # ── Dev ───────────────────────────────────────────────────────────────────────
 .PHONY: install

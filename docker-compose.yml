@@ -14,6 +14,7 @@
 # Services:
 #   rag-server  → http://localhost:8081  (RAG + FastAPI)
 #   gradio-ui   → http://localhost:7860  (Gradio web interface)
+#   tts         → http://localhost:8880  (Kokoro TTS, OpenAI-compatible)
 #
 # Ollama runs on the host and is reached via host.docker.internal:11434.
 # On Linux, add --add-host=host.docker.internal:host-gateway to the rag-server
@@ -42,6 +43,15 @@ services:
       start_period: 15s
     restart: unless-stopped
 
+  tts:
+    image: ghcr.io/remsky/kokoro-fastapi-cpu:latest
+    ports:
+      - "8880:8880"
+    volumes:
+      # Cache downloaded models so they survive container restarts.
+      - kokoro-models:/app/models
+    restart: unless-stopped
+
   gradio-ui:
     build:
       context: .
@@ -51,9 +61,15 @@ services:
       - "7860:7860"
     environment:
       RAG_SERVER_URL: "http://rag-server:8081"
+      TTS_URL: "http://tts:8880"
       GRADIO_HOST: "0.0.0.0"
       GRADIO_PORT: "7860"
     depends_on:
       rag-server:
         condition: service_healthy
+      tts:
+        condition: service_started
     restart: unless-stopped
+
+volumes:
+  kokoro-models:

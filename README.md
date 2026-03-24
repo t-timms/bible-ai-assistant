@@ -113,24 +113,31 @@ bible-ai-assistant/
 
 ## Quick Start
 
+Requires: [Docker Desktop](https://www.docker.com/products/docker-desktop/), [Ollama](https://ollama.com), GNU make.
+
 ```bash
-# 1. Clone and set up environment
+# 1. Clone the repo
 git clone https://github.com/omnipotence-eth/bible-ai-assistant.git
 cd bible-ai-assistant
-conda create -n bible-ai python=3.11 && conda activate bible-ai
-pip install -e ".[rag,ui]"
 
-# 2. Configure environment (copy and edit)
-cp .env.example .env
+# 2. Pull the model
+ollama pull bible-assistant-orpo
 
-# 3. Build RAG index (requires Bible JSON in data/raw/)
+# 3. Build the ChromaDB index (one-time setup, requires conda env)
+conda activate bible-ai-assistant
 build-index
 
-# 4. Start services
-ollama run bible-assistant-orpo          # Start model (Ollama must be installed)
-rag-server                               # RAG server  → http://127.0.0.1:8081
-python ui/app.py                         # Gradio UI   → http://localhost:7860
+# 4. Launch — two terminals
+make ollama        # Terminal 1: start Ollama inference server (keep open)
+make demo          # Terminal 2: start RAG server + Gradio UI + Kokoro TTS
+
+# 5. Open the UI
+# http://localhost:7860
 ```
+
+> **First voice use:** Faster-Whisper downloads the `large-v3-turbo` STT model (~800 MB) on first use. Expect a delay of ~1 minute before the first voice response.
+
+See `make help` for all available commands.
 
 For the full step-by-step guide (training, merging, deployment): **[docs/WALKTHROUGH.md](docs/WALKTHROUGH.md)**
 
