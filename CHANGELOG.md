@@ -8,6 +8,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- **Makefile task runner** — `make demo`, `make demo-build`, `make down`, `make logs`, `make status`, `make ollama`, `make model`, `make index`, `make test`, `make lint`, `make security`, `make ci`; replaces manual command sequences with a single entry point
+- **Kokoro TTS service** — `docker-compose.yml` now includes a third service (`ghcr.io/remsky/kokoro-fastapi-cpu`) on port 8880 with a named volume for model caching; end-to-end voice pipeline (STT → RAG → TTS) now runs entirely in Docker
+- `deployment/pc/Dockerfile.ui` — `HF_HOME=/app/.cache/huggingface` with correct ownership; created home directory for `appuser` so Faster-Whisper model cache writes succeed
+
+### Fixed
+
+- `deployment/pc/Dockerfile.rag` — replaced editable install (`-e`) with two-step non-editable install: deps cached in one layer, package installed separately with `--no-deps`; resolves `ModuleNotFoundError: No module named 'rag.rag_server'` on container startup
+- `pyproject.toml` — corrected author from placeholder `"John AI"` to `"Tremayne Timms"`
+
+---
+
+### Added
+
 - **Production hardening** — API key enforcement (`X-API-Key`, 401), Content-Type enforcement (415), body-first 1 MB size guard (413), startup warning when `API_KEY` is unset on a non-localhost bind address
 - **Observability** — `X-Request-ID` correlation header threaded into every log line via `contextvars.ContextVar`; structured JSON logging (`LOG_JSON=true`); `exc_info=True` on unhandled exceptions; Prometheus `/metrics` endpoint (graceful no-op if `prometheus-fastapi-instrumentator` not installed)
 - **Module split** — `rag_server.py` refactored into four focused modules: `helpers.py` (pure functions, no I/O), `retrieval.py` (hybrid pipeline), `settings.py` (Pydantic-validated config), `rag_server.py` (HTTP layer only)

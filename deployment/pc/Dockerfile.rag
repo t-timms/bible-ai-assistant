@@ -8,13 +8,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy only packaging metadata first — deps layer is cached until pyproject.toml changes.
-COPY pyproject.toml ./
-# Minimal stubs so setuptools can discover packages without the full source tree.
-RUN mkdir -p rag training ui voice scripts
+# Copy metadata first — deps layer is cached until pyproject.toml changes.
+COPY pyproject.toml README.md ./
+RUN mkdir -p rag training ui voice scripts && touch rag/__init__.py
 
-# Build and install wheels into /install prefix for easy copying.
-RUN pip install --no-cache-dir --prefix=/install -e ".[rag]"
+# Install dependencies into /install (cached until pyproject.toml changes).
+RUN pip install --no-cache-dir --prefix=/install ".[rag]"
+
+# Copy real source and install the package itself (no-deps = fast, deps already above).
+COPY rag/ ./rag/
+RUN pip install --no-cache-dir --prefix=/install --no-deps .
 
 
 # ── Stage 2: runtime ──────────────────────────────────────────────────────────
