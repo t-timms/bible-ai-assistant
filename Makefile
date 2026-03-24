@@ -31,16 +31,18 @@ help:
 	@:
 
 # ── Demo (Docker) ─────────────────────────────────────────────────────────────
+.PHONY: _ollama-start
+_ollama-start:
+	@powershell -Command "\
+		try { Invoke-RestMethod http://localhost:11434/api/tags | Out-Null; Write-Host 'Ollama already running' } \
+		catch { Write-Host 'Starting Ollama...'; Start-Process ollama -ArgumentList serve -WindowStyle Hidden; Start-Sleep 3 }"
+
 .PHONY: demo
-demo: ## Start full stack — auto-starts Ollama if not already running
-	@curl -sf http://localhost:11434/api/tags > /dev/null 2>&1 \
-		|| (ollama serve > /tmp/ollama.log 2>&1 & sleep 3)
+demo: _ollama-start ## Start full stack — auto-starts Ollama if not already running
 	$(DOCKER_COMP) up
 
 .PHONY: demo-build
-demo-build: ## Rebuild Docker images then start — auto-starts Ollama if needed
-	@curl -sf http://localhost:11434/api/tags > /dev/null 2>&1 \
-		|| (ollama serve > /tmp/ollama.log 2>&1 & sleep 3)
+demo-build: _ollama-start ## Rebuild Docker images then start — auto-starts Ollama if needed
 	$(DOCKER_COMP) up --build
 
 .PHONY: down
