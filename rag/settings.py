@@ -71,9 +71,7 @@ class Settings(BaseSettings):
     def _check_ollama_url(cls, v: str) -> str:
         u = urlparse(v)
         if u.scheme not in ("http", "https"):
-            raise ValueError(
-                f"OLLAMA_URL must use http or https, got {u.scheme!r}"
-            )
+            raise ValueError(f"OLLAMA_URL must use http or https, got {u.scheme!r}")
         if not u.netloc:
             raise ValueError("OLLAMA_URL has no host")
         return v
