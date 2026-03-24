@@ -450,9 +450,11 @@ class TestMergeAdaptersMain:
         # Point DEFAULT_LORA_NAME at a path that is guaranteed not to exist
         monkeypatch.setattr(ma, "DEFAULT_LORA_NAME", "__nonexistent_test_lora_abc__")
         monkeypatch.setattr("sys.argv", ["merge_adapters"])
-        with caplog.at_level(logging.WARNING, logger="training.merge_adapters"):
-            with pytest.raises(FileNotFoundError, match="LoRA checkpoint not found"):
-                ma.main()
+        with (
+            caplog.at_level(logging.WARNING, logger="training.merge_adapters"),
+            pytest.raises(FileNotFoundError, match="LoRA checkpoint not found"),
+        ):
+            ma.main()
         assert any(r.levelno == logging.WARNING for r in caplog.records)
 
     def test_explicit_output_dir_created_before_missing_adapter(

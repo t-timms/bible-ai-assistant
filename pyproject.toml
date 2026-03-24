@@ -113,6 +113,7 @@ ignore = ["E501"]  # Line length handled by formatter
 "training/train_orpo.py" = ["I001"]  # Imports inside try/except for dependency checking
 "ui/app.py" = ["I001", "SIM115"]  # Lazy imports; NamedTemporaryFile(delete=False) for Gradio file paths
 "tests/test_evaluate_keyword.py" = ["E402"]  # sys.path before training.evaluate
+"tests/test_training_utils.py" = ["E402"]   # sys.path before training.* imports
 "deployment/pc/generate_modelfile.py" = ["SIM108"]  # explicit if/else for GGUF path resolution
 
 [tool.pytest.ini_options]
