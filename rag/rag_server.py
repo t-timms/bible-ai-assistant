@@ -60,9 +60,7 @@ from rag.settings import settings
 # Request-ID context — injected by middleware, read by logging filter
 # ---------------------------------------------------------------------------
 
-_request_id_ctx: contextvars.ContextVar[str] = contextvars.ContextVar(
-    "request_id", default="-"
-)
+_request_id_ctx: contextvars.ContextVar[str] = contextvars.ContextVar("request_id", default="-")
 
 
 class _RequestIDFilter(logging.Filter):

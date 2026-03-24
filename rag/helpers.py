@@ -122,9 +122,9 @@ def _clean_doc_text(doc: str, ref: str) -> str:
     """Strip embedding prefix and reference prefix from stored document text."""
     text = doc
     if text.startswith("search_document: "):
-        text = text[len("search_document: "):]
+        text = text[len("search_document: ") :]
     if ref and text.startswith(ref + ": "):
-        text = text[len(ref) + 2:]
+        text = text[len(ref) + 2 :]
     return text.strip()
 
 
@@ -151,7 +151,7 @@ def _extract_verse_ref_from_lookup(question: str) -> str | None:
     low = t.lower()
     for prefix in ("what does ", "what is ", "what says "):
         if low.startswith(prefix):
-            t = t[len(prefix):].strip()
+            t = t[len(prefix) :].strip()
             low = t.lower()
             break
     m = _VERSE_REF_IN_QUESTION.search(t)

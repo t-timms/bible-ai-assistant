@@ -31,12 +31,28 @@ _text = st.text(
 )
 
 _book_names = st.one_of(
-    st.sampled_from([
-        "Genesis", "Exodus", "Psalms", "Psalm", "John", "Romans",
-        "1 Corinthians", "2 Corinthians", "Hebrews", "Revelation",
-        "Matthew", "Luke", "Acts", "Ephesians", "Colossians",
-    ]),
-    st.text(alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", min_size=1, max_size=20),
+    st.sampled_from(
+        [
+            "Genesis",
+            "Exodus",
+            "Psalms",
+            "Psalm",
+            "John",
+            "Romans",
+            "1 Corinthians",
+            "2 Corinthians",
+            "Hebrews",
+            "Revelation",
+            "Matthew",
+            "Luke",
+            "Acts",
+            "Ephesians",
+            "Colossians",
+        ]
+    ),
+    st.text(
+        alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", min_size=1, max_size=20
+    ),
 )
 
 _chapter = st.integers(min_value=1, max_value=150)
@@ -171,9 +187,7 @@ class TestStripRepetitionAndMetaProperties:
     def test_output_never_longer_than_input(self, text: str) -> None:
         """The function may only shorten or equal the input, never lengthen it."""
         result = _strip_repetition_and_meta(text)
-        assert len(result) <= len(text), (
-            f"Output longer than input: {len(result)} > {len(text)}"
-        )
+        assert len(result) <= len(text), f"Output longer than input: {len(result)} > {len(text)}"
 
     @given(_text)
     @settings(max_examples=200)
@@ -193,9 +207,7 @@ class TestStripRepetitionAndMetaProperties:
         """Non-empty outputs must not have leading or trailing whitespace."""
         result = _strip_repetition_and_meta(text)
         if result:
-            assert result == result.strip(), (
-                f"Result has surrounding whitespace: {result!r}"
-            )
+            assert result == result.strip(), f"Result has surrounding whitespace: {result!r}"
 
     @given(
         st.text(
@@ -235,27 +247,31 @@ class TestIsCounselingRequestProperties:
         assert _is_counseling_request(text) is False
 
     @given(
-        st.sampled_from([
-            "What does John 3:16 say?",
-            "Who was Moses?",
-            "Tell me about the Book of Psalms.",
-            "What are the ten commandments?",
-            "Explain the Sermon on the Mount.",
-        ])
+        st.sampled_from(
+            [
+                "What does John 3:16 say?",
+                "Who was Moses?",
+                "Tell me about the Book of Psalms.",
+                "What are the ten commandments?",
+                "Explain the Sermon on the Mount.",
+            ]
+        )
     )
     def test_plain_scripture_questions_are_not_counseling(self, text: str) -> None:
         """Ordinary scripture-study questions must not be flagged as counseling."""
         assert _is_counseling_request(text) is False
 
     @given(
-        st.sampled_from([
-            "I need counseling for my depression.",
-            "I want to kill myself.",
-            "My marriage is falling apart, can you help?",
-            "I have trauma from abuse.",
-            "I am suffering from severe anxiety.",
-            "I need someone to talk to.",
-        ])
+        st.sampled_from(
+            [
+                "I need counseling for my depression.",
+                "I want to kill myself.",
+                "My marriage is falling apart, can you help?",
+                "I have trauma from abuse.",
+                "I am suffering from severe anxiety.",
+                "I need someone to talk to.",
+            ]
+        )
     )
     def test_crisis_keywords_flagged(self, text: str) -> None:
         """Strings containing known counseling/crisis keywords must return True."""

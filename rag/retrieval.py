@@ -42,6 +42,7 @@ class RetrievalHit(NamedTuple):
     document: str
     score: float
 
+
 # ---------------------------------------------------------------------------
 # Lazy-loaded globals with thread safety (double-checked locking)
 # ---------------------------------------------------------------------------
@@ -121,7 +122,9 @@ def _get_bm25():
             if key not in data:
                 raise KeyError(f"BM25 index missing required key: {key!r}")
             if not isinstance(data[key], list):
-                raise TypeError(f"BM25 index '{key}' must be a list, got {type(data[key]).__name__}")
+                raise TypeError(
+                    f"BM25 index '{key}' must be a list, got {type(data[key]).__name__}"
+                )
         if len(data["ids"]) != len(data["documents"]):
             raise ValueError(
                 f"BM25 index length mismatch: {len(data['ids'])} ids vs "
@@ -231,9 +234,7 @@ def _rerank(query: str, candidates: list[RetrievalHit], top_k: int) -> list[Retr
         return candidates[:top_k]
     pairs = [(query, hit.document) for hit in candidates]
     ce_scores = reranker.predict(pairs)
-    ranked = sorted(
-        zip(candidates, ce_scores, strict=True), key=lambda x: x[1], reverse=True
-    )
+    ranked = sorted(zip(candidates, ce_scores, strict=True), key=lambda x: x[1], reverse=True)
     return [
         RetrievalHit(verse_id=hit.verse_id, document=hit.document, score=float(s))
         for hit, s in ranked[:top_k]
