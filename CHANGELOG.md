@@ -8,6 +8,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- **Production hardening** — API key enforcement (`X-API-Key`, 401), Content-Type enforcement (415), body-first 1 MB size guard (413), startup warning when `API_KEY` is unset on a non-localhost bind address
+- **Observability** — `X-Request-ID` correlation header threaded into every log line via `contextvars.ContextVar`; structured JSON logging (`LOG_JSON=true`); `exc_info=True` on unhandled exceptions; Prometheus `/metrics` endpoint (graceful no-op if `prometheus-fastapi-instrumentator` not installed)
+- **Module split** — `rag_server.py` refactored into four focused modules: `helpers.py` (pure functions, no I/O), `retrieval.py` (hybrid pipeline), `settings.py` (Pydantic-validated config), `rag_server.py` (HTTP layer only)
+- `rag/settings.py` — `pydantic-settings` singleton; validates `ollama_url`, `rag_top_k`, `hybrid_candidates`, `log_level`; reads from env / `.env`
+- `RetrievalHit` NamedTuple — replaces anonymous `tuple[str, str, float]` throughout the retrieval pipeline
+- BM25 JSON schema validation — validates `ids`/`documents` keys, types, and length parity before trusting deserialized index content
+- Multi-stage Docker builds — `Dockerfile.rag` and `Dockerfile.ui` pinned to `python:3.11.12-slim`, non-root user (uid 1001), `HEALTHCHECK`, no build tools in runtime image
+- `.dockerignore` — excludes ML artefacts (checkpoints, GGUF, ChromaDB, wandb) from Docker build context
+- **Property-based tests** — `tests/test_hypothesis.py` with 28 Hypothesis tests across 5 pure helpers (idempotency, type invariants, length bounds)
+- **API tests expanded** — `test_rag_api.py` from 6 → 10 tests: API key auth (401/200), Content-Type (415), request correlation (`X-Request-ID` echo), Prometheus metrics endpoint
+
+### Changed
+
+- `rag_server.py` — request body is now the authoritative size check (removes reliance on forged `Content-Length` header); `_RequestIDMiddleware` uses `ContextVar.set()`/`reset()` token pattern for correct async isolation
+- `training/merge_adapters.py` — all `print()` calls replaced with `logger.*`; proper `logging.getLogger(__name__)` setup
+- `pyproject.toml` — upper version bounds added to all critical dependencies (`chromadb<1.0.0`, `sentence-transformers<4.0.0`, `gradio<6.15`, `transformers<5.0.0`, `prometheus-fastapi-instrumentator<8.0.0`)
+- `.github/workflows/ci.yml` — fixed broken `pip-audit` command; now installs the project then scans the installed environment; tightened test dep install to `.[rag,dev]`
+- Test suite: **183 tests, 55% line coverage** (was 175 tests, 54%)
+
+### Fixed
+
+- `tests/test_training_utils.py` — `test_default_lora_path_prints_warning_then_raises` updated from `capsys` to `caplog` after `merge_adapters.py` converted `print()` to `logger.warning()`
+
+---
+
+## [Unreleased — prior]
+
+### Added
+
 - `rag/response_cleanup.py` — shared `strip_model_thinking()` for Qwen/Ollama chain-of-thought and planning scaffolds
 - **RAG retrieval hardening** — pin explicit verse refs for “What does X say?” lookups; topical anchor verses (marriage, forgiveness, money); Psalm→Psalms id normalization; counseling-pattern detection with an extra system guard in chat payloads
 - `EMPTY_MODEL_REPLY` fallback when the model returns empty content (non-stream and stream paths)
@@ -33,7 +62,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Verse ref extraction** — avoid matching “What does Hebrews…” as the reference; strip lookup prefixes before regex
 - **Gradio 6** — removed unsupported `Chatbot` `type=` / `show_copy_button`; moved `theme`/`css` to `launch()`
 
-## [0.1.0] - YYYY-MM-DD
+## [0.1.0] - 2026-01-15
 
 ### Added
 

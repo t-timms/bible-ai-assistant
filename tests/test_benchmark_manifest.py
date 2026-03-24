@@ -1,4 +1,5 @@
 """Benchmark manifest schema (protocol versioning)."""
+
 from pathlib import Path
 
 import pytest

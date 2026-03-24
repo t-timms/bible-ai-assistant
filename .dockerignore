@@ -1,0 +1,56 @@
+# Version control
+.git
+.gitignore
+
+# Python cache
+__pycache__
+*.py[cod]
+*.pyo
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# Virtual environments
+.venv
+venv
+env
+
+# ML artefacts — large and not needed at runtime
+checkpoints/
+checkpoints-orpo/
+wandb/
+unsloth_compiled_cache/
+*.gguf
+*.safetensors
+*.bin
+
+# ChromaDB index — mounted as a volume at runtime
+rag/chroma_db/
+
+# Training data — not needed in server images
+data/
+prompts/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Tests
+tests/
+
+# Dev tooling
+.pre-commit-config.yaml
+.env
+.env.*
+!.env.example
+
+# Editor / OS
+.vscode/
+.idea/
+*.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/

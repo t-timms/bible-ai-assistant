@@ -7,6 +7,7 @@ Creates three artifacts in rag/chroma_db/:
   2. bible_passages collection -- 5-verse passage windows for parent-child retrieval
   3. bm25_index.pkl           -- pickled BM25Okapi index for hybrid search
 """
+
 import contextlib
 import json
 import logging
@@ -43,8 +44,7 @@ def _load_verses(raw_path: Path) -> list[dict]:
             break
     else:
         raise FileNotFoundError(
-            f"No Bible JSON found in {raw_path}. "
-            "Ensure data/raw/bible_web.json exists."
+            f"No Bible JSON found in {raw_path}. Ensure data/raw/bible_web.json exists."
         )
 
     print(f"Loading verses from {bible_file}...")
@@ -58,12 +58,14 @@ def _load_verses(raw_path: Path) -> list[dict]:
     for book, chapters in data.items():
         for chapter, verse_dict in chapters.items():
             for verse, text in verse_dict.items():
-                flat.append({
-                    "book": book,
-                    "chapter": int(chapter) if isinstance(chapter, str) else chapter,
-                    "verse": int(verse) if isinstance(verse, str) else verse,
-                    "text": text,
-                })
+                flat.append(
+                    {
+                        "book": book,
+                        "chapter": int(chapter) if isinstance(chapter, str) else chapter,
+                        "verse": int(verse) if isinstance(verse, str) else verse,
+                        "text": text,
+                    }
+                )
     return flat
 
 
@@ -83,18 +85,20 @@ def _build_verse_index(
     for v in verses:
         ref = f"{v['book']} {v['chapter']}:{v['verse']}"
         ids.append(ref)
-        metadatas.append({
-            "book": v["book"],
-            "chapter": v["chapter"],
-            "verse": v["verse"],
-            "reference": ref,
-        })
+        metadatas.append(
+            {
+                "book": v["book"],
+                "chapter": v["chapter"],
+                "verse": v["verse"],
+                "reference": ref,
+            }
+        )
         documents.append(DOCUMENT_PREFIX + ref + ": " + v["text"])
 
     for i in range(0, len(documents), BATCH_SIZE):
-        batch_ids = ids[i:i + BATCH_SIZE]
-        batch_docs = documents[i:i + BATCH_SIZE]
-        batch_meta = metadatas[i:i + BATCH_SIZE]
+        batch_ids = ids[i : i + BATCH_SIZE]
+        batch_docs = documents[i : i + BATCH_SIZE]
+        batch_meta = metadatas[i : i + BATCH_SIZE]
         embeddings = model.encode(
             batch_docs, batch_size=min(BATCH_SIZE, 256), show_progress_bar=False
         )
@@ -114,8 +118,10 @@ def _build_passage_index(
 ) -> None:
     """Build parent passage collection with overlapping 5-verse windows."""
     import gc
+
     try:
         import torch
+
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
             gc.collect()
@@ -139,7 +145,7 @@ def _build_passage_index(
     for _, chapter_verses in by_chapter.items():
         chapter_verses.sort(key=lambda x: x["verse"])
         for i in range(0, len(chapter_verses), PASSAGE_STRIDE):
-            window = chapter_verses[i:i + PASSAGE_WINDOW]
+            window = chapter_verses[i : i + PASSAGE_WINDOW]
             if not window:
                 continue
             book = window[0]["book"]
@@ -154,24 +160,24 @@ def _build_passage_index(
             )
 
             ids.append(passage_id)
-            metadatas.append({
-                "book": book,
-                "chapter": chapter,
-                "first_verse": first_v,
-                "last_verse": last_v,
-                "child_ids": json.dumps(child_ids),
-                "reference": passage_id,
-            })
+            metadatas.append(
+                {
+                    "book": book,
+                    "chapter": chapter,
+                    "first_verse": first_v,
+                    "last_verse": last_v,
+                    "child_ids": json.dumps(child_ids),
+                    "reference": passage_id,
+                }
+            )
             documents.append(DOCUMENT_PREFIX + passage_text)
 
     passage_batch = 100
     for i in range(0, len(documents), passage_batch):
-        batch_ids = ids[i:i + passage_batch]
-        batch_docs = documents[i:i + passage_batch]
-        batch_meta = metadatas[i:i + passage_batch]
-        embeddings = model.encode(
-            batch_docs, batch_size=32, show_progress_bar=False
-        )
+        batch_ids = ids[i : i + passage_batch]
+        batch_docs = documents[i : i + passage_batch]
+        batch_meta = metadatas[i : i + passage_batch]
+        embeddings = model.encode(batch_docs, batch_size=32, show_progress_bar=False)
         collection.add(
             ids=batch_ids,
             embeddings=embeddings.tolist(),

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Quick test of merged model with transformers (no GGUF/Ollama)."""
+
 import argparse
 
 import torch
@@ -43,6 +44,7 @@ def main():
     print("--- Response ---")
     print(response[:500])
     print("---")
+
 
 if __name__ == "__main__":
     main()

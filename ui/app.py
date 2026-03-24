@@ -1,16 +1,26 @@
 """
 Gradio Web UI for Bible AI Assistant: text and voice chat.
 Expects RAG server at localhost:8081, Kokoro TTS at localhost:8880.
+
+Environment variables (all optional, defaults shown):
+  RAG_SERVER_URL   http://127.0.0.1:8081
+  TTS_URL          http://127.0.0.1:8880
+  OLLAMA_MODEL     bible-assistant-orpo
+  GRADIO_HOST      127.0.0.1
+  GRADIO_PORT      7860
 """
+
+import os
 import tempfile
 from pathlib import Path
 
 import gradio as gr
 import httpx
 
-RAG_URL = "http://localhost:8081/v1/chat/completions"
-TTS_URL = "http://localhost:8880/v1/audio/speech"
-MODEL_NAME = "bible-assistant-orpo"
+_RAG_BASE = os.getenv("RAG_SERVER_URL", "http://127.0.0.1:8081")
+RAG_URL = _RAG_BASE.rstrip("/") + "/v1/chat/completions"
+TTS_URL = os.getenv("TTS_URL", "http://127.0.0.1:8880") + "/v1/audio/speech"
+MODEL_NAME = os.getenv("OLLAMA_MODEL", "bible-assistant-orpo")
 WHISPER_MODEL = "large-v3-turbo"
 
 # Lazy-load Whisper (heavy)
@@ -21,6 +31,7 @@ def _get_whisper():
     global _whisper_model
     if _whisper_model is None:
         from faster_whisper import WhisperModel
+
         try:
             _whisper_model = WhisperModel(
                 WHISPER_MODEL,
@@ -111,7 +122,12 @@ def synthesize(text: str) -> str | None:
         with httpx.Client(timeout=60.0, trust_env=False) as client:
             r = client.post(
                 TTS_URL,
-                json={"model": "kokoro", "input": text, "voice": "af_bella", "response_format": "wav"},
+                json={
+                    "model": "kokoro",
+                    "input": text,
+                    "voice": "af_bella",
+                    "response_format": "wav",
+                },
             )
             if r.status_code != 200:
                 return None
@@ -151,10 +167,15 @@ def _audio_to_path(audio) -> str | None:
             return None
         import numpy as np
         import soundfile as sf
+
         arr = np.asarray(arr)
         if arr.ndim == 2:
             arr = arr.mean(axis=1)
-        data = arr.astype(np.float32) / 32768.0 if arr.dtype == np.int16 else np.asarray(arr, dtype=np.float32)
+        data = (
+            arr.astype(np.float32) / 32768.0
+            if arr.dtype == np.int16
+            else np.asarray(arr, dtype=np.float32)
+        )
         wav_path = Path(tempfile.gettempdir()) / f"voice_{hash(str(arr.shape)) & 0x7FFFFFFF}.wav"
         sf.write(str(wav_path), data, int(sr))
         return str(wav_path)
@@ -175,14 +196,20 @@ def voice_chat(audio, history: list) -> tuple[list, str | None]:
     if not wav_path:
         history = history + [
             {"role": "user", "content": "[Voice] (no audio)"},
-            {"role": "assistant", "content": "No audio captured. Click the microphone, record your question, then click Stop. Make sure your browser has mic permission."},
+            {
+                "role": "assistant",
+                "content": "No audio captured. Click the microphone, record your question, then click Stop. Make sure your browser has mic permission.",
+            },
         ]
         return history, None
     transcript = transcribe(wav_path)
     if not transcript:
         history = history + [
             {"role": "user", "content": "[Voice] (no speech detected)"},
-            {"role": "assistant", "content": "No speech was detected. Please try again and speak clearly."},
+            {
+                "role": "assistant",
+                "content": "No speech was detected. Please try again and speak clearly.",
+            },
         ]
         return history, None
     reply = chat_with_rag(transcript)
@@ -209,7 +236,11 @@ with gr.Blocks(title="Bible AI Assistant") as demo:
         with gr.Tab("Text"):
             msg.submit(text_chat, [msg, chatbot], [chatbot, msg])
             gr.Examples(
-                ["What does John 3:16 say?", "Who was the Apostle Paul?", "What does the Bible say about forgiveness?"],
+                [
+                    "What does John 3:16 say?",
+                    "Who was the Apostle Paul?",
+                    "What does the Bible say about forgiveness?",
+                ],
                 inputs=msg,
             )
         with gr.Tab("Voice"):
@@ -223,4 +254,8 @@ with gr.Blocks(title="Bible AI Assistant") as demo:
             voice_in.change(voice_chat, [voice_in, chatbot], [chatbot, voice_resp])
 
 if __name__ == "__main__":
-    demo.launch(server_name="0.0.0.0", server_port=7860, theme=gr.themes.Soft())
+    demo.launch(
+        server_name=os.getenv("GRADIO_HOST", "127.0.0.1"),
+        server_port=int(os.getenv("GRADIO_PORT", "7860")),
+        theme=gr.themes.Soft(),
+    )

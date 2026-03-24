@@ -5,6 +5,7 @@ Run from project root (default GGUF is Q4 for faster Ollama import; use --gguf f
   python deployment/pc/generate_modelfile.py
   python deployment/pc/generate_modelfile.py --gguf qwen3.5-4b-bible-John-v8-orpo-f16.gguf
 """
+
 from __future__ import annotations
 
 import argparse

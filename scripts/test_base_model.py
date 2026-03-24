@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Test base Qwen3.5-4B (no fine-tuning) with transformers."""
+
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 MODEL_NAME = "Qwen/Qwen3.5-4B"
 PROMPT = "<|im_start|>system\nYou are a Bible AI assistant.<|im_end|>\n<|im_start|>user\nWhat does John 3:16 say?<|im_end|>\n<|im_start|>assistant\n"
+
 
 def main():
     print("Loading base model and tokenizer...")
@@ -31,6 +33,7 @@ def main():
     print("--- Response ---")
     print(response[:600])
     print("---")
+
 
 if __name__ == "__main__":
     main()

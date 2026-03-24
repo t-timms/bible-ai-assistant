@@ -17,6 +17,7 @@ Usage:
 
 Then run: python training/dataset_builder.py --max-examples 50000
 """
+
 import json
 import re
 from pathlib import Path
@@ -50,25 +51,36 @@ def extract_verses_from_book_array(arr: list, book: str) -> list[dict]:
         chunks.setdefault(key, []).append(str(val).strip())
     verses = []
     for (ch, v), texts in sorted(chunks.items()):
-        verses.append({
-            "book": book,
-            "chapter": ch,
-            "verse": v,
-            "text": " ".join(texts).strip(),
-        })
+        verses.append(
+            {
+                "book": book,
+                "chapter": ch,
+                "verse": v,
+                "text": " ".join(texts).strip(),
+            }
+        )
     return verses
 
 
 def main() -> None:
     import argparse
-    parser = argparse.ArgumentParser(description="Convert TehShrike WEB JSON to flat bible_web.json")
-    parser.add_argument("tehshrike_repo", type=Path, help="Path to world-english-bible repo (contains json/ folder)")
-    parser.add_argument("--output", type=Path, default=None, help="Output path (default: data/raw/bible_web.json)")
+
+    parser = argparse.ArgumentParser(
+        description="Convert TehShrike WEB JSON to flat bible_web.json"
+    )
+    parser.add_argument(
+        "tehshrike_repo", type=Path, help="Path to world-english-bible repo (contains json/ folder)"
+    )
+    parser.add_argument(
+        "--output", type=Path, default=None, help="Output path (default: data/raw/bible_web.json)"
+    )
     args = parser.parse_args()
 
     json_dir = args.tehshrike_repo / "json"
     if not json_dir.is_dir():
-        raise FileNotFoundError(f"json folder not found: {json_dir}. Point to the world-english-bible repo root.")
+        raise FileNotFoundError(
+            f"json folder not found: {json_dir}. Point to the world-english-bible repo root."
+        )
 
     project_root = Path(__file__).resolve().parents[1]
     raw_dir = project_root / "data" / "raw"

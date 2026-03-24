@@ -9,6 +9,7 @@ Usage:
   python training/train_unsloth.py --run-name qwen3.5-4b-bible-John-v4
   python training/train_unsloth.py --no-wandb   # Skip W&B (fallback if W&B has issues)
 """
+
 # Fix Windows console encoding and W&B service timeout (must run before other imports)
 import os
 import sys
@@ -27,25 +28,27 @@ if sys.platform == "win32":
 import argparse
 from pathlib import Path
 
-# Training config (aligned with config.yaml). Edit here or in config.yaml for reference.
+# Training config defaults — must match training/config.yaml.
+# YAML values override these at runtime via _load_config_yaml().
 MODEL_NAME = "Qwen/Qwen3.5-4B"
 # Qwen3.5: Unsloth does NOT recommend QLoRA 4-bit (quantization differences cause garbage output). Use bf16 LoRA.
 LOAD_IN_4BIT = False
-MAX_SEQ_LENGTH = 4096
+MAX_SEQ_LENGTH = 2048
 LORA_R = 16
 LORA_ALPHA = 32
-LORA_DROPOUT = 0.15
+LORA_DROPOUT = 0.1
 LORA_TARGET_MODULES = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
 OUTPUT_DIR = "checkpoints"
-NUM_EPOCHS = 2
-BATCH_SIZE = 4
-GRADIENT_ACCUMULATION = 4
-LEARNING_RATE = 1.0e-4
-WARMUP_STEPS = 50
+NUM_EPOCHS = 3
+BATCH_SIZE = 2
+GRADIENT_ACCUMULATION = 8
+LEARNING_RATE = 2.0e-4
+WARMUP_STEPS = 100
 EVAL_SPLIT = 0.1
 SAVE_STEPS = 500
 LOGGING_STEPS = 50
 BF16 = True  # REQUIRED for Blackwell. Do not use fp16.
+RANDOM_STATE = 3407
 
 
 def _load_config_yaml(project_root: Path) -> None:
@@ -63,7 +66,7 @@ def _load_config_yaml(project_root: Path) -> None:
         return
     global MODEL_NAME, LOAD_IN_4BIT, MAX_SEQ_LENGTH, LORA_R, LORA_ALPHA, LORA_DROPOUT
     global LORA_TARGET_MODULES, OUTPUT_DIR, NUM_EPOCHS, BATCH_SIZE, GRADIENT_ACCUMULATION
-    global LEARNING_RATE, WARMUP_STEPS, SAVE_STEPS, LOGGING_STEPS, BF16, EVAL_SPLIT
+    global LEARNING_RATE, WARMUP_STEPS, SAVE_STEPS, LOGGING_STEPS, BF16, EVAL_SPLIT, RANDOM_STATE
     if "model" in cfg:
         m = cfg["model"]
         MODEL_NAME = m.get("name", MODEL_NAME)
@@ -87,20 +90,37 @@ def _load_config_yaml(project_root: Path) -> None:
         LOGGING_STEPS = t.get("logging_steps", LOGGING_STEPS)
         BF16 = t.get("bf16", BF16)
         EVAL_SPLIT = float(t.get("eval_split", EVAL_SPLIT))
+        RANDOM_STATE = int(t.get("random_state", RANDOM_STATE))
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--run-name", type=str, default="qwen3.5-4b-bible-John-v4", help="W&B run name and folder for saved adapter (e.g. models/qwen3.5-4b-bible-John-v4)")
-    parser.add_argument("--model-path", type=str, default=None, help="Local path to base model (default: use HF MODEL_NAME)")
-    parser.add_argument("--no-wandb", action="store_true", help="Disable W&B logging (use if W&B service fails on Windows)")
+    parser.add_argument(
+        "--run-name",
+        type=str,
+        default="qwen3.5-4b-bible-John-v4",
+        help="W&B run name and folder for saved adapter (e.g. models/qwen3.5-4b-bible-John-v4)",
+    )
+    parser.add_argument(
+        "--model-path",
+        type=str,
+        default=None,
+        help="Local path to base model (default: use HF MODEL_NAME)",
+    )
+    parser.add_argument(
+        "--no-wandb",
+        action="store_true",
+        help="Disable W&B logging (use if W&B service fails on Windows)",
+    )
     args = parser.parse_args()
 
     project_root = Path(__file__).resolve().parents[1]
     _load_config_yaml(project_root)
     train_file = project_root / "data" / "processed" / "train.json"
     if not train_file.exists():
-        raise FileNotFoundError(f"Training data not found: {train_file}. Run dataset_builder.py first.")
+        raise FileNotFoundError(
+            f"Training data not found: {train_file}. Run dataset_builder.py first."
+        )
 
     try:
         import os
@@ -121,14 +141,17 @@ def main() -> None:
         cap = torch.cuda.get_device_capability()
         if cap[0] >= 12:
             import unsloth.models.llama as _llama
+
             _llama.HAS_XFORMERS = False
             try:
                 import unsloth.models.qwen3 as _qwen3
+
                 _qwen3.HAS_XFORMERS = False
             except ImportError:
                 pass
             try:
                 import unsloth.models.qwen3_5 as _qwen3_5
+
                 _qwen3_5.HAS_XFORMERS = False
             except ImportError:
                 pass
@@ -138,12 +161,13 @@ def main() -> None:
     if args.model_path:
         model_path = str(Path(args.model_path).resolve())
 
+    wandb_project = os.getenv("WANDB_PROJECT", "bible-ai")
     if args.no_wandb:
-        wandb.init(project="bible-ai", name=args.run_name, mode="disabled")
+        wandb.init(project=wandb_project, name=args.run_name, mode="disabled")
     else:
         # On Windows, give W&B service extra time to start; UTF-8 fix is at top of file
         wandb.init(
-            project="bible-ai",
+            project=wandb_project,
             name=args.run_name,
             settings=wandb.Settings(_service_wait=90),
         )
@@ -182,11 +206,12 @@ def main() -> None:
         lora_dropout=LORA_DROPOUT,
         bias="none",
         use_gradient_checkpointing="unsloth",
-        random_state=3407,
+        random_state=RANDOM_STATE,
     )
 
     # Qwen3.5 tokenizer from Unsloth is a VL processor that treats text as images. Use text-only tokenizer for dataset.
     from transformers import AutoTokenizer
+
     # trust_remote_code required by Qwen3.5 tokenizer for custom chat template
     text_tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
 
@@ -205,7 +230,9 @@ def main() -> None:
             texts.append(text)
         return {"text": texts}
 
-    full_dataset = full_dataset.map(format_messages, batched=True, remove_columns=full_dataset.column_names)
+    full_dataset = full_dataset.map(
+        format_messages, batched=True, remove_columns=full_dataset.column_names
+    )
 
     # Pre-tokenize with text-only tokenizer (avoids VL processor treating prompt text as base64 images)
     # Pad to max_length so collator gets same-length sequences; mask padding in labels with -100
@@ -222,15 +249,16 @@ def main() -> None:
         )
         pad_id = text_tokenizer.pad_token_id
         out["labels"] = [
-            [idx if idx != pad_id else -100 for idx in ids]
-            for ids in out["input_ids"]
+            [idx if idx != pad_id else -100 for idx in ids] for ids in out["input_ids"]
         ]
         return out
 
-    full_dataset = full_dataset.map(tokenize_fn, batched=True, remove_columns=["text"], desc="Tokenizing")
+    full_dataset = full_dataset.map(
+        tokenize_fn, batched=True, remove_columns=["text"], desc="Tokenizing"
+    )
 
     # Train/eval split to monitor overfitting via W&B
-    split = full_dataset.train_test_split(test_size=EVAL_SPLIT, seed=42)
+    split = full_dataset.train_test_split(test_size=EVAL_SPLIT, seed=RANDOM_STATE)
     train_dataset = split["train"]
     eval_dataset = split["test"]
     print(f"Train: {len(train_dataset)} examples, Eval: {len(eval_dataset)} examples")

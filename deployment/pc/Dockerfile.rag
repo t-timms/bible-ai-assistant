@@ -1,0 +1,45 @@
+# ── Stage 1: builder ──────────────────────────────────────────────────────────
+# Pin the full patch version so rebuilds months apart produce identical layers.
+FROM python:3.11.12-slim AS builder
+
+WORKDIR /build
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy only packaging metadata first — deps layer is cached until pyproject.toml changes.
+COPY pyproject.toml ./
+# Minimal stubs so setuptools can discover packages without the full source tree.
+RUN mkdir -p rag training ui voice scripts
+
+# Build and install wheels into /install prefix for easy copying.
+RUN pip install --no-cache-dir --prefix=/install -e ".[rag]"
+
+
+# ── Stage 2: runtime ──────────────────────────────────────────────────────────
+FROM python:3.11.12-slim AS runtime
+
+# Non-root user — principle of least privilege.
+RUN groupadd --gid 1001 appgroup && \
+    useradd --uid 1001 --gid appgroup --no-create-home appuser
+
+WORKDIR /app
+
+# Copy installed Python packages from builder — no build tools in final image.
+COPY --from=builder /install /usr/local
+
+# Copy application source.
+COPY rag/ ./rag/
+
+# Ensure ChromaDB index directory exists (will be volume-mounted at runtime).
+RUN mkdir -p rag/chroma_db && chown -R appuser:appgroup /app
+
+USER appuser
+
+EXPOSE 8081
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8081/health')"
+
+CMD ["rag-server"]
