@@ -9,7 +9,7 @@ description = "Bible-specialized AI assistant: fine-tuned Qwen3.5-4B, RAG, voice
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
-authors = [{name = "John AI"}]
+authors = [{name = "Tremayne Timms"}]
 keywords = ["bible", "llm", "rag", "fine-tuning", "ollama"]
 classifiers = [
     "Development Status :: 3 - Alpha",
