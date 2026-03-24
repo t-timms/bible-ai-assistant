@@ -8,10 +8,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml ./
-RUN mkdir -p rag training ui voice scripts
+# Copy metadata first — deps layer is cached until pyproject.toml changes.
+COPY pyproject.toml README.md ./
+RUN mkdir -p rag training ui voice scripts && touch ui/__init__.py
 
-RUN pip install --no-cache-dir --prefix=/install -e ".[ui]"
+# Install dependencies into /install (cached until pyproject.toml changes).
+RUN pip install --no-cache-dir --prefix=/install ".[ui]"
+
+# Copy real source — no package entry point needed (CMD runs ui/app.py directly).
+COPY ui/ ./ui/
 
 
 # ── Stage 2: runtime ──────────────────────────────────────────────────────────
@@ -28,7 +33,7 @@ RUN groupadd --gid 1001 appgroup && \
 WORKDIR /app
 
 COPY --from=builder /install /usr/local
-COPY ui/ ./ui/
+COPY --from=builder /build/ui/ ./ui/
 
 # HF model cache lives inside /app so appuser can write to it.
 ENV HF_HOME=/app/.cache/huggingface

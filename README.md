@@ -1,5 +1,7 @@
 # Bible AI Assistant
 
+[![CI](https://github.com/omnipotence-eth/bible-ai-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/omnipotence-eth/bible-ai-assistant/actions/workflows/ci.yml)
+
 A locally-hosted Bible Q&A assistant fine-tuned on Qwen3.5-4B with hybrid RAG retrieval, ORPO preference alignment, and optional voice interaction. Built end-to-end: dataset curation, training, evaluation, deployment.
 
 ![Bible AI Assistant Demo](docs/demo/demo.gif)
@@ -127,9 +129,8 @@ ollama pull bible-assistant-orpo
 conda activate bible-ai-assistant
 build-index
 
-# 4. Launch — two terminals
-make ollama        # Terminal 1: start Ollama inference server (keep open)
-make demo          # Terminal 2: start RAG server + Gradio UI + Kokoro TTS
+# 4. Launch
+make demo          # auto-starts Ollama, then RAG server + Gradio UI + Kokoro TTS
 
 # 5. Open the UI
 # http://localhost:7860

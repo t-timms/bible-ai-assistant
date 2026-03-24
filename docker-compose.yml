@@ -50,6 +50,12 @@ services:
     volumes:
       # Cache downloaded models so they survive container restarts.
       - kokoro-models:/app/models
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8880/v1/models')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     restart: unless-stopped
 
   gradio-ui:
@@ -68,7 +74,7 @@ services:
       rag-server:
         condition: service_healthy
       tts:
-        condition: service_started
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:
