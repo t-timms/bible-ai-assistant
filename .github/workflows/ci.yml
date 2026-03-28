@@ -60,7 +60,9 @@ jobs:
 
       - name: Audit dependencies for CVEs
         # pip-audit scans the active environment — no requirement file needed
-        run: pip-audit
+        # CVE-2026-4539 (pygments 2.19.2): no upstream fix available yet.
+        # Revisit when pygments ships a patched release.
+        run: pip-audit --ignore-vuln CVE-2026-4539
 
       - name: Run bandit static analysis
         run: bandit -c pyproject.toml -r rag/ training/ scripts/ ui/ voice/ -ll --quiet
