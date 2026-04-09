@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint:
     name: Lint
@@ -33,6 +37,30 @@ jobs:
 
       - name: Run linter
         run: ruff check training/ rag/ scripts/ ui/ voice/ tests/ deployment/ --exclude chroma_db,checkpoints,checkpoints-orpo,wandb,unsloth_compiled_cache
+
+  type-check:
+    name: Type Check
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - uses: actions/cache@v5
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-typecheck-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: ${{ runner.os }}-pip-typecheck-
+
+      - run: |
+          pip install -e ".[rag,dev]"
+          pip install mypy
+
+      - run: mypy --ignore-missing-imports rag/ training/ scripts/
+        continue-on-error: true
 
   security:
     name: Security
@@ -69,6 +97,7 @@ jobs:
 
   test:
     name: Test
+    needs: [type-check, security]
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -95,12 +124,20 @@ jobs:
           pip install -e ".[rag,dev]"
 
       - name: Run unit tests with coverage
-        run: python -m pytest tests/ -v --tb=short -x --cov=rag --cov=training --cov-report=term-missing --cov-fail-under=50
+        run: python -m pytest tests/ -v --tb=short -x --cov=rag --cov=training --cov-report=term-missing --cov-fail-under=50 --junitxml=test-results.xml
         env:
           PYTHONPATH: .
 
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ matrix.python-version }}
+          path: test-results.xml
+
   docker:
     name: Docker Build
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
