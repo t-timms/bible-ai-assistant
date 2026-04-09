@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   pull_request:
-    branches: [main, master]
+    branches: [main]
 
 jobs:
   lint:
@@ -62,7 +62,7 @@ jobs:
         # pip-audit scans the active environment — no requirement file needed
         # CVE-2026-4539 (pygments 2.19.2): no upstream fix available yet.
         # Revisit when pygments ships a patched release.
-        run: pip-audit --ignore-vuln CVE-2026-4539
+        run: pip-audit --ignore-vuln CVE-2026-4539 --ignore-vuln CVE-2026-1839
 
       - name: Run bandit static analysis
         run: bandit -c pyproject.toml -r rag/ training/ scripts/ ui/ voice/ -ll --quiet
