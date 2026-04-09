@@ -6,6 +6,10 @@ A locally-hosted Bible Q&A assistant fine-tuned on Qwen3.5-4B with hybrid RAG re
 
 ![Bible AI Assistant Demo](docs/demo/demo_screenshot.png)
 
+## Why
+
+Most Bible apps offer keyword search. This project builds a real AI that *understands* Scripture — fine-tuned on theology, grounded in retrieved passages, and guardrailed against hallucination. It combines a custom ORPO-trained Qwen3.5-4B model with hybrid RAG (BM25 + dense retrieval + cross-encoder reranking) and constitutional AI safety checks. Voice input and output make it accessible to anyone. Built as a production system, not a demo — 183 tests, 34 W&B training runs, full CI/CD, Docker deployment.
+
 ---
 
 ## Key Skills Demonstrated
