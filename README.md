@@ -64,6 +64,13 @@ User (Gradio UI / curl / API client)
 - **Config:** 1 epoch, 63 steps, LR 5e-6
 - **Result:** Loss 1.19 → 0.69; reward accuracy 100% (model correctly distinguishes chosen vs rejected responses)
 
+### Stage 3: GRPO Reasoning Alignment (Planned)
+
+- **Method:** Group Relative Policy Optimization (GRPO) — the technique behind DeepSeek-R1
+- **Goal:** Train the model to reason step-by-step before answering, reducing hallucination on complex theological questions
+- **Dataset:** Multi-hop Bible reasoning pairs with chain-of-thought rationales
+- **Framework:** TRL `GRPOTrainer` + Unsloth backend for VRAM efficiency
+
 ### Training Curves
 
 | Metric | SFT Start | SFT End | ORPO Start | ORPO End |
@@ -182,7 +189,7 @@ The test suite comprises **183 tests** across 8 modules:
 | `test_benchmark_manifest.py` | 4 | Benchmark manifest validation |
 | `test_evaluation_questions.py` | 8 | Evaluation question set integrity |
 
-**Line coverage: 55%** (CI fails the build if it drops below 50%). The uncovered 45% is the ML training pipeline and ChromaDB retrieval code, which require a GPU and a live database — those are covered by integration tests run separately.
+**Line coverage: 55%** (CI fails the build if it drops below 60%). The uncovered portion is the ML training pipeline and ChromaDB retrieval code, which require a GPU and a live database — those are covered by integration tests run separately.
 
 ## CI/CD
 
@@ -217,6 +224,19 @@ Every push and pull request runs four parallel jobs:
 | RAM | 96 GB DDR5 |
 | OS | Windows 11 |
 | Training time | ~18 min SFT + ~20 min ORPO |
+
+## Roadmap
+
+| Enhancement | Status |
+|---|---|
+| **GRPO reasoning alignment** (Stage 3 training) | Planned |
+| **GraphRAG** — knowledge-graph retrieval for multi-hop theological questions | Planned |
+| **`instructor` structured outputs** — Pydantic-validated LLM responses, replacing raw JSON parsing | Planned |
+| **OpenTelemetry traces** — distributed tracing across RAG server and Ollama calls | Planned |
+| **Cloud deployment** — Docker + AWS/GCP with CI/CD auto-deploy | Planned |
+| **vLLM serving** — swap Ollama for vLLM OpenAI-compatible API for higher throughput | Planned |
+
+---
 
 ## Author
 
