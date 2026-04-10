@@ -1,6 +1,12 @@
 # Bible AI Assistant
 
 [![CI](https://github.com/omnipotence-eth/bible-ai-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/omnipotence-eth/bible-ai-assistant/actions/workflows/ci.yml)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+[![Qwen3.5-4B](https://img.shields.io/badge/Qwen3.5--4B-ORPO-orange?style=flat-square)](https://huggingface.co/Qwen)
+[![W&B](https://img.shields.io/badge/W%26B-34_runs-yellow?style=flat-square&logo=weightsandbiases)](https://wandb.ai/)
+[![Tests](https://img.shields.io/badge/tests-183_passing-brightgreen?style=flat-square)]()
+[![Ruff](https://img.shields.io/badge/code%20style-ruff-black?style=flat-square&logo=ruff)](https://docs.astral.sh/ruff/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 
 A locally-hosted Bible Q&A assistant fine-tuned on Qwen3.5-4B with hybrid RAG retrieval, ORPO preference alignment, and optional voice interaction. Built end-to-end: dataset curation, training, evaluation, deployment.
 
