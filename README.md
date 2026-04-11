@@ -33,28 +33,44 @@ Most Bible apps offer keyword search. This project builds a real AI that *unders
 
 ## Architecture
 
-```
-User (Gradio UI / curl / API client)
- │
- ├─ Gradio Web UI (port 7860)
- │   ├─ Text Chat ──────────────────────────┐
- │   └─ Voice Chat ── Faster-Whisper STT ──┘
- │                                          │
- │              ┌───────────────────────────┘
- │              ▼
- ├─ RAG Server (port 8081, FastAPI)
- │   ├─ Dense: ChromaDB + nomic-embed-text-v1.5
- │   ├─ Sparse: BM25Okapi
- │   ├─ Merge: Reciprocal Rank Fusion (k=60)
- │   ├─ Rerank: bge-reranker-v2-m3
- │   └─ Pinned verse refs + topical anchors
- │              │
- │              ▼
- ├─ Ollama (port 11434)
- │   └─ bible-assistant-orpo (Qwen3.5-4B SFT+ORPO, GGUF)
- │              │
- │              ▼
- └─ Response ── Kokoro TTS (optional) ── User
+```mermaid
+graph TD
+    User["User (Gradio UI / curl / API client)"]
+
+    subgraph UI ["Gradio Web UI (port 7860)"]
+        TextChat["Text Chat"]
+        VoiceChat["Voice Chat"]
+        STT["Faster-Whisper STT"]
+    end
+
+    subgraph RAG ["RAG Server (port 8081, FastAPI)"]
+        Dense["Dense: ChromaDB + nomic-embed-text-v1.5"]
+        Sparse["Sparse: BM25Okapi"]
+        RRF["Merge: Reciprocal Rank Fusion (k=60)"]
+        Rerank["Rerank: bge-reranker-v2-m3"]
+        Pinned["Pinned verse refs + topical anchors"]
+    end
+
+    subgraph LLM ["Ollama (port 11434)"]
+        Model["bible-assistant-orpo (Qwen3.5-4B SFT+ORPO, GGUF)"]
+    end
+
+    TTS["Kokoro TTS (optional)"]
+
+    User --> TextChat
+    User --> VoiceChat
+    VoiceChat --> STT
+    STT --> RAG
+    TextChat --> RAG
+
+    Dense --> RRF
+    Sparse --> RRF
+    RRF --> Rerank
+    Rerank --> Pinned
+    Pinned --> Model
+
+    Model --> TTS
+    TTS --> User
 ```
 
 ## Training Pipeline
