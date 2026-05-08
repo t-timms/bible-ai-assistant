@@ -341,15 +341,19 @@ Same 13-line block duplicated. Should be a shared utility.
 
 **Fix:** Use `curl` or wrap in `try/except` with `sys.exit(1)` on failure.
 
+**Status:** ✅ Fixed — replaced `urllib.request` with `curl -fsS` in both rag-server and tts healthchecks (2026-05-08).
+
 ---
 
 ### M-8 — Version Mismatch: pyproject.toml vs GitHub Release
 
 **Location:** `pyproject.toml:10`, GitHub releases
 
-Latest GitHub release is `v0.2.0` but `pyproject.toml` says `0.9.0`.
+Latest GitHub release was `v0.2.0` but `pyproject.toml` said `0.9.0`.
 
 **Fix:** Align versions. Use `python-semantic-release` or manual tagging.
+
+**Status:** ✅ Fixed — published GitHub release `v0.9.0`; bumped `pyproject.toml` to `0.9.1` on main (2026-05-08).
 
 ---
 
@@ -360,6 +364,8 @@ Latest GitHub release is `v0.2.0` but `pyproject.toml` says `0.9.0`.
 `requirements.txt`, `requirements-rag.txt`, `requirements-ui.txt` are redundant with `pyproject.toml` extras. They will drift out of sync.
 
 **Fix:** Remove them and document `pip install -e ".[rag,ui,dev]"` as the only install path. Generate from `pyproject.toml` in CI if needed.
+
+**Status:** ✅ Fixed — removed all three `requirements*.txt` files; install via `pip install -e ".[rag,ui,dev]"` (2026-05-08).
 
 ---
 
@@ -382,6 +388,8 @@ Forces sentences to end with periods, which can corrupt verse quotations.
 Matches "What does the Bible say about 1 Timothy 6:10?" as a verse lookup when it's actually topical.
 
 **Fix:** Require the verse reference to appear before "say" in the string.
+
+**Status:** ✅ Fixed — `_is_verse_lookup` now checks for `\d+:\d+` only in the substring before "say" (2026-05-08).
 
 ---
 
