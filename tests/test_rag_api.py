@@ -15,7 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from starlette.testclient import TestClient
 
 from rag.helpers import _COUNSELING_SYSTEM_GUARD
-from rag.rag_server import MAX_REQUEST_BODY_BYTES, app
+from rag.rag_server import app
 from rag.settings import settings
 
 client = TestClient(app, raise_server_exceptions=False)
@@ -62,7 +62,7 @@ def test_health_endpoint():
 def test_oversized_payload_rejected():
     """POST with an actual body > 1 MB must return 413."""
     # Actual oversized body — not just a forged Content-Length header
-    oversized = b"x" * (MAX_REQUEST_BODY_BYTES + 1)
+    oversized = b"x" * (settings.max_request_body_bytes + 1)
     r = client.post(
         "/v1/chat/completions",
         content=oversized,
@@ -134,7 +134,7 @@ def test_api_key_accepted_when_correct():
 
     with (
         patch.object(settings, "api_key", "secret-test-key"),
-        patch("rag.rag_server._retrieve", return_value=""),
+        patch("rag.rag_server._retrieve", new_callable=AsyncMock, return_value=""),
         patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_response),
     ):
         r = client.post(
@@ -176,7 +176,7 @@ def test_meta_question_skips_retrieval():
     mock_response.json.return_value = _MOCK_OLLAMA_RESPONSE
 
     with (
-        patch("rag.rag_server._retrieve") as mock_retrieve,
+        patch("rag.rag_server._retrieve", new_callable=AsyncMock) as mock_retrieve,
         patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_response),
     ):
         r = client.post(
@@ -203,7 +203,7 @@ def test_verse_lookup_calls_retrieve():
     mock_response.json.return_value = _MOCK_OLLAMA_RESPONSE
 
     with (
-        patch("rag.rag_server._retrieve", return_value="") as mock_retrieve,
+        patch("rag.rag_server._retrieve", new_callable=AsyncMock, return_value="") as mock_retrieve,
         patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_response),
     ):
         r = client.post(
@@ -245,7 +245,7 @@ def test_counseling_request_inserts_system_guard():
         return mock_r
 
     with (
-        patch("rag.rag_server._retrieve", return_value=""),
+        patch("rag.rag_server._retrieve", new_callable=AsyncMock, return_value=""),
         patch("httpx.AsyncClient.post", new=_fake_post),
     ):
         r = client.post(

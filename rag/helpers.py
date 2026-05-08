@@ -288,30 +288,62 @@ def _is_meta_question(text: str) -> bool:
 
 
 def _strip_openclaw_metadata(text: str) -> str:
+    """Remove OpenClaw-style metadata blocks from user input.
+
+    Uses simple string operations instead of regex to avoid ReDoS
+    vulnerabilities with crafted input.
+    """
     if not text or not isinstance(text, str):
         return text
-    text = re.sub(
-        r"Sender\s*\(untrusted\s*metadata\)\s*:\s*```json\s*\{[^}]{0,2000}\}\s*```\s*",
-        "",
-        text,
-        flags=re.IGNORECASE | re.DOTALL,
-    )
-    text = re.sub(r"```json\s*\{[^}]{0,2000}\}\s*```\s*", "", text, flags=re.DOTALL | re.IGNORECASE)
+
+    # Remove Sender (untrusted metadata): ```json {...} ``` blocks
+    while True:
+        idx = text.lower().find("sender")
+        if idx == -1:
+            break
+        # Find the end of the ``` block after this marker
+        block_start = text.find("```", idx)
+        if block_start == -1:
+            break
+        block_end = text.find("```", block_start + 3)
+        if block_end == -1:
+            break
+        # Remove everything from the marker to the end of the block
+        text = text[:idx] + text[block_end + 3 :]
+
+    # Remove stray ```json {...} ``` blocks (without Sender prefix)
+    while True:
+        json_start = text.lower().find("```json")
+        if json_start == -1:
+            break
+        block_end = text.find("```", json_start + 7)
+        if block_end == -1:
+            break
+        text = text[:json_start] + text[block_end + 3 :]
+
+    # Remove bracketed timestamps like [Mon 2024-01-01 12:34 UTC]
     text = re.sub(r"\[\w{3}\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+\w+\]\s*", "", text)
+
+    # If there's a stray ``` at the start, take everything after the last one
     if "```" in text and not text.strip().startswith("["):
         parts = text.split("```")
         if len(parts) >= 2:
             text = parts[-1].strip()
+
     return text.strip() or text
 
 
 def _content_to_str(content: Any) -> str:
-    """Coerce a message content field to a plain string."""
+    """Coerce a message content field to a plain string.
+
+    Handles OpenAI-style content arrays by concatenating all text parts.
+    """
     if isinstance(content, str):
         return content
     if isinstance(content, list):
+        parts: list[str] = []
         for part in content:
             if isinstance(part, dict) and part.get("type") == "text":
-                return part.get("text", "")
-        return ""
+                parts.append(part.get("text", ""))
+        return "".join(parts)
     return str(content) if content is not None else ""

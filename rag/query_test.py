@@ -38,17 +38,19 @@ def main() -> None:
 
     print(f"Query: {query}\n")
     print("Top 5 results:")
-    if not results["metadatas"] or not results["metadatas"][0]:
+    metas = results.get("metadatas")
+    docs = results.get("documents")
+    if not metas or not metas[0] or not docs or not docs[0]:
         print("  (no results returned)")
         return
-    for meta, doc in zip(results["metadatas"][0], results["documents"][0], strict=True):
+    for meta, doc in zip(metas[0], docs[0], strict=True):
         ref = meta.get("reference", "?")
         text = (
             doc.replace("search_document: ", "", 1) if doc.startswith("search_document:") else doc
         )
         print(f"  {ref}: {text[:80]}...")
     # Sanity: John 3:16 should often be in top 5 for this query
-    refs = [m.get("reference", "") for m in results["metadatas"][0]]
+    refs = [str(m.get("reference", "")) for m in metas[0]]
     if any("John 3:16" in r for r in refs):
         print("\n✓ John 3:16 found in top results.")
     else:

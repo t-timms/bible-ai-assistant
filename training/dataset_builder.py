@@ -364,7 +364,7 @@ def _msg_multi(system_prompt: str, turns: list[tuple[str, str]]) -> dict:
 
 
 def build_verse_lookups(verses: list[dict], system_prompt: str, n: int = 600) -> list[dict]:
-    books = {}
+    books: dict[str, list[dict]] = {}
     for v in verses:
         books.setdefault(v["book"], []).append(v)
 
@@ -410,7 +410,7 @@ def _make_rag_prompt(context_verses: list[dict], question: str) -> str:
 
 
 def build_rag_grounded(verses: list[dict], system_prompt: str, n: int = 500) -> list[dict]:
-    books = {}
+    books: dict[str, list[dict]] = {}
     for v in verses:
         books.setdefault(v["book"], []).append(v)
 

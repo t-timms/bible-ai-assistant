@@ -67,6 +67,16 @@ class Settings(BaseSettings):
     title: str = "Bible AI RAG Server"
 
     # ------------------------------------------------------------------
+    # Request limits
+    # ------------------------------------------------------------------
+    max_request_body_bytes: int = 1_048_576  # 1 MB
+
+    # ------------------------------------------------------------------
+    # CORS (empty list = disabled; use ["*"] to allow all origins in dev)
+    # ------------------------------------------------------------------
+    cors_origins: list[str] = []
+
+    # ------------------------------------------------------------------
     # Model identifiers (override to swap embedding / reranker models)
     # ------------------------------------------------------------------
     embed_model: str = "nomic-ai/nomic-embed-text-v1.5"
@@ -86,7 +96,7 @@ class Settings(BaseSettings):
             raise ValueError("OLLAMA_URL has no host")
         return v
 
-    @field_validator("rag_top_k", "hybrid_candidates")
+    @field_validator("rag_top_k", "hybrid_candidates", "max_request_body_bytes")
     @classmethod
     def _positive_int(cls, v: int) -> int:
         if v < 1:
