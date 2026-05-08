@@ -89,6 +89,7 @@ dev = [
     "pre-commit>=3.7.0",
     "ty>=0.0.1",
     "instructor>=1.0.0,<2.0.0",
+    "mypy>=1.10.0",
 ]
 
 [project.scripts]

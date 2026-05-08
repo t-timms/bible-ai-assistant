@@ -21,6 +21,7 @@ _RAG_BASE = os.getenv("RAG_SERVER_URL", "http://127.0.0.1:8081")
 RAG_URL = _RAG_BASE.rstrip("/") + "/v1/chat/completions"
 TTS_URL = os.getenv("TTS_URL", "http://127.0.0.1:8880") + "/v1/audio/speech"
 MODEL_NAME = os.getenv("OLLAMA_MODEL", "bible-assistant-orpo")
+RAG_API_KEY = os.getenv("RAG_API_KEY", "")
 WHISPER_MODEL = "large-v3-turbo"
 GRADIO_TITLE = os.getenv("GRADIO_TITLE", "Bible AI Assistant")
 
@@ -63,9 +64,13 @@ def chat_with_rag(message: str) -> str:
     if not message.strip():
         return ""
     try:
+        headers = {"Content-Type": "application/json"}
+        if RAG_API_KEY:
+            headers["X-API-Key"] = RAG_API_KEY
         with httpx.Client(timeout=60.0, trust_env=False) as client:
             r = client.post(
                 RAG_URL,
+                headers=headers,
                 json={
                     "model": MODEL_NAME,
                     "messages": [{"role": "user", "content": message}],
