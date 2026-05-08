@@ -5,6 +5,7 @@ Imports from rag.helpers for pure helper functions.
 
 from __future__ import annotations
 
+import asyncio
 import json as _json
 import logging
 import threading
@@ -223,17 +224,23 @@ def _reciprocal_rank_fusion(
         for hit in results:
             scores[hit.verse_id] = scores.get(hit.verse_id, 0.0) + 1.0 / (k + hit.score + 1)
             docs[hit.verse_id] = hit.document
-    sorted_ids = sorted(scores, key=scores.get, reverse=True)
+    sorted_ids = sorted(scores, key=lambda x: scores[x], reverse=True)
     return [RetrievalHit(verse_id=vid, document=docs[vid], score=scores[vid]) for vid in sorted_ids]
 
 
-def _rerank(query: str, candidates: list[RetrievalHit], top_k: int) -> list[RetrievalHit]:
-    """Cross-encoder reranking. Falls back to RRF order if reranker unavailable."""
+async def _rerank(query: str, candidates: list[RetrievalHit], top_k: int) -> list[RetrievalHit]:
+    """Cross-encoder reranking. Falls back to RRF order if reranker unavailable.
+
+    Runs the CPU-bound cross-encoder in a thread pool to avoid blocking the
+    async event loop.
+    """
     reranker = _get_reranker()
     if reranker is None or not candidates:
         return candidates[:top_k]
     pairs = [(query, hit.document) for hit in candidates]
-    ce_scores = reranker.predict(pairs)
+    # Cross-encoder predict is CPU-bound; run in thread pool so the event loop
+    # stays responsive under concurrent load.
+    ce_scores = await asyncio.to_thread(reranker.predict, pairs)
     ranked = sorted(zip(candidates, ce_scores, strict=True), key=lambda x: x[1], reverse=True)
     return [
         RetrievalHit(verse_id=hit.verse_id, document=hit.document, score=float(s))
@@ -304,7 +311,7 @@ def _fetch_verses_by_refs(refs: list[str]) -> list[tuple[str, str]]:
     return results
 
 
-def _retrieve(
+async def _retrieve(
     user_message: str,
     top_k: int = 5,
     pin_refs: list[str] | None = None,
@@ -346,7 +353,7 @@ def _retrieve(
     _t2 = time.monotonic()
     if fused:
         fused_filtered = [h for h in fused if h.verse_id not in pinned_ids]
-        reranked = _rerank(user_message, fused_filtered, top_k) if fused_filtered else []
+        reranked = await _rerank(user_message, fused_filtered, top_k) if fused_filtered else []
     else:
         reranked = []
     logger.debug("RAG stage3 rerank: %.3fs", time.monotonic() - _t2)

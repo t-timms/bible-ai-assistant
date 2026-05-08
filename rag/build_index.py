@@ -106,7 +106,7 @@ def _build_verse_index(
             ids=batch_ids,
             embeddings=embeddings.tolist(),
             documents=batch_docs,
-            metadatas=batch_meta,
+            metadatas=batch_meta,  # type: ignore[arg-type]
         )
         print(f"  [verses] Indexed {min(i + BATCH_SIZE, len(documents))}/{len(documents)}")
 
@@ -182,7 +182,7 @@ def _build_passage_index(
             ids=batch_ids,
             embeddings=embeddings.tolist(),
             documents=batch_docs,
-            metadatas=batch_meta,
+            metadatas=batch_meta,  # type: ignore[arg-type]
         )
         print(f"  [passages] Indexed {min(i + passage_batch, len(documents))}/{len(documents)}")
 

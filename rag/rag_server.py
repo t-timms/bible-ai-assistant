@@ -96,10 +96,10 @@ def _configure_logging() -> None:
             logging.basicConfig(level=log_level)
     else:
         handler = logging.StreamHandler()
-        formatter = logging.Formatter(
+        plain_formatter = logging.Formatter(
             "%(asctime)s %(name)s %(levelname)s [%(request_id)s] %(message)s"
         )
-        handler.setFormatter(formatter)
+        handler.setFormatter(plain_formatter)
         handler.addFilter(req_filter)
         logging.basicConfig(level=log_level, handlers=[handler], force=True)
 
@@ -107,8 +107,7 @@ def _configure_logging() -> None:
 _configure_logging()
 logger = logging.getLogger(__name__)
 
-# Maximum request body size (bytes) to prevent DoS via oversized payloads
-MAX_REQUEST_BODY_BYTES = 1_048_576  # 1 MB
+# Maximum request body size is now configurable via settings.max_request_body_bytes
 
 # ---------------------------------------------------------------------------
 # Startup security warnings
@@ -211,8 +210,22 @@ app = FastAPI(
 )
 
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 app.add_middleware(_RequestIDMiddleware)
+
+# ---------------------------------------------------------------------------
+# CORS (optional — disabled when cors_origins is empty)
+# ---------------------------------------------------------------------------
+if settings.cors_origins:
+    from fastapi.middleware.cors import CORSMiddleware
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 # ---------------------------------------------------------------------------
 # Prometheus metrics (optional — graceful no-op if package not installed)
@@ -304,7 +317,7 @@ async def chat_completions(request: Request):
 
     # Guard against oversized payloads — read body first; size is the authoritative check
     raw = await request.body()
-    if len(raw) > MAX_REQUEST_BODY_BYTES:
+    if len(raw) > settings.max_request_body_bytes:
         raise HTTPException(status_code=413, detail="Request body too large")
 
     try:
@@ -349,7 +362,7 @@ async def chat_completions(request: Request):
                 pin_refs.append(vr)
             topical_pins = _topical_anchor_refs(q)
             pin_refs.extend(topical_pins)
-            context = _retrieve(q, top_k=settings.rag_top_k, pin_refs=pin_refs or None)
+            context = await _retrieve(q, top_k=settings.rag_top_k, pin_refs=pin_refs or None)
             if context and context.strip():
                 notes: list[str] = []
                 if vr:
