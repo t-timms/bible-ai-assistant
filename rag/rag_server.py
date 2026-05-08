@@ -204,7 +204,7 @@ async def _lifespan(app: FastAPI):  # noqa: ARG001
 
 
 app = FastAPI(
-    title="Bible AI RAG Server",
+    title=settings.title,
     version="1.0.0",
     description="Hybrid RAG middleware (Dense + BM25 + RRF + Reranking) for Bible AI Assistant.",
     lifespan=_lifespan,
