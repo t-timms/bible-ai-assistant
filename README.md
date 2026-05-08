@@ -158,14 +158,17 @@ cd bible-ai-assistant
 # 2. Pull the model
 ollama pull bible-assistant-orpo
 
-# 3. Build the ChromaDB index (one-time setup, requires conda env)
+# 3. Install the package (all components)
 conda activate bible-ai-assistant
+pip install -e ".[rag,ui,train,dev]"
+
+# 4. Build the ChromaDB index (one-time setup)
 build-index
 
-# 4. Launch
+# 5. Launch
 make demo          # auto-starts Ollama, then RAG server + Gradio UI + Kokoro TTS
 
-# 5. Open the UI
+# 6. Open the UI
 # http://localhost:7860
 ```
 

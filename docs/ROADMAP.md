@@ -15,9 +15,10 @@ Add `TITLE` env var to RAG Settings, `GRADIO_TITLE` env var to Gradio UI.
 
 ---
 
-## Block 2 — README Quick Start fix (C-1)
+## Block 2 — README Quick Start fix (C-1) ✅
 
 Replace `requirements.txt` reference in README with `pip install -e ".[rag,ui,train,dev]"`.
+Also updated `docs/WALKTHROUGH.md`, `docs/DEMO_LAUNCH.md`, `docs/DEVELOPMENT_WORKFLOW.md` to use the pyproject.toml install method.
 
 ---
 

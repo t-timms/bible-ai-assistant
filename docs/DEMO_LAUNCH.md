@@ -6,8 +6,7 @@ Use this when you want the **full local demo**: fine-tuned model in Ollama, hybr
 
 - Chroma index built: `python rag/build_index.py` (once)
 - Ollama model created (e.g. `bible-assistant-orpo`) per `deployment/pc/README.md`
-- Conda env with **RAG** deps: `pip install -r requirements-rag.txt` (or full `requirements.txt`)
-- **Gradio UI** deps: `pip install -r requirements-ui.txt` (needed if you did not install the full `requirements.txt`)
+- Conda env with **RAG** deps: `pip install -e ".[rag]"` (or `pip install -e ".[rag,ui]"` for both)
 
 ## Three terminals (Windows PowerShell)
 
