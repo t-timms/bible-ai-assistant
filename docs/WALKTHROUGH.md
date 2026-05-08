@@ -10,7 +10,7 @@ This document walks you through the Bible AI Assistant project with explanations
 
 1. **`git init`** — Creates a `.git` folder in your project. Git will now track every file here and remember changes over time.
 
-2. **`git remote add origin https://github.com/omnipotence-eth/bible-ai-assistant.git`** — Tells Git where your “backup” lives. `origin` is the usual name for the main remote (your GitHub repo). Nothing has been sent to GitHub yet; we only saved the URL.
+2. **`git remote add origin https://github.com/t-timms/bible-ai-assistant.git`** — Tells Git where your “backup” lives. `origin` is the usual name for the main remote (your GitHub repo). Nothing has been sent to GitHub yet; we only saved the URL.
 
 **Next:** We add all files, commit, and push. A **commit** is a snapshot of the project at a point in time. **Push** sends your commits to GitHub so they’re stored in the cloud and you can work from other machines or share the repo.
 
