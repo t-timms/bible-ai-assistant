@@ -258,11 +258,11 @@ Add `docker-compose.yml` for local dev (RAG server + Ollama). Add `start.sh` scr
 | M-4 | Add dedicated `response_cleanup.py` tests | `tests/test_response_cleanup.py` | 🆕 |
 | M-5 | Extract shared Windows encoding fix | `training/_windows_fix.py` | 🆕 |
 | M-6 | Implement or remove `voice/stt_server.py` | `voice/stt_server.py` | 🆕 |
-| M-7 | Fix Docker healthchecks | `docker-compose.yml` | 🆕 |
-| M-8 | Align pyproject.toml version with releases | `pyproject.toml` | 🆕 |
-| M-9 | Remove redundant requirements files | Root directory | 🆕 |
+| M-7 | Fix Docker healthchecks | `docker-compose.yml` | ✅ |
+| M-8 | Align pyproject.toml version with releases | `pyproject.toml` | ✅ |
+| M-9 | Remove redundant requirements files | Root directory | ✅ |
 | M-10 | Remove response truncation logic | `rag/rag_server.py` | ✅ |
-| M-11 | Fix `_is_verse_lookup` to require ref before "say" | `rag/helpers.py` | 🆕 |
+| M-11 | Fix `_is_verse_lookup` to require ref before "say" | `rag/helpers.py` | ✅ |
 | M-2 | Move `random.seed(42)` into `main()` | `build_preference_data.py` | from prev |
 | M-3 | Align MAX_SEQ_LENGTH (2048) between SFT and ORPO | `train_orpo.py` | from prev |
 | M-4 | Print warning when using default adapter path | `merge_adapters.py` | from prev |

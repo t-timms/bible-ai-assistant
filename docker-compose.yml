@@ -36,7 +36,7 @@ services:
       # Mount pre-built ChromaDB index read-only (build with: build-index)
       - ./rag/chroma_db:/app/rag/chroma_db:ro
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8081/health')"]
+      test: ["CMD", "sh", "-c", "curl -fsS http://localhost:8081/health > /dev/null || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -51,7 +51,7 @@ services:
       # Cache downloaded models so they survive container restarts.
       - kokoro-models:/app/models
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8880/v1/models')"]
+      test: ["CMD", "sh", "-c", "curl -fsS http://localhost:8880/v1/models > /dev/null || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

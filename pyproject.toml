@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bible-ai-assistant"
-version = "0.9.0"
+version = "0.9.1"
 description = "Bible-specialized AI assistant: fine-tuned Qwen3.5-4B, RAG, voice, constitutional guardrails."
 readme = "README.md"
 license = {text = "MIT"}
