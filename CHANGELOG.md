@@ -4,7 +4,36 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) for milestone releases.
 
-## [Unreleased]
+## [0.9.0] - 2026-05-07
+
+### Added
+
+- **Configurable title** — `TITLE` env var in RAG Settings, `GRADIO_TITLE` env var in Gradio UI (Block 1)
+- **Remediation roadmap** — `ROADMAP.md` on desktop tracks all remediation blocks; all 12 blocks now complete
+- **ORPO validation split** — `test_size=0.1` split, `eval_dataset` to ORPOTrainer, `eval_steps=20` (Block 5)
+- **ORPO warmup fix** — `warmup_steps=20` → `warmup_steps=5` (~8% of total steps) (Block 6)
+- **WANDB_PROJECT env var** — replaces hardcoded `"bible-ai"` with `os.getenv("WANDB_PROJECT", "bible-ai")` (Block 7)
+- **LLM judge truncation** — removed `response[:1000]` truncation in evaluate.py (Block 8)
+- **APP_ENV gating** — traceback details only when `APP_ENV=development` (Block 12 / O-2)
+- **5-stage CI pipeline** — type-check, dependency gating, test artifacts
+- CI badge added to README
+- Why section added to README
+
+### Changed
+
+- README Quick Start — `requirements.txt` → `pip install -e ".[rag,ui,train,dev]"` (Block 2)
+- Badges standardized to flat-square style
+- Architecture diagram converted to Mermaid
+- `.gitignore` — ignores checkpoint README stubs (Block 12 / O-4)
+- Various dependency bumps (chromadb, transformers, trl, datasets, gradio, etc.)
+
+### Fixed
+
+- Multiple blocks already implemented in code but missing from roadmap — now tracked correctly
+
+---
+
+## [0.6.0] - 2026-03-24
 
 ### Added
 
@@ -12,15 +41,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Single-command launch** — `make demo` auto-detects whether Ollama is running and starts it in the background if not; no second terminal required
 - **Kokoro TTS service** — `docker-compose.yml` now includes a third service (`ghcr.io/remsky/kokoro-fastapi-cpu`) on port 8880 with a named volume for model caching and a healthcheck; `gradio-ui` waits for TTS to be healthy before starting; end-to-end voice pipeline (STT → RAG → TTS) now runs entirely in Docker
 - `deployment/pc/Dockerfile.ui` — `HF_HOME=/app/.cache/huggingface` with correct ownership; created home directory for `appuser` so Faster-Whisper model cache writes succeed
-- CI badge added to README
+- Docker preflight check to demo targets
+- MIT license
+- `.github/ISSUE_TEMPLATE/` — bug report and feature request templates
+- `.github/PULL_REQUEST_TEMPLATE.md`
+- `.github/dependabot.yml` for automated dependency updates
 
-### Fixed
+### Changed
 
-- `deployment/pc/Dockerfile.rag` — replaced editable install (`-e`) with two-step non-editable install: deps cached in one layer, package installed separately with `--no-deps`; resolves `ModuleNotFoundError: No module named 'rag.rag_server'` on container startup
-- `deployment/pc/Dockerfile.ui` — same two-step install pattern for consistency; source copied in builder stage
-- `pyproject.toml` — corrected author from placeholder `"John AI"` to `"Tremayne Timms"`
+- `deployment/pc/Dockerfile.rag` — replaced editable install with two-step non-editable install
+- `deployment/pc/Dockerfile.ui` — same two-step install pattern for consistency
+- `pyproject.toml` — corrected author from `"John AI"` to `"Tremayne Timms"`
+- CI — Python 3.10–3.12 matrix; coverage report without fail-under threshold
+- `scripts/start_demo.ps1` — PowerShell for Ollama auto-start on Windows
 
 ---
+
+## [0.5.0] - 2026-03-24
 
 ### Added
 
@@ -37,9 +74,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
-- `rag_server.py` — request body is now the authoritative size check (removes reliance on forged `Content-Length` header); `_RequestIDMiddleware` uses `ContextVar.set()`/`reset()` token pattern for correct async isolation
+- `rag_server.py` — request body is now the authoritative size check (removes reliance on forged `Content-Length` header)
+- `_RequestIDMiddleware` — uses `ContextVar.set()`/`reset()` token pattern for correct async isolation
 - `training/merge_adapters.py` — all `print()` calls replaced with `logger.*`; proper `logging.getLogger(__name__)` setup
-- `pyproject.toml` — upper version bounds added to all critical dependencies (`chromadb<1.0.0`, `sentence-transformers<4.0.0`, `gradio<6.15`, `transformers<5.0.0`, `prometheus-fastapi-instrumentator<8.0.0`)
+- `pyproject.toml` — upper version bounds added to all critical dependencies
 - `.github/workflows/ci.yml` — fixed broken `pip-audit` command; now installs the project then scans the installed environment; tightened test dep install to `.[rag,dev]`
 - Test suite: **183 tests, 55% line coverage** (was 175 tests, 54%)
 
@@ -49,46 +87,64 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
-## [Unreleased — prior]
+## [0.3.0] - 2026-03-14
 
 ### Added
 
-- `rag/response_cleanup.py` — shared `strip_model_thinking()` for Qwen/Ollama chain-of-thought and planning scaffolds
-- **RAG retrieval hardening** — pin explicit verse refs for “What does X say?” lookups; topical anchor verses (marriage, forgiveness, money); Psalm→Psalms id normalization; counseling-pattern detection with an extra system guard in chat payloads
-- `EMPTY_MODEL_REPLY` fallback when the model returns empty content (non-stream and stream paths)
+- **SFT fine-tuning** — `training/train_unsloth.py`: bf16 LoRA on Qwen3.5-4B, config.yaml, W&B logging, Blackwell xformers workaround
+- **ORPO preference alignment** — `training/train_orpo.py`: preference optimization with ORPOTrainer, `load_in_4bit=False`, `warmup_steps=5`, `eval_steps=20`, `test_size=0.1` validation split
+- **Hybrid RAG server** — `rag/rag_server.py`: FastAPI middleware with ChromaDB dense + BM25 sparse + RRF + Cross-Encoder reranking (bge-reranker-v2-m3)
+- **ChromaDB index builder** — `rag/build_index.py`: nomic-embed-text-v1.5 with `search_document:` / `search_query:` prefixes; chunks Bible into verses and passages
+- **GGUF quantization** — Unsloth export to GGUF; llama.cpp q4_k_m and f16 variants
+- **Ollama Modelfile generator** — `deployment/pc/generate_modelfile.py`: produces Modelfile from system prompt template
+- **Evaluation pipeline** — `training/evaluate.py`: keyword-overlap scoring and LLM-as-judge (qwen3.5:27b) on 54 questions across 6 categories
+- **Merge adapters** — `training/merge_adapters.py`: merges LoRA adapters with base model
+- **RAG retrieval hardening** — verse reference pinning, topical anchor verses (marriage, forgiveness, money), counseling-pattern detection with system guard
+- `rag/response_cleanup.py` — shared `strip_model_thinking()` for Qwen/Ollama chain-of-thought
+- `EMPTY_MODEL_REPLY` fallback when model returns empty content
 - `scripts/run_benchmark.py`, `scripts/compare_benchmark_runs.py`, `benchmarks/manifest.v1.yaml` — versioned keyword / judge benchmarks
-- `requirements-ui.txt` — Gradio + voice deps for envs that only installed `requirements-rag.txt`
-- `docs/DEMO_LAUNCH.md`, `scripts/start_demo.ps1` — Ollama + RAG + Gradio launch checklist
-- **Gradio 6 UI** — landing hero, stack health check, model override field, amber theme, `theme`/`css` on `launch()`, auto-pick free port if `7860` is busy (`GRADIO_PORT` / `GRADIO_SERVER_PORT`)
-- `tests/` — RAG helpers (verse extraction, counseling detection, topical pins), eval keywords, manifests; CI runs `tests/` and `deployment/` with Ruff
+- `requirements-ui.txt` — Gradio + voice deps for envs without full training stack
+- `docs/DEMO_LAUNCH.md`, `docs/WALKTHROUGH.md` — launch checklist and comprehensive walkthrough
+- **Gradio 6 UI** — `ui/app.py`: landing hero, stack health check, model override field, amber theme, voice tab, auto-pick free port
+- `docs/MODEL_COMPARISON.md` — SFT vs SFT+ORPO head-to-head with counter-intuitive hallucination analysis
+- `docs/ENVIRONMENT_REQUIREMENTS.md` — environment setup guide
+- Tests for RAG helpers, eval keywords, manifests
 
 ### Changed
 
-- `rag/rag_server.py` — Ollama `"think": false` by default; non-streaming always assigns cleaned `message.content`; hybrid retrieval merges pinned verses with reranked results
-- `prompts/system_prompt.txt` — stronger topical relevance, counseling boundaries, verse-lookup accuracy
-- `training/evaluate.py` — strips thinking on RAG replies; judge HTTP `trust_env=False` and endpoint fallbacks; `--judge-model` (default `qwen3.5:27b`)
-- `README.md`, `docs/README.md`, `ui/README.md`, `requirements-rag.txt` — demo/UI install and env notes
-- **CI** — Python 3.10–3.12 matrix; coverage report without a fail-under threshold (training scripts are mostly CLI)
+- `rag/rag_server.py` — Ollama `"think": false` by default; non-streaming always assigns cleaned `message.content`; hybrid retrieval merges pinned verses with reranked results; meta-question handling, OpenClaw metadata stripping
+- `prompts/system_prompt.txt` — stronger topical relevance, counseling boundaries, verse-lookup accuracy, tone guidelines
+- `training/evaluate.py` — strips thinking on RAG replies; judge HTTP `trust_env=False` with 3 endpoint fallbacks; `--judge-model` (default `qwen3.5:27b`)
+- README, docs/README.md, ui/README.md, requirements-rag.txt — demo/UI install and env notes
 
 ### Fixed
 
 - `strip_model_thinking()` — paired `</think>`…`</think>` before flex `think` peeling; leading BOM after tag removal
 - RAG OpenAI JSON — always persist cleaned assistant text (punctuation edge case)
-- **Ruff** — clean `training/`, `rag/`, `scripts/`, `ui/`, `tests/`, `deployment/` (per-file ignores where intentional)
-- **Verse ref extraction** — avoid matching “What does Hebrews…” as the reference; strip lookup prefixes before regex
-- **Gradio 6** — removed unsupported `Chatbot` `type=` / `show_copy_button`; moved `theme`/`css` to `launch()`
+- Verse ref extraction — avoid matching "What does Hebrews…" as the reference; strip lookup prefixes before regex
+- Gradio 6 — removed unsupported `Chatbot` `type=` / `show_copy_button`; moved `theme`/`css` to `launch()`
+- Ollama response quality — concise verse answers, informative translation note
+
+---
+
+## [0.2.0] - 2026-01-15
+
+### Added
+
+- WEB dataset pipeline (`training/dataset_builder.py`)
+- ~1,800 diverse Bible Q&A examples
+- `data/sample.json` as documentation
+- Initial training data generation and formatting
+
+---
 
 ## [0.1.0] - 2026-01-15
 
 ### Added
 
 - Project scaffold and repository structure
-- Biblical Constitution (CONSTITUTION.md) and system prompt
-- .gitignore, .env.example, requirements.txt
-- README and docs/architecture.md
+- Biblical Constitution (`CONSTITUTION.md`) and system prompt
+- `.gitignore`, `.env.example`, `requirements.txt`
+- README and `docs/architecture.md`
 - Placeholder directories and READMEs for data, training, rag, voice, deployment, ui
-- Development workflow guide (docs/DEVELOPMENT_WORKFLOW.md)
-
-### Notes
-
-- Base model download and environment setup are the next steps (Section 6–7 of the guide).
+- Development workflow guide (`docs/DEVELOPMENT_WORKFLOW.md`)

@@ -57,6 +57,11 @@ class Settings(BaseSettings):
     log_json: bool = False  # set True in production for structured JSON logs
 
     # ------------------------------------------------------------------
+    # Application environment (development / production)
+    # ------------------------------------------------------------------
+    app_env: str = "production"
+
+    # ------------------------------------------------------------------
     # Application metadata
     # ------------------------------------------------------------------
     title: str = "Bible AI RAG Server"
@@ -87,6 +92,14 @@ class Settings(BaseSettings):
         if v < 1:
             raise ValueError("must be >= 1")
         return v
+
+    @field_validator("app_env")
+    @classmethod
+    def _valid_app_env(cls, v: str) -> str:
+        up = v.lower()
+        if up not in ("development", "production"):
+            raise ValueError("APP_ENV must be 'development' or 'production'")
+        return up
 
     @field_validator("log_level")
     @classmethod
