@@ -1,6 +1,6 @@
 # Bible AI Assistant
 
-[![CI](https://github.com/omnipotence-eth/bible-ai-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/omnipotence-eth/bible-ai-assistant/actions/workflows/ci.yml)
+[![CI](https://github.com/t-timms/bible-ai-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/t-timms/bible-ai-assistant/actions/workflows/ci.yml)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![Qwen3.5-4B](https://img.shields.io/badge/Qwen3.5--4B-ORPO-orange?style=flat-square)](https://huggingface.co/Qwen)
 [![W&B](https://img.shields.io/badge/W%26B-34_runs-yellow?style=flat-square&logo=weightsandbiases)](https://wandb.ai/)
@@ -152,7 +152,7 @@ Requires: [Docker Desktop](https://www.docker.com/products/docker-desktop/), [Ol
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/omnipotence-eth/bible-ai-assistant.git
+git clone https://github.com/t-timms/bible-ai-assistant.git
 cd bible-ai-assistant
 
 # 2. Pull the model
@@ -269,7 +269,7 @@ Every push and pull request runs four parallel jobs:
 
 ## Author
 
-**Tremayne Timms** — [GitHub](https://github.com/omnipotence-eth)
+**Tremayne Timms** — [GitHub](https://github.com/t-timms)
 
 ## License
 
