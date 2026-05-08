@@ -205,9 +205,12 @@ def _build_bm25_index(ids: list[str], documents: list[str], db_path: Path) -> No
 
 
 def main() -> None:
+    import os
+
     project_root = Path(__file__).resolve().parents[1]
     raw_path = project_root / "data" / "raw"
-    db_path = project_root / "rag" / "chroma_db"
+    env_db_path = os.getenv("CHROMA_DB_PATH")
+    db_path = Path(env_db_path) if env_db_path else project_root / "rag" / "chroma_db"
     db_path.mkdir(parents=True, exist_ok=True)
 
     verses = _load_verses(raw_path)
