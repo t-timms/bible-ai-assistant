@@ -2,6 +2,8 @@
 
 import os
 
+import pytest
+
 from rag.helpers import (
     _clean_doc_text,
     _content_to_str,
@@ -22,14 +24,11 @@ class TestValidateOllamaUrl:
         assert _validate_ollama_url("https://example.com:11434") == "https://example.com:11434"
 
     def test_invalid_scheme_raises(self) -> None:
-        import pytest
 
         with pytest.raises(ValueError, match="http or https"):
             _validate_ollama_url("ftp://localhost:11434")
 
     def test_no_host_raises(self) -> None:
-        import pytest
-
         with pytest.raises(ValueError, match="no host"):
             _validate_ollama_url("http://")
 
