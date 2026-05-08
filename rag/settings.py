@@ -77,6 +77,11 @@ class Settings(BaseSettings):
     cors_origins: list[str] = []
 
     # ------------------------------------------------------------------
+    # ChromaDB path (override if index lives outside project root)
+    # ------------------------------------------------------------------
+    chroma_db_path: str = ""
+
+    # ------------------------------------------------------------------
     # Model identifiers (override to swap embedding / reranker models)
     # ------------------------------------------------------------------
     embed_model: str = "nomic-ai/nomic-embed-text-v1.5"

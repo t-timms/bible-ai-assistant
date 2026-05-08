@@ -40,7 +40,7 @@ from starlette.responses import Response
 
 from rag.helpers import (
     _COUNSELING_SYSTEM_GUARD,
-    _EVAL_SUFFIXES,
+    _EVAL_SUFFIX_PATTERN,
     EMPTY_MODEL_REPLY,
     _content_to_str,
     _extract_verse_ref_from_lookup,
@@ -280,7 +280,11 @@ async def _handle_unhandled(request: Request, exc: Exception) -> JSONResponse:
     response_model=dict[str, str],
 )
 def health() -> dict[str, str]:
-    """Returns service status. Used by load balancers and readiness probes."""
+    """Returns service status. Used by load balancers and readiness probes.
+
+    The version field is intentionally static to avoid leaking the exact
+    deployment revision to unauthenticated health-check callers.
+    """
     return {"status": "ok", "service": "rag", "version": "1.0.0"}
 
 
@@ -345,10 +349,7 @@ async def chat_completions(request: Request):
 
     if last_user_content and last_user_content.strip():
         q = _strip_openclaw_metadata(last_user_content.strip())
-        for suffix in _EVAL_SUFFIXES:
-            if q.lower().endswith(suffix.lower()):
-                q = q[: -len(suffix)].strip()
-                break
+        q = _EVAL_SUFFIX_PATTERN.sub("", q).strip()
         last_q_for_policy = q
         if _is_meta_question(q):
             for i in range(len(messages) - 1, -1, -1):
@@ -386,6 +387,13 @@ async def chat_completions(request: Request):
         role = m.get("role", "user")
         if role not in ("system", "user", "assistant"):
             role = "user"
+        # Reject system-role messages injected by users (prompt-injection guard).
+        # The only legitimate system message is the counseling guard we insert below.
+        if role == "system":
+            raise HTTPException(
+                status_code=422,
+                detail="System messages are not accepted from client input.",
+            )
         content = _content_to_str(m.get("content"))
         normalized.append({"role": role, "content": content})
     messages = normalized
@@ -464,14 +472,6 @@ async def chat_completions(request: Request):
                 content = _strip_repetition_and_meta(content) if content else ""
                 out = content.rstrip()
                 if out:
-                    if out[-1] in ",;:":
-                        out = out[:-1] + "."
-                    elif out[-1] not in ".?!\"'":
-                        for end in (". ", "? ", "! "):
-                            idx = out.rfind(end)
-                            if idx != -1:
-                                out = out[: idx + 1].rstrip()
-                                break
                     data["choices"][0]["message"]["content"] = out
                 else:
                     data["choices"][0]["message"]["content"] = EMPTY_MODEL_REPLY
