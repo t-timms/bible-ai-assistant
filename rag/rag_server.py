@@ -238,6 +238,17 @@ async def _handle_unhandled(request: Request, exc: Exception) -> JSONResponse:
         request.url.path,
         exc_info=True,
     )
+    if settings.app_env == "development":
+        import traceback as _tb
+
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "Internal server error",
+                "detail": str(exc),
+                "traceback": _tb.format_exc().splitlines(),
+            },
+        )
     return JSONResponse(
         status_code=500,
         content={"error": "Internal server error"},

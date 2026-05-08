@@ -391,7 +391,7 @@ def _run_keyword_eval(
         result = {
             "question": question,
             "expected_answer": expected,
-            "response": response[:1000],
+            "response": response,
             "category": category,
             "verse_accuracy": round(verse_score, 2),
             "citation_present": citation,
@@ -454,7 +454,7 @@ def _run_judge_eval(
         result = {
             "question": question,
             "expected_answer": expected,
-            "response": response[:1000],
+            "response": response,
             "category": category,
             "model_tag": model_tag,
             "judge_scores": scores,
