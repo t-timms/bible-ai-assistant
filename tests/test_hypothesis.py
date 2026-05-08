@@ -338,10 +338,10 @@ class TestContentToStrProperties:
         )
     )
     @settings(max_examples=100)
-    def test_list_first_text_part_is_returned(self, parts: list) -> None:
-        """First text-typed dict's 'text' value must be returned."""
+    def test_list_all_text_parts_concatenated(self, parts: list) -> None:
+        """All text-typed dicts' 'text' values must be concatenated."""
         result = _content_to_str(parts)
-        assert result == parts[0]["text"]
+        assert result == "".join(p["text"] for p in parts)
 
     @given(st.lists(st.fixed_dictionaries({"type": st.just("image_url"), "url": _text})))
     @settings(max_examples=50)
