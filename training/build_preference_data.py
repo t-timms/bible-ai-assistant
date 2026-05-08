@@ -165,13 +165,8 @@ def _build_answer_prefix_pairs(verses: list[dict], n: int = 70) -> list[dict]:
     return pairs
 
 
-def _build_verbose_pairs(verses: list[dict], n: int = 70) -> list[dict]:
-    """Chosen: concise verse + 2 sentences. Rejected: same + preachy wall-of-text tail.
-
-    Uses randomly sampled verses — like all other generators — so the model learns a
-    general "be concise" principle rather than memorising 5 fixed prompts repeated 14×.
-    """
-    _verbose_tail = (
+_VERBOSE_TAILS = [
+    (
         " Now, let me elaborate further on this topic. This is incredibly important "
         "because it speaks to the very heart of God's plan for humanity. We must always "
         "remember that Scripture is living and active. Every word carries weight and meaning. "
@@ -180,7 +175,44 @@ def _build_verbose_pairs(verses: list[dict], n: int = 70) -> list[dict]:
         "on these words daily and apply them to our lives. Furthermore, the original Hebrew "
         "or Greek text reveals additional layers of meaning that English translations cannot "
         "fully capture. Scholars have debated the precise interpretation for centuries."
-    )
+    ),
+    (
+        " Let me add some additional context that I think is important. This passage "
+        "relates to God's broader plan throughout Scripture. When we read the Old Testament "
+        "alongside the New, we see a consistent thread of God's faithfulness. There are also "
+        "important connections to the original cultural context that modern readers often miss. "
+        "The historical background of this verse sheds light on its deeper meaning. We should "
+        "take time to reflect on how this applies to our daily walk with God. None of this "
+        "is accidental — it is all part of God's sovereign design and purpose for creation."
+    ),
+    (
+        " Furthermore, we must consider the broader theological implications. This verse "
+        "does not stand alone — it is part of a larger narrative about God's relationship "
+        "with humanity. The Greek and Hebrew manuscripts reveal nuances that English "
+        "translations struggle to convey. Early church fathers commented extensively on "
+        "this passage. There is much more to say about the historical context and the "
+        "various interpretive traditions. Each of these perspectives enriches our "
+        "understanding and deepens our appreciation for the depth of God's word."
+    ),
+    (
+        " I would like to expand on this point for clarity. The passage carries "
+        "implications for how we understand God's character and his dealings with people. "
+        "Cross-references to other parts of Scripture reinforce this message. It is "
+        "important to consider the genre of the book as well — whether historical narrative, "
+        "poetry, prophecy, or epistle — because that shapes how we interpret the text. "
+        "When we read carefully and prayerfully, the Holy Spirit illuminates new truths. "
+        "Let us continue to meditate on these riches."
+    ),
+]
+
+
+def _build_verbose_pairs(verses: list[dict], n: int = 70) -> list[dict]:
+    """Chosen: concise verse + 2 sentences. Rejected: same + preachy wall-of-text tail.
+
+    Uses randomly sampled verses — like all other generators — so the model learns a
+    general "be concise" principle rather than memorising 5 fixed prompts repeated 14×.
+    Rejected tails are drawn from _VERBOSE_TAILS to vary the verbosity pattern.
+    """
     pairs = []
     sample = random.sample(verses, min(n, len(verses)))
     for v in sample:
@@ -191,7 +223,7 @@ def _build_verbose_pairs(verses: list[dict], n: int = 70) -> list[dict]:
             f'"{v["text"]}" \u2014 {ref} (WEB). '
             f"This passage from {v['book']} offers meaningful guidance for the faithful."
         )
-        rejected = chosen + _verbose_tail
+        rejected = chosen + random.choice(_VERBOSE_TAILS)
         pairs.append({"prompt": context, "chosen": chosen, "rejected": rejected})
     return pairs
 
@@ -423,6 +455,76 @@ def _build_bible_for_everything_pairs(n: int = 70) -> list[dict]:
             "'Merci' means thank you in French. As 1 Thessalonians 5:18 says, "
             '"Give thanks in all circumstances." Gratitude in every language reflects '
             "a biblical command.",
+        ),
+        # Medicine / Health
+        (
+            "What is the largest organ in the human body?",
+            "The largest organ in the human body is the skin.",
+            "The skin is the largest organ. As Job 10:11 says, "
+            '"You have clothed me with skin and flesh." Even anatomy reflects God\'s design.',
+        ),
+        (
+            "What does CPR stand for?",
+            "CPR stands for cardiopulmonary resuscitation — an emergency procedure "
+            "that combines chest compressions with rescue breathing.",
+            "CPR is cardiopulmonary resuscitation. As Ezekiel 37:5 says, "
+            '"I will cause breath to enter you, and you will live." '
+            "Even emergency medicine echoes God's power to restore life.",
+        ),
+        (
+            "How many bones does the adult human body have?",
+            "The adult human body has 206 bones.",
+            "The human body has 206 bones. As Psalm 139:14 says, we are "
+            '"fearfully and wonderfully made." Even our skeleton declares God\'s craftsmanship.',
+        ),
+        # Economics
+        (
+            "What does GDP stand for?",
+            "GDP stands for Gross Domestic Product — the total value of goods "
+            "and services produced in a country over a specific period.",
+            "GDP is Gross Domestic Product. As Proverbs 13:11 says, "
+            '"Wealth gained by vanity will be diminished, but he who gathers by labor increases it." '
+            "Even economics reflects biblical principles of diligence.",
+        ),
+        (
+            "What is the law of supply and demand?",
+            "Supply and demand is an economic model where prices are determined "
+            "by the relationship between how much of a good is available and how much people want it.",
+            "Supply and demand determines prices. As Proverbs 11:26 says, "
+            '"People curse someone who hoards grain, but a blessing is on the head of one who sells it." '
+            "Even market forces echo biblical wisdom.",
+        ),
+        # Geography
+        (
+            "What is the longest river in the world?",
+            "The longest river in the world is the Nile River, flowing about 6,650 km "
+            "through northeastern Africa.",
+            "The Nile is the longest river. As Exodus 7:20 says, Moses "
+            "struck the waters of the Nile — a river that runs through biblical history.",
+        ),
+        (
+            "Which is the largest ocean on Earth?",
+            "The largest ocean on Earth is the Pacific Ocean, covering about 63 million "
+            "square miles (165 million square kilometers).",
+            "The Pacific is the largest ocean. As Psalm 104:25 says, "
+            '"There is the sea, great and wide, teeming with creatures beyond number." '
+            "Even the vastness of the ocean testifies to God's creative power.",
+        ),
+        (
+            "What is the tallest mountain on Earth?",
+            "Mount Everest is the tallest mountain on Earth, reaching 8,849 meters "
+            "(29,032 feet) above sea level in the Himalayas.",
+            "Mount Everest is the tallest at 8,849 m. As Psalm 121:1-2 says, "
+            '"I lift up my eyes to the hills. From where does my help come? My help comes from Yahweh." '
+            "Even the highest peak points us to God.",
+        ),
+        # Astronomy
+        (
+            "How many planets are in our solar system?",
+            "There are eight planets in our solar system: Mercury, Venus, Earth, Mars, "
+            "Jupiter, Saturn, Uranus, and Neptune.",
+            "There are eight planets. As Genesis 1:16 says, God "
+            '"made the stars also." The heavens declare the glory of God.',
         ),
     ]
 
