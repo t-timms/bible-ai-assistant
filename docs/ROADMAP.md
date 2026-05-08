@@ -253,15 +253,15 @@ Add `docker-compose.yml` for local dev (RAG server + Ollama). Add `start.sh` scr
 | ID | Action | File | Status |
 |----|--------|------|--------|
 | M-1 | Generalize `_strip_repetition_and_meta` | `rag/helpers.py` | 🆕 |
-| M-2 | Simplify `_EVAL_SUFFIXES` to single regex | `rag/helpers.py` | 🆕 |
-| M-3 | Expand topical pin table to 20+ topics | `rag/helpers.py` | 🆕 |
+| M-2 | Simplify `_EVAL_SUFFIXES` to single regex | `rag/helpers.py` | ✅ |
+| M-3 | Expand topical pin table to 20+ topics | `rag/helpers.py` | ✅ |
 | M-4 | Add dedicated `response_cleanup.py` tests | `tests/test_response_cleanup.py` | 🆕 |
 | M-5 | Extract shared Windows encoding fix | `training/_windows_fix.py` | 🆕 |
 | M-6 | Implement or remove `voice/stt_server.py` | `voice/stt_server.py` | 🆕 |
 | M-7 | Fix Docker healthchecks | `docker-compose.yml` | 🆕 |
 | M-8 | Align pyproject.toml version with releases | `pyproject.toml` | 🆕 |
 | M-9 | Remove redundant requirements files | Root directory | 🆕 |
-| M-10 | Remove response truncation logic | `rag/rag_server.py` | 🆕 |
+| M-10 | Remove response truncation logic | `rag/rag_server.py` | ✅ |
 | M-11 | Fix `_is_verse_lookup` to require ref before "say" | `rag/helpers.py` | 🆕 |
 | M-2 | Move `random.seed(42)` into `main()` | `build_preference_data.py` | from prev |
 | M-3 | Align MAX_SEQ_LENGTH (2048) between SFT and ORPO | `train_orpo.py` | from prev |

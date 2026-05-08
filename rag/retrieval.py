@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import json as _json
 import logging
+import os
 import threading
 import time
 from pathlib import Path
@@ -60,8 +61,14 @@ _bm25_lock = threading.Lock()
 _reranker_lock = threading.Lock()
 
 
-def _get_project_root() -> Path:
-    return Path(__file__).resolve().parents[1]
+def _get_chroma_db_path() -> Path:
+    """Return the ChromaDB directory, respecting CHROMA_DB_PATH env var."""
+    env_path = os.getenv("CHROMA_DB_PATH")
+    if env_path:
+        p = Path(env_path)
+        if p.exists():
+            return p
+    return Path(__file__).resolve().parents[1] / "rag" / "chroma_db"
 
 
 def _get_rag():
@@ -79,7 +86,7 @@ def _get_rag():
         except ImportError as e:
             raise RuntimeError("RAG requires chromadb and sentence-transformers.") from e
 
-        db_path = _get_project_root() / "rag" / "chroma_db"
+        db_path = _get_chroma_db_path()
         if not db_path.exists():
             raise FileNotFoundError(
                 f"ChromaDB index not found at {db_path}. Run: python rag/build_index.py"
@@ -106,7 +113,7 @@ def _get_bm25():
     with _bm25_lock:
         if _bm25_data is not None:
             return _bm25_data
-        db_dir = _get_project_root() / "rag" / "chroma_db"
+        db_dir = _get_chroma_db_path()
         json_path = db_dir / "bm25_index.json"
         if not json_path.exists():
             logger.warning("BM25 index not found at %s — sparse retrieval disabled", json_path)
