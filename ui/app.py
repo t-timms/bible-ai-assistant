@@ -22,6 +22,7 @@ RAG_URL = _RAG_BASE.rstrip("/") + "/v1/chat/completions"
 TTS_URL = os.getenv("TTS_URL", "http://127.0.0.1:8880") + "/v1/audio/speech"
 MODEL_NAME = os.getenv("OLLAMA_MODEL", "bible-assistant-orpo")
 WHISPER_MODEL = "large-v3-turbo"
+GRADIO_TITLE = os.getenv("GRADIO_TITLE", "Bible AI Assistant")
 
 # Lazy-load Whisper (heavy)
 _whisper_model = None
@@ -221,8 +222,8 @@ def voice_chat(audio, history: list) -> tuple[list, str | None]:
     return history, audio_path
 
 
-with gr.Blocks(title="Bible AI Assistant") as demo:
-    gr.Markdown("# Bible AI Assistant")
+with gr.Blocks(title=GRADIO_TITLE) as demo:
+    gr.Markdown(f"# {GRADIO_TITLE}")
     gr.Markdown(
         "Ask about Scripture via text or voice. Requires RAG server (port 8081) and Kokoro TTS (port 8880). "
         "**Disclaimer:** This is a study aid, not pastoral care or counseling. For spiritual direction, consult a pastor or trusted believer. "

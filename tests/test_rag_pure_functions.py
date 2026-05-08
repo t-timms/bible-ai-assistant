@@ -1,5 +1,7 @@
 """Unit tests for untested pure functions in rag_server (no ChromaDB/Ollama needed)."""
 
+import os
+
 from rag.helpers import (
     _clean_doc_text,
     _content_to_str,
@@ -161,3 +163,24 @@ class TestStripThinkingFromStream:
         result = _strip_thinking_from_stream(sse)
         # Should return the EMPTY_MODEL_REPLY fallback
         assert b"didn't receive" in result or len(result) > 0
+
+
+class TestSettingsTitle:
+    """Tests for the configurable RAG server title."""
+
+    def test_default_title(self) -> None:
+        from rag.settings import settings
+
+        assert settings.title == "Bible AI RAG Server"
+
+    def test_title_override_via_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(os, "environ", {**os.environ, "TITLE": "Custom RAG"})
+        from rag.settings import Settings
+
+        s = Settings()
+        assert s.title == "Custom RAG"
+
+    def test_fastapi_app_uses_settings_title(self) -> None:
+        from rag.rag_server import app
+
+        assert app.title == "Bible AI RAG Server"

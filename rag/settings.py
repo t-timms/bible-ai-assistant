@@ -57,6 +57,11 @@ class Settings(BaseSettings):
     log_json: bool = False  # set True in production for structured JSON logs
 
     # ------------------------------------------------------------------
+    # Application metadata
+    # ------------------------------------------------------------------
+    title: str = "Bible AI RAG Server"
+
+    # ------------------------------------------------------------------
     # Model identifiers (override to swap embedding / reranker models)
     # ------------------------------------------------------------------
     embed_model: str = "nomic-ai/nomic-embed-text-v1.5"
