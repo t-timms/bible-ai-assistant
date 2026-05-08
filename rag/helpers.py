@@ -398,11 +398,13 @@ def _strip_thinking_from_stream(sse_text: str) -> bytes:
 def _is_verse_lookup(text: str) -> bool:
     """True if question asks for a specific verse (e.g. 'What does John 3:16 say?')."""
     t = text.lower().strip()
-    if not re.search(r"what does .+ say\??", t):
+    # Match "What does ... say?" and capture everything before the final "say"
+    match = re.search(r"what does (.+) say\??$", t)
+    if not match:
         return False
-    # Require a verse reference (Book 1:2) to distinguish from topical questions
-    # e.g. "What does the Bible say about love?" is topical, not a verse lookup
-    return bool(re.search(r"\d+:\d+", t))
+    # Require a verse reference (Book 1:2) in the captured part to distinguish
+    # from topical questions like "What does the Bible say about love?"
+    return bool(re.search(r"\d+:\d+", match.group(1)))
 
 
 def _is_meta_question(text: str) -> bool:
