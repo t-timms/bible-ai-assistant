@@ -38,7 +38,7 @@ We’ll do this next. It includes:
 1. **Installing the toolchain** — Git (done), Miniconda, CUDA 12.8+, Node.js, Docker, Ollama, etc.
 2. **Creating a conda environment** — An isolated Python 3.11 environment named **`bible-ai-assistant`** (same as the repo) so this project’s packages don’t conflict with others.
 3. **Installing PyTorch nightly** — Your RTX 5070 Ti (Blackwell) needs CUDA 12.8+; stable PyTorch doesn’t support it yet, so we use the nightly build.
-4. **Installing project dependencies** — `requirements.txt` (training, RAG, API, voice).
+4. **Installing project dependencies** — `pip install -e ".[rag,ui,train,dev]"` (training, RAG, API, voice via pyproject.toml).
 5. **Logging into Hugging Face and W&B** — So you can download models and log training runs.
 6. **Downloading Qwen3 4B** — The base model you’ll fine-tune.
 
@@ -80,7 +80,7 @@ conda activate bible-ai-assistant
 pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128
 
 # 2. Project dependencies (training, RAG, API, voice)
-pip install -r requirements.txt
+pip install -e ".[rag,ui,train,dev]"
 ```
 
 **Verify PyTorch and GPU:** Run:
@@ -472,7 +472,7 @@ cd llama.cpp
 Install Python deps for the converter:
 
 ```powershell
-pip install -r requirements.txt
+pip install -e ".[rag,ui,train,dev]"
 ```
 
 (Use your `bible-ai-assistant` conda env so `torch` etc. are available.)
@@ -615,7 +615,7 @@ After your model runs in Ollama (Step 11), add a **RAG layer** so answers are gr
 
 - **Step 8 done** — `data/raw/bible_web.json` (or `bible.json`) must exist.
 - **Ollama** running with `bible-assistant` (Step 11).
-- **Dependencies** — `chromadb`, `sentence-transformers`, `fastapi`, `uvicorn`, `httpx` (in `requirements.txt`).
+- **Dependencies** — `chromadb`, `sentence-transformers`, `fastapi`, `uvicorn`, `httpx` (in `pyproject.toml` `[project.optional-dependencies] rag` group).
 
 ---
 
