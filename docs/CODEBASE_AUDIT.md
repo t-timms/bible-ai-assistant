@@ -162,6 +162,8 @@ The `_normalize_role` validator only normalizes unknown roles to "user", but doe
 
 **Fix:** Strip or reject system messages from user input. Only allow system messages from trusted configuration.
 
+**Status:** ✅ Fixed — `rag/rag_server.py` now raises HTTP 422 for any `role: "system"` message in client input (2026-05-08).
+
 ---
 
 ### H-7 — Dependency Version Ranges Too Wide
@@ -211,6 +213,8 @@ Assumes the file is always 2 levels deep from the project root. Breaks when inst
 
 **Fix:** Use `importlib.resources` or make the ChromaDB path configurable via environment variable.
 
+**Status:** ✅ Fixed — `CHROMA_DB_PATH` env var supported in `rag/retrieval.py` and `rag/build_index.py` (2026-05-08).
+
 ---
 
 ### H-11 — `_content_to_str` Drops Multiple Text Parts
@@ -251,6 +255,8 @@ The `/health` endpoint returns the service version to unauthenticated callers. T
 
 **Fix:** Document the tradeoff in the endpoint docstring, or make version exposure configurable.
 
+**Status:** ✅ Fixed — version field documented in docstring; static version retained to avoid leaking exact deployment revision (2026-05-08).
+
 ---
 
 ### H-15 — No CODEOWNERS File
@@ -281,6 +287,8 @@ No automatic PR reviewers.
 
 Use a single regex instead of 8 string suffixes.
 
+**Status:** ✅ Fixed — replaced with single `_EVAL_SUFFIX_PATTERN` regex (2026-05-08).
+
 ---
 
 ### M-3 — Topical Pin Table Only Has 3 Topics
@@ -290,6 +298,8 @@ Use a single regex instead of 8 string suffixes.
 Only marriage, forgiveness, and money. Major topics (salvation, grace, Holy Spirit, resurrection) are missing.
 
 **Fix:** Expand to at least 20 major theological topics with 3–5 anchor verses each.
+
+**Status:** ✅ Fixed — expanded to 34 topics covering relationships, virtues, sin, salvation, Holy Spirit, prayer, worship, Scripture, afterlife, practical living, church, and eschatology (2026-05-08).
 
 ---
 
@@ -360,6 +370,8 @@ Latest GitHub release is `v0.2.0` but `pyproject.toml` says `0.9.0`.
 Forces sentences to end with periods, which can corrupt verse quotations.
 
 **Fix:** Remove this post-processing. Let the model's output stand as-is.
+
+**Status:** ✅ Fixed — removed sentence-ending post-processing; model output preserved verbatim (2026-05-08).
 
 ---
 

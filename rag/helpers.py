@@ -29,6 +29,7 @@ HYBRID_CANDIDATES = 20
 # Topical questions: pin a few high-signal verses so hybrid retrieval + passage expansion
 # cannot drown the topic (e.g. marriage → unrelated "love" parables).
 _TOPICAL_PIN_TABLE: tuple[tuple[frozenset[str], tuple[str, ...]], ...] = (
+    # --- Relationships & Family ---
     (
         frozenset(
             {
@@ -46,12 +47,154 @@ _TOPICAL_PIN_TABLE: tuple[tuple[frozenset[str], tuple[str, ...]], ...] = (
         ("Genesis 2:24", "Ephesians 5:31", "Matthew 19:5", "Mark 10:9"),
     ),
     (
-        frozenset({"forgiveness", "forgive", "forgiving"}),
+        frozenset({"children", "parent", "father", "mother", "son", "daughter", "family"}),
+        ("Ephesians 6:1", "Proverbs 22:6", "Colossians 3:20"),
+    ),
+    # --- Virtues & Character ---
+    (
+        frozenset({"forgiveness", "forgive", "forgiving", "pardon"}),
         ("Matthew 6:14", "Ephesians 4:32", "Colossians 3:13"),
     ),
     (
-        frozenset({"money", "wealth", "rich", "greed", "steward"}),
+        frozenset({"love", "charity", "agape", "loving", "beloved"}),
+        ("1 Corinthians 13:4", "John 3:16", "1 John 4:8"),
+    ),
+    (
+        frozenset({"faith", "believe", "trust", "faithful"}),
+        ("Hebrews 11:1", "Romans 10:17", "Ephesians 2:8"),
+    ),
+    (
+        frozenset({"hope", "hoping", "future", "expectation"}),
+        ("Romans 15:13", "Jeremiah 29:11", "Hebrews 6:19"),
+    ),
+    (
+        frozenset({"joy", "rejoice", "gladness", "happiness"}),
+        ("Philippians 4:4", "Psalms 16:11", "Galatians 5:22"),
+    ),
+    (
+        frozenset({"peace", "reconcile", "harmony", "shalom"}),
+        ("Philippians 4:7", "Matthew 5:9", "Romans 5:1"),
+    ),
+    (
+        frozenset({"patience", "endure", "perseverance", "longsuffering"}),
+        ("Romans 12:12", "James 1:3", "Galatians 5:22"),
+    ),
+    (
+        frozenset({"kindness", "gentle", "goodness", "compassion"}),
+        ("Ephesians 4:32", "Galatians 5:22", "Colossians 3:12"),
+    ),
+    (
+        frozenset({"humility", "humble", "meek", "lowly"}),
+        ("Philippians 2:3", "James 4:6", "Matthew 5:5"),
+    ),
+    # --- Sin & Temptation ---
+    (
+        frozenset({"sin", "sinner", "iniquity", "transgression", "wicked"}),
+        ("Romans 3:23", "1 John 1:9", "Romans 6:23"),
+    ),
+    (
+        frozenset({"temptation", "tempt", "trial", "testing"}),
+        ("1 Corinthians 10:13", "James 1:12", "Matthew 4:1"),
+    ),
+    (
+        frozenset({"repent", "repentance", "turn away", "confession"}),
+        ("Acts 3:19", "2 Chronicles 7:14", "1 John 1:9"),
+    ),
+    # --- Salvation & Gospel ---
+    (
+        frozenset({"salvation", "saved", "save", "redeem", "saviour"}),
+        ("Ephesians 2:8", "John 3:16", "Romans 10:9"),
+    ),
+    (
+        frozenset({"grace", "mercy", "favour", "undeserved"}),
+        ("Ephesians 2:8", "Titus 2:11", "Romans 5:8"),
+    ),
+    (
+        frozenset({"gospel", "good news", "evangel", "preach"}),
+        ("Romans 1:16", "Mark 16:15", "1 Corinthians 15:1"),
+    ),
+    # --- Holy Spirit ---
+    (
+        frozenset({"holy spirit", "spirit of god", "comforter", "counsellor", "paraclete"}),
+        ("John 14:26", "Acts 1:8", "Galatians 5:22"),
+    ),
+    # --- Prayer & Worship ---
+    (
+        frozenset({"prayer", "pray", "supplication", "intercession"}),
+        ("Philippians 4:6", "1 Thessalonians 5:17", "Matthew 6:6"),
+    ),
+    (
+        frozenset({"worship", "praise", "adore", "glorify", "honour"}),
+        ("Psalms 95:6", "John 4:24", "Romans 12:1"),
+    ),
+    # --- Scripture & Word ---
+    (
+        frozenset({"bible", "scripture", "word of god", "law", "torah", "prophets"}),
+        ("2 Timothy 3:16", "Psalms 119:105", "Matthew 4:4"),
+    ),
+    # --- Life After Death ---
+    (
+        frozenset({"heaven", "eternal life", "kingdom of god", "paradise"}),
+        ("John 14:2", "Matthew 6:33", "Revelation 21:4"),
+    ),
+    (
+        frozenset({"hell", "damnation", "eternal punishment", "lake of fire"}),
+        ("Matthew 25:46", "Revelation 20:15", "Romans 6:23"),
+    ),
+    (
+        frozenset({"resurrection", "raised from the dead", "new life", "reborn"}),
+        ("1 Corinthians 15:20", "John 11:25", "Romans 6:4"),
+    ),
+    # --- Practical Living ---
+    (
+        frozenset({"money", "wealth", "rich", "greed", "steward", "possessions"}),
         ("1 Timothy 6:10", "Matthew 6:24", "Proverbs 3:9"),
+    ),
+    (
+        frozenset({"work", "labour", "toil", "employ", "job", "vocation"}),
+        ("Colossians 3:23", "Proverbs 14:23", "Ecclesiastes 9:10"),
+    ),
+    (
+        frozenset({"wisdom", "wise", "understanding", "knowledge", "discernment"}),
+        ("Proverbs 9:10", "James 1:5", "Proverbs 3:13"),
+    ),
+    (
+        frozenset({"fear", "afraid", "anxiety", "worry", "concern"}),
+        ("Philippians 4:6", "Isaiah 41:10", "2 Timothy 1:7"),
+    ),
+    (
+        frozenset({"anger", "wrath", "rage", "furious", "mad"}),
+        ("Ephesians 4:26", "James 1:19", "Proverbs 15:1"),
+    ),
+    (
+        frozenset({"suffering", "pain", "affliction", "persecution", "tribulation"}),
+        ("Romans 5:3", "James 1:2", "1 Peter 4:12"),
+    ),
+    (
+        frozenset({"death", "die", "dying", "mortality", "grief", "mourning"}),
+        ("Psalms 23:4", "John 11:25", "Revelation 21:4"),
+    ),
+    # --- Church & Community ---
+    (
+        frozenset({"church", "assembly", "congregation", "body of christ", "fellowship"}),
+        ("Matthew 16:18", "Hebrews 10:25", "1 Corinthians 12:27"),
+    ),
+    (
+        frozenset({"evangelism", "witness", "mission", "disciple", "great commission"}),
+        ("Matthew 28:19", "Acts 1:8", "Mark 16:15"),
+    ),
+    (
+        frozenset({"baptism", "baptise", "baptized", "immersed", "water"}),
+        ("Matthew 28:19", "Romans 6:4", "Acts 2:38"),
+    ),
+    # --- Covenant & Promise ---
+    (
+        frozenset({"covenant", "promise", "oath", "vow", "pledge", "agreement"}),
+        ("Hebrews 8:6", "Genesis 12:1", "2 Peter 1:4"),
+    ),
+    (
+        frozenset({"second coming", "return of christ", "parousia", "end times", "last days"}),
+        ("Acts 1:11", "Matthew 24:42", "Revelation 22:20"),
     ),
 )
 
@@ -86,15 +229,8 @@ EMPTY_MODEL_REPLY = (
 )
 
 # Suffixes injected by some benchmark/eval clients — strip before RAG retrieval
-_EVAL_SUFFIXES = (
-    "? answer in quotes, then add explanation.",
-    "? answer in quotes, then add explanation",
-    ". answer in quotes, then add explanation.",
-    ". answer in quotes, then add explanation",
-    " answer in quotes, then add explanation.",
-    " answer in quotes, then add explanation",
-    "answer in quotes, then add explanation.",
-    "answer in quotes, then add explanation",
+_EVAL_SUFFIX_PATTERN = re.compile(
+    r"[?.]?\s*answer in quotes, then add explanation\.?$", re.IGNORECASE
 )
 
 
