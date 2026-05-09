@@ -44,55 +44,67 @@ class TestManifestSchemaValidation:
     """Unit tests for the BenchmarkManifest Pydantic schema itself."""
 
     def test_valid_minimal_manifest(self) -> None:
-        _validate({
-            "protocol_id": "test_v1",
-            "protocol_version": 1,
-            "suite_path": "prompts/evaluation_questions.json",
-            "metrics": {
-                "keyword": {"summary": "fast", "cli": "python eval.py"},
-            },
-        })
+        _validate(
+            {
+                "protocol_id": "test_v1",
+                "protocol_version": 1,
+                "suite_path": "prompts/evaluation_questions.json",
+                "metrics": {
+                    "keyword": {"summary": "fast", "cli": "python eval.py"},
+                },
+            }
+        )
 
     def test_missing_protocol_id_raises(self) -> None:
         with pytest.raises(ValidationError, match="protocol_id"):
-            _validate({
-                "protocol_version": 1,
-                "suite_path": "prompts/evaluation_questions.json",
-                "metrics": {"keyword": {"summary": "fast", "cli": "python eval.py"}},
-            })
+            _validate(
+                {
+                    "protocol_version": 1,
+                    "suite_path": "prompts/evaluation_questions.json",
+                    "metrics": {"keyword": {"summary": "fast", "cli": "python eval.py"}},
+                }
+            )
 
     def test_zero_protocol_version_raises(self) -> None:
         with pytest.raises(ValidationError, match="protocol_version"):
-            _validate({
-                "protocol_id": "test_v1",
-                "protocol_version": 0,
-                "suite_path": "prompts/evaluation_questions.json",
-                "metrics": {"keyword": {"summary": "fast", "cli": "python eval.py"}},
-            })
+            _validate(
+                {
+                    "protocol_id": "test_v1",
+                    "protocol_version": 0,
+                    "suite_path": "prompts/evaluation_questions.json",
+                    "metrics": {"keyword": {"summary": "fast", "cli": "python eval.py"}},
+                }
+            )
 
     def test_negative_protocol_version_raises(self) -> None:
         with pytest.raises(ValidationError, match="protocol_version"):
-            _validate({
-                "protocol_id": "test_v1",
-                "protocol_version": -1,
-                "suite_path": "prompts/evaluation_questions.json",
-                "metrics": {"keyword": {"summary": "fast", "cli": "python eval.py"}},
-            })
+            _validate(
+                {
+                    "protocol_id": "test_v1",
+                    "protocol_version": -1,
+                    "suite_path": "prompts/evaluation_questions.json",
+                    "metrics": {"keyword": {"summary": "fast", "cli": "python eval.py"}},
+                }
+            )
 
     def test_no_metrics_raises(self) -> None:
         with pytest.raises(ValidationError, match="metrics"):
-            _validate({
-                "protocol_id": "test_v1",
-                "protocol_version": 1,
-                "suite_path": "prompts/evaluation_questions.json",
-                "metrics": {},
-            })
+            _validate(
+                {
+                    "protocol_id": "test_v1",
+                    "protocol_version": 1,
+                    "suite_path": "prompts/evaluation_questions.json",
+                    "metrics": {},
+                }
+            )
 
     def test_missing_keyword_raises(self) -> None:
         with pytest.raises(ValidationError, match="keyword"):
-            _validate({
-                "protocol_id": "test_v1",
-                "protocol_version": 1,
-                "suite_path": "prompts/evaluation_questions.json",
-                "metrics": {"judge": {"summary": "slow", "cli": "python eval.py --judge"}},
-            })
+            _validate(
+                {
+                    "protocol_id": "test_v1",
+                    "protocol_version": 1,
+                    "suite_path": "prompts/evaluation_questions.json",
+                    "metrics": {"judge": {"summary": "slow", "cli": "python eval.py --judge"}},
+                }
+            )

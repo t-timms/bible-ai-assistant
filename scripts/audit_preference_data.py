@@ -70,7 +70,11 @@ def audit_preference_data(path: Path, verbose: bool = False) -> int:
         chosen = pair.get("chosen", [])
         rejected = pair.get("rejected", [])
 
-        if not isinstance(prompt, list) or not isinstance(chosen, list) or not isinstance(rejected, list):
+        if (
+            not isinstance(prompt, list)
+            or not isinstance(chosen, list)
+            or not isinstance(rejected, list)
+        ):
             print(f"  ERROR: Pair {i} has non-list message field")
             bad_message_format += 1
             issues += 1
@@ -160,7 +164,9 @@ def audit_preference_data(path: Path, verbose: bool = False) -> int:
         longer = sum(1 for c, r in zip(chosen_lens, rejected_lens, strict=False) if c < r)
         pct_longer = 100.0 * longer / total
         print(f"  Rejected longer:        {_fmt(longer)} / {_fmt(total)} ({pct_longer:.1f}%)")
-    print(f"  Chosen much shorter:    {_fmt(chosen_shorter_or_eq)} ({100.0 * chosen_shorter_or_eq / total:.1f}%)")
+    print(
+        f"  Chosen much shorter:    {_fmt(chosen_shorter_or_eq)} ({100.0 * chosen_shorter_or_eq / total:.1f}%)"
+    )
     print()
 
     print(f"--- Issues Found: {issues} ---")
