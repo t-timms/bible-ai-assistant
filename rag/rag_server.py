@@ -125,6 +125,12 @@ if not settings.api_key and settings.rag_host not in ("127.0.0.1", "localhost", 
 # Rate limiting (slowapi)
 # ---------------------------------------------------------------------------
 
+
+def _rate_limit_key() -> str:
+    """Read rate limit from settings at runtime so tests can patch it."""
+    return settings.rate_limit
+
+
 limiter = Limiter(key_func=get_remote_address)
 
 
@@ -294,7 +300,7 @@ def health() -> dict[str, str]:
     tags=["chat"],
     dependencies=[Depends(_require_api_key)],
 )
-@limiter.limit(settings.rate_limit)
+@limiter.limit(_rate_limit_key)
 async def chat_completions(request: Request):
     """OpenAI-compatible chat completions endpoint with hybrid RAG retrieval.
 

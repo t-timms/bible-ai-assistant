@@ -289,3 +289,23 @@ def test_metrics_endpoint_available():
     r = client.get("/metrics")
     # 200 if instrumented, 404 if package not installed (graceful degradation)
     assert r.status_code in (200, 404)
+
+
+# ---------------------------------------------------------------------------
+# 11. Rate limiting
+# ---------------------------------------------------------------------------
+
+
+def test_rate_limit_exceeded_returns_429():
+    """Exceeding the per-IP rate limit must return 429."""
+    with patch.object(settings, "rate_limit", "2/minute"):
+        payload = _body(messages=[{"role": "user", "content": "test"}])
+        headers = {"Content-Type": "application/json"}
+
+        r1 = client.post("/v1/chat/completions", content=payload, headers=headers)
+        r2 = client.post("/v1/chat/completions", content=payload, headers=headers)
+        r3 = client.post("/v1/chat/completions", content=payload, headers=headers)
+
+    assert r1.status_code in (200, 401, 502, 422), f"Expected success/error, got {r1.status_code}"
+    assert r2.status_code in (200, 401, 502, 422), f"Expected success/error, got {r2.status_code}"
+    assert r3.status_code == 429, f"Expected 429 rate limited, got {r3.status_code}"

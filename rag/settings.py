@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from urllib.parse import urlparse
 
 from pydantic import field_validator
@@ -115,6 +116,15 @@ class Settings(BaseSettings):
         if up not in ("development", "production"):
             raise ValueError("APP_ENV must be 'development' or 'production'")
         return up
+
+    @field_validator("rate_limit")
+    @classmethod
+    def _valid_rate_limit(cls, v: str) -> str:
+        if not re.match(r"^\d+/(second|minute|hour|day)$", v.strip()):
+            raise ValueError(
+                f"RATE_LIMIT must be a valid slowapi format like '60/minute', got: {v!r}"
+            )
+        return v.strip()
 
     @field_validator("log_level")
     @classmethod
