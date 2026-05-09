@@ -290,6 +290,18 @@ Add `docker-compose.yml` for local dev (RAG server + Ollama). Add `start.sh` scr
 
 ---
 
+## Block 13 — P3 Backlog (L items) ✅
+
+| ID | Action | File | Status |
+|----|--------|------|--------|
+| L-1 | Rate limit: add settings validator + functional test | `rag/settings.py`, `tests/test_rag_api.py`, `tests/test_rag_pure_functions.py` | ✅ |
+| L-2 | Manifest JSON schema: Pydantic model with full validation | `scripts/benchmark_schema.py`, `tests/test_benchmark_manifest.py` | ✅ |
+| L-3 | Eval questions: 3 `topical_pin` questions for marriage, forgiveness, money | `prompts/evaluation_questions.json` | ✅ |
+| L-4 | PS1 failure pattern in `build_preference_data.py` | — | ❌ (unable to define) |
+| L-5 | Preference build audit script: structure, diversity, length checks | `scripts/audit_preference_data.py` | ✅ |
+
+---
+
 ## See also
 
 - `docs/CODEBASE_AUDIT.md` — full audit with severity ratings and line-level references
