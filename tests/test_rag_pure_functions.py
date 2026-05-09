@@ -183,3 +183,47 @@ class TestSettingsTitle:
         from rag.rag_server import app
 
         assert app.title == "Bible AI RAG Server"
+
+
+class TestRateLimitValidator:
+    """Tests for the rate_limit settings validator."""
+
+    def test_default_rate_limit_valid(self) -> None:
+        from rag.settings import Settings
+
+        s = Settings(rate_limit="60/minute")
+        assert s.rate_limit == "60/minute"
+
+    def test_second_resolution_valid(self) -> None:
+        from rag.settings import Settings
+
+        s = Settings(rate_limit="5/second")
+        assert s.rate_limit == "5/second"
+
+    def test_hour_resolution_valid(self) -> None:
+        from rag.settings import Settings
+
+        s = Settings(rate_limit="100/hour")
+        assert s.rate_limit == "100/hour"
+
+    def test_invalid_format_raises(self) -> None:
+        from pydantic import ValidationError
+
+        from rag.settings import Settings
+
+        with pytest.raises(ValidationError, match="RATE_LIMIT"):
+            Settings(rate_limit="invalid")
+
+    def test_invalid_units_raises(self) -> None:
+        from pydantic import ValidationError
+
+        from rag.settings import Settings
+
+        with pytest.raises(ValidationError, match="RATE_LIMIT"):
+            Settings(rate_limit="5/week")
+
+    def test_whitespace_stripped(self) -> None:
+        from rag.settings import Settings
+
+        s = Settings(rate_limit="  60/minute  ")
+        assert s.rate_limit == "60/minute"
