@@ -55,7 +55,7 @@ rag = [
     "prometheus-fastapi-instrumentator>=7.0.0,<8.0.0",
 ]
 ui = [
-    "gradio>=6.0,<6.15",
+    "gradio>=6.0,<6.16",
     "faster-whisper>=1.0.0,<2.0.0",
     "soundfile>=0.12.0,<1.0.0",
     "httpx>=0.26.0,<1.0.0",
