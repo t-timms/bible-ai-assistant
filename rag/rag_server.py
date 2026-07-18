@@ -453,6 +453,27 @@ async def chat_completions(request: Request):
                     data["choices"][0]["message"]["content"] = EMPTY_MODEL_REPLY
             except (IndexError, KeyError, TypeError) as e:
                 logger.debug("Post-processing skipped: %s", e)
+
+            # ── Online eval: log interaction for batch scoring ──────────
+            if last_q_for_policy:
+                try:
+                    from rag.eval_store import get_eval_store
+
+                    response_text = (
+                        data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                    )
+                    usage = data.get("usage", {})
+                    get_eval_store().log_interaction(
+                        request_id=_request_id_ctx.get("-"),
+                        model=model,
+                        query=last_q_for_policy,
+                        response=response_text,
+                        tokens_in=usage.get("prompt_tokens", 0),
+                        tokens_out=usage.get("completion_tokens", 0),
+                    )
+                except Exception:
+                    logger.debug("eval_store_log_failed", exc_info=True)
+
             return data
     except httpx.ConnectError as e:
         raise HTTPException(

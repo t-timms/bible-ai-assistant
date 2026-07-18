@@ -92,15 +92,25 @@ See [docs/MODEL_COMPARISON.md](docs/MODEL_COMPARISON.md) for full evaluation res
 
 ## Evaluation Results
 
-Benchmarked on a 54-question evaluation suite across 6 categories using keyword-overlap scoring:
+**Headline finding:** ORPO alignment is *essential*, not cosmetic. The SFT-only model outputs gibberish on the eval set (see samples below). After 500 targeted preference pairs, the same base model reaches **87% citation grounding** with **0% refusal failures** on non-Bible questions.
 
-| Model | Size | Verse Accuracy | Citation Rate | Hallucination Rate |
-|-------|------|----------------|---------------|--------------------|
-| SFT-only (no ORPO) | 8.5 GB | N/A (incoherent) | N/A | N/A |
-| SFT+ORPO (Q4_K_M) | 2.5 GB | 5.6% | 74% (40/54) | 20% (11/54) |
-| SFT+ORPO (F16) | 8.5 GB | 9.3% | 87% (47/54) | 26% (14/54) |
+Benchmarked on a 54-question suite across 6 categories (verse_lookup, topical, character, cross_reference, context, refusal). Scored against WEB translation with keyword-overlap regex — a deliberately strict metric. Full methodology: [BENCHMARK_PROTOCOL.md](docs/BENCHMARK_PROTOCOL.md).
 
-> **Why ORPO matters:** Without preference alignment, the SFT-only model outputs gibberish. ORPO's 500 targeted preference pairs transform it into a coherent, citation-grounding assistant. The citation rate (74–87%) better reflects retrieval quality than the strict keyword-overlap verse accuracy metric. See [docs/MODEL_COMPARISON.md](docs/MODEL_COMPARISON.md) for full analysis.
+| Model | Size | Coherent output | Citation Rate ↑ | Strict verse-text match¹ | Hallucination Rate ↓ |
+|-------|------|-----------------|------------------|--------------------------|----------------------|
+| SFT-only (no ORPO) | 8.5 GB | ❌ Random tokens | — | — | — |
+| **SFT+ORPO (F16)** | 8.5 GB | ✅ | **87%** (47/54) | 9.3% | 26% (14/54) |
+| SFT+ORPO (Q4_K_M) | 2.5 GB | ✅ | 74% (40/54) | 5.6% | 20% (11/54) |
+
+¹ *Strict verse-text match* requires an exact substring against the WEB reference translation. The model frequently cites the correct verse but paraphrases wording (e.g., "his one and only Son" vs. "his only born Son") — this metric penalizes every paraphrase. **Citation rate is the more informative signal** for a RAG-grounded assistant; it measures whether the model grounds claims in retrieved passages.
+
+**Caveat:** n=54 is small. Hallucination deltas between F16 (26%) and Q4 (20%) are within the ±12% 95% CI for that sample size — do not read a 3-question gap as a real quality signal. Scaling the eval to n≥200 is on the roadmap.
+
+Sample SFT-only outputs (pre-ORPO, motivating the alignment stage):
+> *"What does John 3:16 say?"* → `5. trickule 300 you n, then 3-10,3-20...`
+> *"Who was Peter?"* → `10008551045528, 10008551045529...`
+
+Full per-category breakdown, training curves, and ablations: [docs/MODEL_COMPARISON.md](docs/MODEL_COMPARISON.md).
 
 ## Repository Structure
 

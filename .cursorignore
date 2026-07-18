@@ -1,0 +1,32 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+*.env.*
+
+# Large data files
+data/raw/
+world-english-bible/
+*.pkl
+*.pt
+*.safetensors
+*.gguf
+*.bin
+
+# Model files
+models/
+*.h5
+
+# Logs and cache
+*.log
+.cache/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+
+# Build
+dist/
+build/
+*.egg-info/
+.git/
+node_modules/

@@ -1,0 +1,19 @@
+---
+description: Python and ML conventions for Bible AI Assistant
+globs: ["**/*.py", "**/*.ipynb"]
+alwaysApply: true
+---
+
+- Use Python 3.13+ syntax with type hints on all functions
+- Use f-strings, never .format() or % formatting
+- Use pathlib, never os.path for file operations
+- Use conda environment: bible-ai-assistant for this project
+- GPU: RTX 5070 Ti, 16GB VRAM, Blackwell sm_120, PyTorch 2.10+cu128
+- Use torch.cuda.amp.autocast() for any inference or training
+- Bible corpus in world-english-bible/ is READ-ONLY — never write to it
+- All LLM calls tested locally via Ollama before any external API usage
+- Use parameterized queries for any database operations — never string concat
+- Log retrieval quality metrics when modifying RAG pipeline
+- Structure: src/, data/, notebooks/, tests/, models/
+- NEVER commit .env files or API keys
+- Use descriptive variable names (verse_embeddings not ve)

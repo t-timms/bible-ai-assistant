@@ -1,0 +1,10 @@
+{
+  "default_agent": "build",
+  "command": {
+    "serve": {
+      "template": "Start the Bible AI assistant server. Use `conda run -n bible-ai-assistant python -m src.main` or the project's serve script. Check if Ollama is running locally. Report startup status and endpoint URLs.",
+      "description": "Start Bible AI assistant server",
+      "subtask": false
+    }
+  }
+}

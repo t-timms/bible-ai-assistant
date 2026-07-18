@@ -1,0 +1,13 @@
+---
+description: SQL conventions for PostgreSQL
+globs: ["**/*.sql"]
+alwaysApply: true
+---
+
+- Target PostgreSQL 18 syntax
+- Use uppercase for SQL keywords (SELECT, FROM, WHERE, JOIN)
+- Use CTEs (WITH clauses) over nested subqueries
+- Always alias tables and computed columns
+- Add comments explaining complex joins or filters
+- Use parameterized queries in any Python scripts — never string concat
+- Host: localhost, Port: 5432
