@@ -6,18 +6,18 @@ import pytest
 from pydantic import ValidationError
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-MANIFEST = PROJECT_ROOT / "benchmarks" / "manifest.v1.yaml"
+BENCHMARKS_DIR = PROJECT_ROOT / "benchmarks"
+# Every versioned protocol file is checked, not just v1 — new manifest.vN.yaml files
+# (frozen once published, per docs/BENCHMARK_PROTOCOL.md) are picked up automatically.
+MANIFEST_PATHS = sorted(BENCHMARKS_DIR.glob("manifest.v*.yaml"))
 
 
-@pytest.fixture
-def manifest() -> dict:
+def _load(path: Path) -> dict:
     try:
         import yaml  # type: ignore
     except ImportError:
         pytest.skip("PyYAML not installed")
-    if not MANIFEST.exists():
-        pytest.skip(f"Missing {MANIFEST}")
-    with open(MANIFEST, encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f) or {}
 
 
@@ -28,14 +28,25 @@ def _validate(manifest_data: dict) -> None:
     BenchmarkManifest.model_validate(manifest_data)
 
 
-def test_manifest_validates_against_schema(manifest: dict) -> None:
-    """The manifest YAML must pass full Pydantic schema validation."""
-    _validate(manifest)
+@pytest.mark.parametrize(
+    "path", MANIFEST_PATHS, ids=[p.name for p in MANIFEST_PATHS] or ["no-manifest"]
+)
+def test_manifest_validates_against_schema(path: Path) -> None:
+    """Every versioned manifest YAML must pass full Pydantic schema validation."""
+    if not MANIFEST_PATHS:
+        pytest.skip("No manifest.v*.yaml files found")
+    _validate(_load(path))
 
 
-def test_suite_path_exists(manifest: dict) -> None:
+@pytest.mark.parametrize(
+    "path", MANIFEST_PATHS, ids=[p.name for p in MANIFEST_PATHS] or ["no-manifest"]
+)
+def test_suite_path_exists(path: Path) -> None:
     """suite_path must reference an existing file relative to the project root."""
-    rel = manifest.get("suite_path")
+    if not MANIFEST_PATHS:
+        pytest.skip("No manifest.v*.yaml files found")
+    manifest_data = _load(path)
+    rel = manifest_data.get("suite_path")
     assert rel, "manifest must set suite_path"
     assert (PROJECT_ROOT / rel).is_file(), f"suite_path must exist: {rel}"
 

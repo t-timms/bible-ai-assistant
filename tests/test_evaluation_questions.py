@@ -54,7 +54,13 @@ def test_question_text_non_empty(questions: list[dict]) -> None:
 
 def test_categories_are_valid(questions: list[dict]) -> None:
     """Categories should be known types (verse_lookup, topical, etc.)."""
-    valid = REQUIRED_CATEGORIES | {"meta", "refusal", "off_topic", "topical_pin"}
+    valid = REQUIRED_CATEGORIES | {
+        "meta",
+        "refusal",
+        "off_topic",
+        "topical_pin",
+        "theological_reliability",
+    }
     for i, q in enumerate(questions):
         cat = q.get("category", "")
         assert cat in valid, f"Question {i} has unknown category: {cat}"
