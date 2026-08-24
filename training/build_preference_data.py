@@ -563,7 +563,20 @@ def main() -> None:
         "--count-per-category",
         type=int,
         default=70,
-        help="Approximate examples per rejection category",
+        help="Approximate examples per rejection category (verse-corpus-backed categories only)",
+    )
+    parser.add_argument(
+        "--bible-for-everything-count",
+        type=int,
+        default=None,
+        help=(
+            "Examples for the bible-for-everything category, which draws from a fixed "
+            "30-topic pool (not the verse corpus). Decoupled from --count-per-category "
+            "so scaling the corpus-backed categories doesn't multiply repetition of the "
+            "same 30 topics — see docs/CODEBASE_AUDIT.md M-2/C-4 on preference pair "
+            "diversity. Defaults to min(count_per_category, 90) — at most 3x through the "
+            "pool."
+        ),
     )
     parser.add_argument(
         "--seed",
@@ -602,7 +615,10 @@ def main() -> None:
     all_pairs.extend(_build_verbose_pairs(verses, n))
 
     print("Building bible-for-everything pairs...")
-    all_pairs.extend(_build_bible_for_everything_pairs(n))
+    bfe_n = args.bible_for_everything_count
+    if bfe_n is None:
+        bfe_n = min(n, 90)
+    all_pairs.extend(_build_bible_for_everything_pairs(bfe_n))
 
     print("Building think-tag leak pairs...")
     all_pairs.extend(_build_think_tag_pairs(verses, n - 10))
@@ -630,7 +646,7 @@ def main() -> None:
     print(f"  repetition: {n}")
     print(f"  answer_prefix: {n}")
     print(f"  verbose: {n}")
-    print(f"  bible_for_everything: {n}")
+    print(f"  bible_for_everything: {bfe_n}")
     print(f"  think_tag_leak: {n - 10}")
 
 
