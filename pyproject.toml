@@ -1,5 +1,9 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+# Lower bound at 83.0.0 addresses PYSEC-2026-3447 for this package's own
+# isolated build env. Doesn't affect CI's pip-audit scan of the *active*
+# environment though -- that needs its own explicit upgrade, see the
+# "Install project and security tools" step in .github/workflows/ci.yml.
+requires = ["setuptools>=83.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -52,10 +56,22 @@ rag = [
     "python-dotenv>=1.0.0,<2.0.0",
     "slowapi>=0.1.9,<1.0.0",
     "python-json-logger>=3.0.0,<5.0.0",
-    "prometheus-fastapi-instrumentator>=7.0.0,<8.0.0",
+    # prometheus-fastapi-instrumentator<8.0.0 requires starlette<1.0.0, which
+    # conflicts with gradio>=6.16.0's starlette>=1.0.1 requirement when rag+ui
+    # extras are installed together (the normal install path per README). >=8.0.0
+    # supports starlette 1.x; smoke-tested against this repo's Instrumentator
+    # usage in rag/rag_server.py (instrument().expose() on the /metrics route).
+    "prometheus-fastapi-instrumentator>=8.0.0,<9.0.0",
 ]
 ui = [
-    "gradio>=6.0,<6.15",
+    # Lower bound at 6.16.0 fixes PYSEC-2026-2178/2179. Also lets the resolver
+    # pick a patched starlette transitively (gradio's own fastapi/starlette
+    # pin was forcing an old, vulnerable starlette even though this project's
+    # own fastapi/starlette bounds allow newer — see PYSEC-2026-161/248/249/
+    # 2280/2281 in the same pip-audit run). Requires bumping
+    # prometheus-fastapi-instrumentator (rag extras, above) too — its <8.0.0
+    # releases pin starlette<1.0.0, which otherwise conflicts.
+    "gradio>=6.16.0,<6.27.0",
     "faster-whisper>=1.0.0,<2.0.0",
     "soundfile>=0.12.0,<1.0.0",
     "httpx>=0.26.0,<1.0.0",
