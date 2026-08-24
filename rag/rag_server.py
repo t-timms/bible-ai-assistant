@@ -53,8 +53,9 @@ from rag.helpers import (
     _strip_thinking_from_stream,
     _topical_anchor_refs,
 )
-from rag.retrieval import _retrieve, release_resources
+from rag.retrieval import _retrieve, release_resources, verse_text_lookup
 from rag.settings import settings
+from rag.verification import annotate_unverified_citations, verify_citations
 
 # ---------------------------------------------------------------------------
 # Request-ID context — injected by middleware, read by logging filter
@@ -477,6 +478,16 @@ async def chat_completions(request: Request):
                 content = _strip_thinking(raw_text) if raw_text else ""
                 content = _strip_repetition_and_meta(content) if content else ""
                 out = content.rstrip()
+                if out and settings.citation_verification_enabled:
+                    issues = verify_citations(out, verse_text_lookup)
+                    if issues:
+                        logger.warning(
+                            "Citation verification: %d issue(s) — %s",
+                            len(issues),
+                            [(i.ref, i.reason) for i in issues],
+                        )
+                        if settings.citation_verification_mode == "annotate":
+                            out = annotate_unverified_citations(out, issues)
                 if out:
                     data["choices"][0]["message"]["content"] = out
                 else:

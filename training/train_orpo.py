@@ -31,6 +31,11 @@ import argparse
 from pathlib import Path
 
 MODEL_NAME = "Qwen/Qwen3.5-4B"
+# Pinned commit SHA for the tokenizer load below (H-5 supply-chain hardening — same
+# rationale as train_unsloth.py). Not passed to FastLanguageModel.from_pretrained;
+# see train_unsloth.py's MODEL_REVISION comment. Verified against the HF Hub API
+# directly on 2026-08-24 — re-verify before bumping MODEL_NAME.
+MODEL_REVISION = "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
 MAX_SEQ_LENGTH = 2048  # Matches SFT stage (train_unsloth.py) for consistent positional encoding
 BF16 = True
 
@@ -223,7 +228,9 @@ def main() -> None:
     from transformers import AutoTokenizer
 
     # trust_remote_code required by Qwen3.5 tokenizer for custom chat template
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
+    tokenizer = AutoTokenizer.from_pretrained(
+        MODEL_NAME, revision=MODEL_REVISION, trust_remote_code=True
+    )
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"

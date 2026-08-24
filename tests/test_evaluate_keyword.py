@@ -16,6 +16,7 @@ from training.evaluate import (
     _save_keyword_results,
     check_hallucination,
     check_verse_accuracy,
+    check_verse_accuracy_fuzzy,
     has_citation,
     load_questions,
     query_rag,
@@ -74,6 +75,34 @@ class TestCheckVerseAccuracy:
         # Fallback key_phrases = ["short"] (lowercase slice of expected)
         result = check_verse_accuracy(response, expected)
         assert result == 1.0  # "short" is in "short answer here."
+
+
+class TestCheckVerseAccuracyFuzzy:
+    """Tests for check_verse_accuracy_fuzzy() — doesn't penalize valid paraphrase."""
+
+    def test_exact_match_scores_high(self) -> None:
+        expected = "For God so loved the world, that he gave his only Son."
+        response = 'He said: "For God so loved the world, that he gave his only Son."'
+        assert check_verse_accuracy_fuzzy(response, expected) > 0.9
+
+    def test_valid_paraphrase_scores_higher_than_exact_metric(self) -> None:
+        # Exact-substring metric fails this (different wording); fuzzy should not.
+        expected = "his one and only Son"
+        response = "The verse speaks of his only born Son, given out of love."
+        fuzzy = check_verse_accuracy_fuzzy(response, expected)
+        exact = check_verse_accuracy(response, expected)
+        assert fuzzy > exact
+
+    def test_empty_expected_returns_zero(self) -> None:
+        assert check_verse_accuracy_fuzzy("Some response.", "") == 0.0
+
+    def test_empty_response_returns_zero(self) -> None:
+        assert check_verse_accuracy_fuzzy("", "Expected text.") == 0.0
+
+    def test_unrelated_text_scores_low(self) -> None:
+        expected = "For God so loved the world, that he gave his only Son."
+        response = "The capital of France is Paris."
+        assert check_verse_accuracy_fuzzy(response, expected) < 0.4
 
 
 class TestCheckHallucination:
@@ -149,12 +178,14 @@ class TestPrintKeywordSummary:
             "history": {
                 "total": 5,
                 "verse_accuracy_sum": 3.5,
+                "verse_accuracy_fuzzy_sum": 4.0,
                 "citations": 4,
                 "hallucinations": 1,
             },
             "doctrine": {
                 "total": 3,
                 "verse_accuracy_sum": 2.1,
+                "verse_accuracy_fuzzy_sum": 2.5,
                 "citations": 2,
                 "hallucinations": 0,
             },
@@ -180,6 +211,7 @@ class TestSaveKeywordResults:
             "doctrine": {
                 "total": 2,
                 "verse_accuracy_sum": 1.5,
+                "verse_accuracy_fuzzy_sum": 1.8,
                 "citations": 2,
                 "hallucinations": 0,
             }

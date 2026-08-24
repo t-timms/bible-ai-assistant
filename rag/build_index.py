@@ -16,6 +16,8 @@ from pathlib import Path
 
 from sentence_transformers import SentenceTransformer
 
+from rag.settings import settings
+
 try:
     import chromadb
     from chromadb.config import Settings
@@ -216,9 +218,15 @@ def main() -> None:
     verses = _load_verses(raw_path)
     print(f"Loaded {len(verses)} verses.")
 
-    print("Loading embedding model (nomic-embed-text-v1.5)...")
-    # trust_remote_code required by nomic-embed-text-v1.5 for custom pooling
-    model = SentenceTransformer("nomic-ai/nomic-embed-text-v1.5", trust_remote_code=True)
+    print(f"Loading embedding model ({settings.embed_model})...")
+    # trust_remote_code required by nomic-embed-text-v1.5 for custom pooling.
+    # revision pinned (H-5) — must match rag/retrieval.py's embedder so index-build
+    # and query-time embeddings stay consistent.
+    model = SentenceTransformer(
+        settings.embed_model,
+        revision=settings.embed_model_revision or None,
+        trust_remote_code=True,
+    )
 
     client = chromadb.PersistentClient(
         path=str(db_path), settings=Settings(anonymized_telemetry=False)

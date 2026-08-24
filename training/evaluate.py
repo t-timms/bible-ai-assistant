@@ -19,6 +19,7 @@ import json
 import logging
 import re
 import sys
+from difflib import SequenceMatcher
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -31,7 +32,9 @@ _repo_root = Path(__file__).resolve().parents[1]
 if str(_repo_root) not in sys.path:
     sys.path.insert(0, str(_repo_root))
 
+from rag.helpers import _normalize_verse_id
 from rag.response_cleanup import strip_model_thinking
+from rag.verification import verify_citations
 
 RAG_URL_DEFAULT = "http://localhost:8081/v1/chat/completions"
 # Prefer 127.0.0.1: on Windows, "localhost" can hit ::1 while Ollama listens on IPv4 only.
@@ -202,6 +205,13 @@ def has_citation(response: str) -> bool:
 
 
 def check_verse_accuracy(response: str, expected: str) -> float:
+    """Exact-substring key-phrase overlap (legacy metric).
+
+    Penalizes valid paraphrase — e.g. "his one and only Son" vs. "his only
+    born Son" scores 0 even though both are faithful renderings. Kept for
+    continuity with historical benchmark runs; see check_verse_accuracy_fuzzy
+    for a metric that doesn't have this failure mode.
+    """
     if not expected:
         return 0.0
     key_phrases = [p.strip().lower() for p in expected.split(".") if len(p.strip()) > 10]
@@ -211,11 +221,99 @@ def check_verse_accuracy(response: str, expected: str) -> float:
     return hits / len(key_phrases) if key_phrases else 0.0
 
 
+def _normalize_for_fuzzy_compare(text: str) -> str:
+    t = re.sub(r"[^a-z0-9\s]", "", text.lower())
+    return re.sub(r"\s+", " ", t).strip()
+
+
+def check_verse_accuracy_fuzzy(response: str, expected: str) -> float:
+    """Best-match fuzzy overlap between `expected` and any sentence in `response`.
+
+    Where check_verse_accuracy requires an exact substring, this scores how
+    close the *closest* sentence in the response is to the expected text
+    (difflib.SequenceMatcher ratio on normalized text), so a faithful
+    paraphrase scores near 1.0 instead of 0. Use alongside, not instead of,
+    the exact metric — report both (see docs/MODEL_COMPARISON.md).
+    """
+    if not expected or not response:
+        return 0.0
+    norm_expected = _normalize_for_fuzzy_compare(expected)
+    if not norm_expected:
+        return 0.0
+    candidates = [s.strip() for s in re.split(r"(?<=[.!?])\s+", response) if s.strip()]
+    candidates.append(response)  # whole response as a fallback candidate
+    best = 0.0
+    for cand in candidates:
+        norm_cand = _normalize_for_fuzzy_compare(cand)
+        if not norm_cand:
+            continue
+        ratio = SequenceMatcher(None, norm_expected, norm_cand).ratio()
+        best = max(best, ratio)
+    return round(best, 3)
+
+
 # Prefixes that indicate a regex false positive (e.g. " and Psalms 27:1" matched as one ref)
 _NON_BOOK_PREFIXES = ("and ", "or ", "the ", "of ", "in ", "to ")
 
+_verse_lookup_cache: dict[str, str] | None = None
 
-def check_hallucination(response: str) -> bool:
+
+def load_verse_lookup(project_root: Path | None = None) -> dict[str, str]:
+    """Build a {normalized ref: text} lookup from data/raw/bible_web.json (or
+    bible.json), for real per-verse citation verification (see
+    rag.verification). Returns {} if no raw corpus is present locally — callers
+    then fall back to the weaker book-name-only check.
+    """
+    global _verse_lookup_cache
+    if _verse_lookup_cache is not None:
+        return _verse_lookup_cache
+
+    root = project_root or Path(__file__).resolve().parents[1]
+    raw_dir = root / "data" / "raw"
+    lookup: dict[str, str] = {}
+    for name in ("bible_web.json", "bible.json"):
+        p = raw_dir / name
+        if not p.exists():
+            continue
+        try:
+            verses = json.loads(p.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            continue
+        for v in verses:
+            book, chapter, verse, text = (
+                v.get("book"),
+                v.get("chapter"),
+                v.get("verse"),
+                v.get("text"),
+            )
+            if not (book and chapter and verse and text):
+                continue
+            ref = _normalize_verse_id(f"{book} {chapter}:{verse}")
+            lookup[ref] = str(text)
+        break
+    _verse_lookup_cache = lookup
+    return lookup
+
+
+def check_hallucination(response: str, verse_lookup: dict[str, str] | None = None) -> bool:
+    """True if `response` cites a Bible reference that doesn't check out.
+
+    When a verse corpus is available (see `load_verse_lookup`), this verifies
+    each cited chapter:verse actually exists — not just that the book name is
+    real, which the previous implementation checked. Falls back to the
+    book-name-only check when no corpus is available locally.
+    """
+    lookup = load_verse_lookup() if verse_lookup is None else verse_lookup
+    if lookup:
+
+        def _lookup(ref: str) -> str | None:
+            return lookup.get(_normalize_verse_id(ref))
+
+        issues = verify_citations(response, _lookup)
+        return any(i.reason == "unknown_reference" for i in issues)
+
+    # Legacy fallback: book-name-only check (weaker — misses fabricated verse
+    # numbers within a real book) for environments without a local Bible corpus.
     refs = VERSE_REF_PATTERN.findall(response)
     for ref in refs:
         book_part = re.sub(r"\s+\d+:\d+$", "", ref).strip()
@@ -385,6 +483,7 @@ def _run_keyword_eval(
         print(f"  -> {preview}{'...' if len(response) > 150 else ''}")
 
         verse_score = check_verse_accuracy(response, expected)
+        verse_score_fuzzy = check_verse_accuracy_fuzzy(response, expected)
         citation = has_citation(response)
         hallucinated = check_hallucination(response)
 
@@ -394,6 +493,7 @@ def _run_keyword_eval(
             "response": response,
             "category": category,
             "verse_accuracy": round(verse_score, 2),
+            "verse_accuracy_fuzzy": round(verse_score_fuzzy, 2),
             "citation_present": citation,
             "hallucination_detected": hallucinated,
         }
@@ -403,12 +503,14 @@ def _run_keyword_eval(
             category_scores[category] = {
                 "total": 0,
                 "verse_accuracy_sum": 0.0,
+                "verse_accuracy_fuzzy_sum": 0.0,
                 "citations": 0,
                 "hallucinations": 0,
             }
         cs = category_scores[category]
         cs["total"] += 1
         cs["verse_accuracy_sum"] += verse_score
+        cs["verse_accuracy_fuzzy_sum"] += verse_score_fuzzy
         cs["citations"] += int(citation)
         cs["hallucinations"] += int(hallucinated)
 
@@ -531,26 +633,34 @@ def _run_judge_eval(
 
 
 def _print_keyword_summary(category_scores: dict) -> None:
-    print("\n" + "=" * 80)
-    print(f"{'Category':<20} {'Count':>5} {'Verse Acc':>10} {'Citations':>10} {'Halluc':>8}")
-    print("-" * 80)
-    total_all, acc_all, cite_all, hall_all = 0, 0.0, 0, 0
+    print("\n" + "=" * 92)
+    print(
+        f"{'Category':<20} {'Count':>5} {'Verse Acc':>10} {'Fuzzy Acc':>10} "
+        f"{'Citations':>10} {'Halluc':>8}"
+    )
+    print("-" * 92)
+    total_all, acc_all, fuzzy_all, cite_all, hall_all = 0, 0.0, 0.0, 0, 0
     for cat, cs in sorted(category_scores.items()):
         n = cs["total"]
         avg_acc = cs["verse_accuracy_sum"] / n if n else 0
+        avg_fuzzy = cs["verse_accuracy_fuzzy_sum"] / n if n else 0
         print(
-            f"{cat:<20} {n:>5} {avg_acc:>9.0%} {cs['citations']:>7}/{n:<2} {cs['hallucinations']:>5}/{n}"
+            f"{cat:<20} {n:>5} {avg_acc:>9.0%} {avg_fuzzy:>9.0%} "
+            f"{cs['citations']:>7}/{n:<2} {cs['hallucinations']:>5}/{n}"
         )
         total_all += n
         acc_all += cs["verse_accuracy_sum"]
+        fuzzy_all += cs["verse_accuracy_fuzzy_sum"]
         cite_all += cs["citations"]
         hall_all += cs["hallucinations"]
-    print("-" * 80)
+    print("-" * 92)
     overall_acc = acc_all / total_all if total_all else 0
+    overall_fuzzy = fuzzy_all / total_all if total_all else 0
     print(
-        f"{'OVERALL':<20} {total_all:>5} {overall_acc:>9.0%} {cite_all:>7}/{total_all:<2} {hall_all:>5}/{total_all}"
+        f"{'OVERALL':<20} {total_all:>5} {overall_acc:>9.0%} {overall_fuzzy:>9.0%} "
+        f"{cite_all:>7}/{total_all:<2} {hall_all:>5}/{total_all}"
     )
-    print("=" * 80)
+    print("=" * 92)
 
 
 def _save_keyword_results(
@@ -562,6 +672,7 @@ def _save_keyword_results(
 ) -> None:
     total_all = sum(cs["total"] for cs in category_scores.values())
     acc_all = sum(cs["verse_accuracy_sum"] for cs in category_scores.values())
+    fuzzy_all = sum(cs["verse_accuracy_fuzzy_sum"] for cs in category_scores.values())
     cite_all = sum(cs["citations"] for cs in category_scores.values())
     hall_all = sum(cs["hallucinations"] for cs in category_scores.values())
     summary = {
@@ -569,12 +680,16 @@ def _save_keyword_results(
         "ollama_model": ollama_model,
         "total_questions": total_all,
         "overall_verse_accuracy": round(acc_all / total_all, 3) if total_all else 0,
+        "overall_verse_accuracy_fuzzy": round(fuzzy_all / total_all, 3) if total_all else 0,
         "total_citations": cite_all,
         "total_hallucinations": hall_all,
         "category_summary": {
             cat: {
                 "count": cs["total"],
                 "avg_verse_accuracy": round(cs["verse_accuracy_sum"] / cs["total"], 3)
+                if cs["total"]
+                else 0,
+                "avg_verse_accuracy_fuzzy": round(cs["verse_accuracy_fuzzy_sum"] / cs["total"], 3)
                 if cs["total"]
                 else 0,
                 "citations": cs["citations"],

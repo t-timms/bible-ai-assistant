@@ -3,6 +3,8 @@
 
 from pathlib import Path
 
+from rag.settings import settings
+
 
 def main() -> None:
     try:
@@ -26,7 +28,11 @@ def main() -> None:
     )
     collection = client.get_collection("bible_verses")
     # trust_remote_code required by nomic-embed-text-v1.5 for custom pooling
-    model = SentenceTransformer("nomic-ai/nomic-embed-text-v1.5", trust_remote_code=True)
+    model = SentenceTransformer(
+        settings.embed_model,
+        revision=settings.embed_model_revision or None,
+        trust_remote_code=True,
+    )
 
     query = "What does John 3:16 say?"
     embedding = model.encode(["search_query: " + query], show_progress_bar=False)

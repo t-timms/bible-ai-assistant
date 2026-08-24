@@ -27,6 +27,7 @@ from rag.helpers import (
     _merge_pin_order,
     _normalize_verse_id,
 )
+from rag.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -100,8 +101,14 @@ def _get_rag():
         except (ValueError, KeyError) as e:
             logger.warning("Passage collection not found: %s", e)
             _passage_collection = None
-        # trust_remote_code required by nomic-embed-text-v1.5 for custom pooling
-        _embedder = SentenceTransformer("nomic-ai/nomic-embed-text-v1.5", trust_remote_code=True)
+        # trust_remote_code required by nomic-embed-text-v1.5 for custom pooling.
+        # revision pinned (H-5): trust_remote_code on an unpinned "main" is a
+        # supply-chain risk — see rag/settings.py for details and re-verify date.
+        _embedder = SentenceTransformer(
+            settings.embed_model,
+            revision=settings.embed_model_revision or None,
+            trust_remote_code=True,
+        )
         return _verse_collection, _passage_collection, _embedder
 
 
@@ -161,7 +168,9 @@ def _get_reranker():
         try:
             from sentence_transformers import CrossEncoder
 
-            _reranker = CrossEncoder("BAAI/bge-reranker-v2-m3")
+            _reranker = CrossEncoder(
+                settings.reranker_model, revision=settings.reranker_model_revision or None
+            )
             logger.info("Loaded cross-encoder reranker (bge-reranker-v2-m3)")
             return _reranker
         except (ImportError, OSError) as e:
@@ -318,6 +327,20 @@ def _fetch_verses_by_refs(refs: list[str]) -> list[tuple[str, str]]:
     return results
 
 
+def verse_text_lookup(ref: str) -> str | None:
+    """Single-reference lookup for citation verification (rag.verification).
+
+    Thin wrapper over `_fetch_verses_by_refs` — returns the real verse text for
+    `ref` (handling Psalm/Psalms aliasing), or None if it doesn't resolve in the
+    index (nonexistent book, or a real book with a chapter:verse that doesn't
+    exist).
+    """
+    hits = _fetch_verses_by_refs([ref])
+    if not hits:
+        return None
+    return hits[0][1]
+
+
 async def _retrieve(
     user_message: str,
     top_k: int = 5,
@@ -343,9 +366,53 @@ async def _retrieve(
 
     _t0 = time.monotonic()
 
-    # Stage 1: Parallel dense + BM25 search
-    dense_results = _dense_search(user_message, verse_collection, embedder, HYBRID_CANDIDATES)
-    bm25_results = _bm25_search(user_message, HYBRID_CANDIDATES)
+    # Stage 1: Parallel dense + BM25 search. Both are sync/CPU-or-IO-bound calls
+    # (ChromaDB query, BM25Okapi scoring) — run in threads via asyncio.gather so
+    # they actually run concurrently and don't block the event loop, matching
+    # the pattern already used for reranking (_rerank). The dense search alone
+    # gets a wall-clock timeout so a slow/unresponsive ChromaDB doesn't dominate
+    # response latency indefinitely.
+    #
+    # This is a *soft* timeout, not a hard kill: asyncio.wait_for cannot forcibly
+    # interrupt a synchronous call already running in a worker thread (Future.cancel()
+    # is a no-op once the thread has started; CPython gives no safe way to abort a
+    # running thread). Once the timeout elapses, this coroutine stops *waiting* on the
+    # slow result and proceeds without it — but the worker thread itself keeps running
+    # in the background until the underlying call returns on its own. A true hard
+    # timeout would need the query to run in a separate process (killable), or the
+    # underlying client to support its own cancellable timeout — out of scope here.
+    #
+    # return_exceptions=True + per-result handling (not a shared try/except
+    # around gather) matters here: asyncio.gather does not cancel sibling
+    # awaitables when one raises, so a naive except-and-retry would re-run
+    # (and potentially queue behind) the BM25 thread instead of reusing the
+    # result it already computed concurrently.
+    dense_task = asyncio.wait_for(
+        asyncio.to_thread(
+            _dense_search, user_message, verse_collection, embedder, HYBRID_CANDIDATES
+        ),
+        timeout=settings.chroma_query_timeout_seconds,
+    )
+    bm25_task = asyncio.to_thread(_bm25_search, user_message, HYBRID_CANDIDATES)
+    dense_outcome, bm25_outcome = await asyncio.gather(
+        dense_task, bm25_task, return_exceptions=True
+    )
+
+    if isinstance(dense_outcome, BaseException):
+        logger.warning(
+            "RAG dense search failed (%.1fs timeout): %s — falling back to BM25 only",
+            settings.chroma_query_timeout_seconds,
+            dense_outcome,
+        )
+        dense_results: list[RetrievalHit] = []
+    else:
+        dense_results = dense_outcome
+
+    if isinstance(bm25_outcome, BaseException):
+        logger.warning("RAG BM25 search failed: %s", bm25_outcome)
+        bm25_results: list[RetrievalHit] = []
+    else:
+        bm25_results = bm25_outcome
     logger.debug("RAG stage1 dense+BM25: %.3fs", time.monotonic() - _t0)
 
     # Stage 2: Reciprocal Rank Fusion

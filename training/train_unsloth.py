@@ -31,6 +31,13 @@ from pathlib import Path
 # Training config defaults — must match training/config.yaml.
 # YAML values override these at runtime via _load_config_yaml().
 MODEL_NAME = "Qwen/Qwen3.5-4B"
+# Pinned commit SHA for the tokenizer load below (H-5 supply-chain hardening — see
+# rag/settings.py for the same rationale). NOT passed to FastLanguageModel.from_pretrained
+# (Unsloth's own model download) — that path wasn't verified against a real Unsloth
+# install before this change, so it's left unpinned rather than risk breaking a
+# multi-hour training run on an unverified kwarg. Verified against the HF Hub API
+# directly on 2026-08-24 — re-verify before bumping MODEL_NAME.
+MODEL_REVISION = "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
 # Qwen3.5: Unsloth does NOT recommend QLoRA 4-bit (quantization differences cause garbage output). Use bf16 LoRA.
 LOAD_IN_4BIT = False
 MAX_SEQ_LENGTH = 2048
@@ -213,7 +220,9 @@ def main() -> None:
     from transformers import AutoTokenizer
 
     # trust_remote_code required by Qwen3.5 tokenizer for custom chat template
-    text_tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
+    text_tokenizer = AutoTokenizer.from_pretrained(
+        MODEL_NAME, revision=MODEL_REVISION, trust_remote_code=True
+    )
 
     # Load dataset (messages format)
     full_dataset = load_dataset("json", data_files=str(train_file), split="train")
