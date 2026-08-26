@@ -87,3 +87,19 @@ def test_refusal_category_present(questions: list[dict]) -> None:
     """Eval set should include refusal/boundary questions."""
     cats = {q.get("category") for q in questions}
     assert "refusal" in cats, "Need refusal questions to test boundary behavior"
+
+
+def test_train_pools_decontaminated_against_suites() -> None:
+    """No filtered training-pool question may appear in any suite snapshot."""
+    try:
+        from scripts.check_train_eval_overlap import find_overlaps
+    except ImportError as e:
+        pytest.skip(f"overlap checker unimportable: {e}")
+
+    overlaps, skips = find_overlaps(PROJECT_ROOT)
+    pool_skips = [s for s in skips if s.startswith(("sft(", "orpo("))]
+    if len(pool_skips) == 2:
+        pytest.skip("training pools not buildable in this environment: " + "; ".join(pool_skips))
+    assert not overlaps, f"{len(overlaps)} train/eval overlap(s): " + "; ".join(
+        f"{pool}: {original!r}" for pool, _norm, original in overlaps[:10]
+    )
