@@ -10,7 +10,7 @@ protocol_version: 3
 # Frozen snapshots — the mutable prompts/evaluation_questions.json is NO LONGER referenced.
 # Historical results produced against the mutable file cannot be reproduced; these copies can.
 suite_path: benchmarks/suites/evaluation_questions.v2.json
-suite_sha256: 1db4a2bd120b8fc51ca9f342e0bc98c91b2e725ee3cf6e8f808afa174b39207e
+suite_sha256: 1ef4df4f7b9bf9eaf0ff14e720bf33d048f23440ed1d1b624497f7ab84b0d279
 suite_v1_snapshot: benchmarks/suites/evaluation_questions.v1.json
 suite_v1_sha256: b4db19e1f09b547eca6bebca9e123814e5f67dd7ebf31eee39b199f3d463b9f4
 

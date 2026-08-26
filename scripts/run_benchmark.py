@@ -87,7 +87,7 @@ def verify_suite_sha256(manifest_path: Path, manifest_data: dict) -> str:
             "are not byte-reproducible."
         )
         return suite_rel
-    actual = hashlib.sha256(suite_path.read_bytes()).hexdigest()
+    actual = hashlib.sha256(suite_path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
     if actual != pinned:
         raise SystemExit(
             f"ABORT: suite snapshot hash mismatch for {suite_path}\n"
