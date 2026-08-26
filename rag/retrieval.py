@@ -11,13 +11,14 @@ import logging
 import os
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import NamedTuple
 
 import numpy as np
 
 from rag.helpers import (
-    HYBRID_CANDIDATES,
+    INDEX_VERSION,
     PASSAGES_COLLECTION,
     QUERY_PREFIX,
     RRF_K,
@@ -26,10 +27,28 @@ from rag.helpers import (
     _is_verse_lookup,
     _merge_pin_order,
     _normalize_verse_id,
+    strip_document_prefix,
+    tokenize_for_bm25,
 )
 from rag.settings import settings
 
 logger = logging.getLogger(__name__)
+
+
+class IndexUnavailableError(FileNotFoundError):
+    """ChromaDB index is missing or was built by an incompatible index version.
+
+    Subclasses FileNotFoundError so existing graceful-degradation paths (e.g.
+    `_retrieve` falling back to pinned-only results) keep working, while callers
+    that must distinguish infrastructure failure from an unknown reference
+    (citation verification) can catch this type specifically.
+    """
+
+
+# Dedicated small pool for the dense search (R7g): a hung ChromaDB call can
+# occupy at most these threads and cannot starve the default executor used by
+# BM25 scoring / cross-encoder reranking.
+_dense_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="rag-dense")
 
 
 class RetrievalHit(NamedTuple):
@@ -72,6 +91,35 @@ def _get_chroma_db_path() -> Path:
     return Path(__file__).resolve().parents[1] / "rag" / "chroma_db"
 
 
+def _read_index_meta(db_path: Path) -> dict[str, object] | None:
+    meta_path = db_path / "index_meta.json"
+    if not meta_path.exists():
+        return None
+    try:
+        with open(meta_path, encoding="utf-8") as f:
+            data = _json.load(f)
+    except (_json.JSONDecodeError, OSError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _check_index_marker(db_path: Path) -> None:
+    """Raise IndexUnavailableError when the on-disk index predates INDEX_VERSION."""
+    meta = _read_index_meta(db_path)
+    found = meta.get("index_version") if meta else None
+    if found != INDEX_VERSION:
+        raise IndexUnavailableError(
+            f"Index at {db_path} is missing or was built with an incompatible "
+            f"version (found {found!r}, expected {INDEX_VERSION}). Rebuild required: "
+            "python rag/build_index.py"
+        )
+
+
+def _collection_index_version(collection: object) -> object:
+    meta = getattr(collection, "metadata", None) or {}
+    return meta.get("index_version") if isinstance(meta, dict) else None
+
+
 def _get_rag():
     """Load ChromaDB collections and embedding model (thread-safe, initialises once)."""
     global _chroma_client, _verse_collection, _passage_collection, _embedder
@@ -89,15 +137,43 @@ def _get_rag():
 
         db_path = _get_chroma_db_path()
         if not db_path.exists():
-            raise FileNotFoundError(
+            raise IndexUnavailableError(
                 f"ChromaDB index not found at {db_path}. Run: python rag/build_index.py"
             )
+        try:
+            _check_index_marker(db_path)
+        except IndexUnavailableError as e:
+            logger.error("Stale/incompatible RAG index detected: %s", e)
+            raise
+
         _chroma_client = chromadb.PersistentClient(
             path=str(db_path), settings=Settings(anonymized_telemetry=False)
         )
         _verse_collection = _chroma_client.get_collection(VERSES_COLLECTION)
+        verse_version = _collection_index_version(_verse_collection)
+        if verse_version != INDEX_VERSION:
+            logger.error(
+                "Verse collection built with incompatible index version (%r != %d) — "
+                "results would be silently wrong (pre-cosine/L2 space or old child_ids "
+                "encoding). Refusing to serve from it. Rebuild: python rag/build_index.py",
+                verse_version,
+                INDEX_VERSION,
+            )
+            raise IndexUnavailableError(
+                f"Verse collection index_version {verse_version!r} != expected "
+                f"{INDEX_VERSION}. Rebuild required: python rag/build_index.py"
+            )
         try:
             _passage_collection = _chroma_client.get_collection(PASSAGES_COLLECTION)
+            passage_version = _collection_index_version(_passage_collection)
+            if passage_version != INDEX_VERSION:
+                logger.error(
+                    "Passage collection built with incompatible index version (%r != %d) "
+                    "— passage expansion disabled until rebuild: python rag/build_index.py",
+                    passage_version,
+                    INDEX_VERSION,
+                )
+                _passage_collection = None
         except (ValueError, KeyError) as e:
             logger.warning("Passage collection not found: %s", e)
             _passage_collection = None
@@ -150,7 +226,19 @@ def _get_bm25():
         if not all(isinstance(d, str) for d in data["documents"]):
             raise TypeError("BM25 index 'documents' must contain only strings")
 
-        tokenized = [doc.lower().split() for doc in data["documents"]]
+        version = data.get("index_version")
+        if version != INDEX_VERSION:
+            logger.error(
+                "BM25 index at %s has index_version %r but this code expects %d — it was "
+                "built with an older tokenizer. Sparse retrieval is DISABLED (never "
+                "silently wrong). Rebuild required: python rag/build_index.py",
+                json_path,
+                version,
+                INDEX_VERSION,
+            )
+            return None
+
+        tokenized = [tokenize_for_bm25(strip_document_prefix(doc)) for doc in data["documents"]]
         bm25 = BM25Okapi(tokenized)
         _bm25_data = {"bm25": bm25, "ids": data["ids"], "documents": data["documents"]}
         logger.info("Loaded BM25 index from JSON (%d docs)", len(data["ids"]))
@@ -197,7 +285,11 @@ def release_resources() -> None:
 
 def _dense_search(query: str, collection, embedder, n: int) -> list[RetrievalHit]:
     """Dense vector search via ChromaDB. Returns ranked RetrievalHits."""
-    embedding = embedder.encode([QUERY_PREFIX + query], show_progress_bar=False)
+    # normalize_embeddings=True must match rag/build_index.py — the collection is
+    # built from L2-normalized embeddings and served in cosine space (R2).
+    embedding = embedder.encode(
+        [QUERY_PREFIX + query], show_progress_bar=False, normalize_embeddings=True
+    )
     results = collection.query(
         query_embeddings=embedding.tolist(),
         n_results=n,
@@ -220,7 +312,7 @@ def _bm25_search(query: str, n: int) -> list[RetrievalHit]:
     bm25 = bm25_data["bm25"]
     ids = bm25_data["ids"]
     documents = bm25_data["documents"]
-    tokenized_query = query.lower().split()
+    tokenized_query = tokenize_for_bm25(query)
     scores = bm25.get_scores(tokenized_query)
     top_indices = np.argsort(scores)[::-1][:n]
     return [
@@ -272,7 +364,10 @@ def _expand_to_passages(verse_ids: list[str], passage_collection) -> dict[str, s
     for vid in verse_ids:
         try:
             results = passage_collection.get(
-                where={"child_ids": {"$contains": vid}},
+                # child_ids is stored pipe-delimited ("|John 3:16||1 John 3:16|") by
+                # rag/build_index.py — matching with the delimiters prevents
+                # "John 3:16" from substring-matching "1 John 3:16".
+                where={"child_ids": {"$contains": f"|{vid}|"}},
                 include=["documents", "metadatas"],
             )
             if results and results["ids"]:
@@ -334,22 +429,33 @@ def verse_text_lookup(ref: str) -> str | None:
     `ref` (handling Psalm/Psalms aliasing), or None if it doesn't resolve in the
     index (nonexistent book, or a real book with a chapter:verse that doesn't
     exist).
+
+    Probes `_get_rag()` first so IndexUnavailableError (missing/stale index)
+    propagates to callers instead of being swallowed as "reference not found" —
+    an infrastructure outage must not be reported as unverified citations.
     """
+    _get_rag()
     hits = _fetch_verses_by_refs([ref])
     if not hits:
         return None
     return hits[0][1]
 
 
-async def _retrieve(
+# Per-entry rendering overhead: "- **" + "**: " + joining "\n" (R6b).
+_ENTRY_OVERHEAD = 9
+
+
+async def _retrieve_entries(
     user_message: str,
     top_k: int = 5,
     pin_refs: list[str] | None = None,
-) -> str:
-    """Hybrid retrieval: Dense + BM25 -> RRF -> Rerank -> format context string.
+) -> list[tuple[str, str]]:
+    """Hybrid retrieval: Dense + BM25 -> RRF -> Rerank -> (ref, text) entries.
 
     pin_refs: verse ids (e.g. Hebrews 11:1) prepended so explicit lookups are never
-    dropped when hybrid search ranks other verses higher.
+    dropped when hybrid search ranks other verses higher. Pinned entries are
+    protected from the settings.context_max_chars budget; lowest-ranked unpinned
+    entries are skipped first when the budget is exhausted.
     """
 
     pin_refs = _merge_pin_order(pin_refs or [])
@@ -359,10 +465,7 @@ async def _retrieve(
     try:
         verse_collection, passage_collection, embedder = _get_rag()
     except FileNotFoundError:
-        if not pinned:
-            return ""
-        lines = [f"- **{vid}**: {text}" for vid, text in pinned]
-        return "\n".join(lines)
+        return list(pinned)
 
     _t0 = time.monotonic()
 
@@ -382,18 +485,28 @@ async def _retrieve(
     # timeout would need the query to run in a separate process (killable), or the
     # underlying client to support its own cancellable timeout — out of scope here.
     #
+    # The dense search runs on the dedicated _dense_executor pool rather than the
+    # default executor: a hung ChromaDB call then occupies at most that small pool
+    # and cannot starve BM25 scoring / cross-encoder reranking.
+    #
     # return_exceptions=True + per-result handling (not a shared try/except
     # around gather) matters here: asyncio.gather does not cancel sibling
     # awaitables when one raises, so a naive except-and-retry would re-run
     # (and potentially queue behind) the BM25 thread instead of reusing the
     # result it already computed concurrently.
+    loop = asyncio.get_running_loop()
     dense_task = asyncio.wait_for(
-        asyncio.to_thread(
-            _dense_search, user_message, verse_collection, embedder, HYBRID_CANDIDATES
+        loop.run_in_executor(
+            _dense_executor,
+            _dense_search,
+            user_message,
+            verse_collection,
+            embedder,
+            settings.hybrid_candidates,
         ),
         timeout=settings.chroma_query_timeout_seconds,
     )
-    bm25_task = asyncio.to_thread(_bm25_search, user_message, HYBRID_CANDIDATES)
+    bm25_task = asyncio.to_thread(_bm25_search, user_message, settings.hybrid_candidates)
     dense_outcome, bm25_outcome = await asyncio.gather(
         dense_task, bm25_task, return_exceptions=True
     )
@@ -421,7 +534,7 @@ async def _retrieve(
     logger.debug("RAG stage2 RRF: %.3fs", time.monotonic() - _t1)
 
     if not fused and not pinned:
-        return ""
+        return []
 
     # Stage 3: Cross-encoder reranking (skip ids we already pinned)
     _t2 = time.monotonic()
@@ -432,7 +545,7 @@ async def _retrieve(
         reranked = []
     logger.debug("RAG stage3 rerank: %.3fs", time.monotonic() - _t2)
 
-    # Stage 4: Format context (with passage expansion for thematic queries)
+    # Stage 4: Passage expansion for thematic queries + budgeted entry selection.
     is_lookup = _is_verse_lookup(user_message)
     verse_ids = [h.verse_id for h in reranked]
 
@@ -441,17 +554,47 @@ async def _retrieve(
     else:
         passages = {}
 
-    lines = [f"- **{vid}**: {text}" for vid, text in pinned]
-    seen_passages = set()
+    entries: list[tuple[str, str]] = list(pinned)
+    used = sum(len(vid) + len(text) + _ENTRY_OVERHEAD for vid, text in pinned)
+    seen_passages: set[str] = set()
+    dropped = 0
     for hit in reranked:
         if hit.verse_id in pinned_ids:
             continue
         if hit.verse_id in passages and passages[hit.verse_id] not in seen_passages:
-            seen_passages.add(passages[hit.verse_id])
-            lines.append(f"- **{hit.verse_id} (passage)**: {passages[hit.verse_id]}")
+            ref = f"{hit.verse_id} (passage)"
+            text = passages[hit.verse_id]
+            seen_passages.add(text)
         else:
+            ref = hit.verse_id
             text = _clean_doc_text(hit.document, hit.verse_id)
-            lines.append(f"- **{hit.verse_id}**: {text}")
+        cost = len(ref) + len(text) + _ENTRY_OVERHEAD
+        if used + cost > settings.context_max_chars:
+            dropped += 1
+            continue
+        used += cost
+        entries.append((ref, text))
+    if dropped:
+        logger.info(
+            "Context budget %d chars reached: dropped %d lowest-ranked entries",
+            settings.context_max_chars,
+            dropped,
+        )
 
     logger.debug("RAG retrieve total: %.3fs", time.monotonic() - _t0)
-    return "\n".join(lines)
+    return entries
+
+
+def format_context_entry(ref: str, text: str) -> str:
+    """Render one retrieved entry as a markdown bullet line."""
+    return f"- **{ref}**: {text}"
+
+
+async def _retrieve(
+    user_message: str,
+    top_k: int = 5,
+    pin_refs: list[str] | None = None,
+) -> str:
+    """Backward-compatible wrapper: hybrid retrieval as a formatted context string."""
+    entries = await _retrieve_entries(user_message, top_k=top_k, pin_refs=pin_refs)
+    return "\n".join(format_context_entry(ref, text) for ref, text in entries)

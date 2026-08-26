@@ -35,7 +35,10 @@ def main() -> None:
     )
 
     query = "What does John 3:16 say?"
-    embedding = model.encode(["search_query: " + query], show_progress_bar=False)
+    # normalize_embeddings=True must match rag/build_index.py / rag/retrieval.py.
+    embedding = model.encode(
+        ["search_query: " + query], show_progress_bar=False, normalize_embeddings=True
+    )
     results = collection.query(
         query_embeddings=embedding.tolist(),
         n_results=5,
