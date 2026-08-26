@@ -66,7 +66,9 @@ jobs:
           pip install -e ".[rag,dev]"
           pip install mypy
 
-      - run: mypy --ignore-missing-imports rag/ training/ scripts/
+      - run: mypy --ignore-missing-imports rag/ training/
+        # scripts/ excluded: standalone CLI tools without __init__.py cause
+        # mypy's module-path ambiguity error ("Source file found twice").
 
   security:
     name: Security
