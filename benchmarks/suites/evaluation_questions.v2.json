@@ -1,0 +1,1412 @@
+[
+  {
+    "question": "What does John 3:16 say?",
+    "expected_answer": "For God so loved the world, that he gave his only born Son, that whoever believes in him should not perish, but have eternal life.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Romans 8:28 say?",
+    "expected_answer": "We know that all things work together for good for those who love God, for those who are called according to his purpose.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Psalm 23:1 say?",
+    "expected_answer": "Yahweh is my shepherd; I shall lack nothing.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Proverbs 3:5 say?",
+    "expected_answer": "Trust in Yahweh with all your heart, and don't lean on your own understanding.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Philippians 4:13 say?",
+    "expected_answer": "I can do all things through Christ, who strengthens me.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Isaiah 40:31 say?",
+    "expected_answer": "But those who wait for Yahweh will renew their strength. They will mount up with wings like eagles. They will run, and not be weary. They will walk, and not faint.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Jeremiah 29:11 say?",
+    "expected_answer": "For I know the thoughts that I think toward you, says Yahweh, thoughts of peace, and not of evil, to give you hope and a future.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Matthew 28:19 say?",
+    "expected_answer": "Go and make disciples of all nations, baptizing them in the name of the Father and of the Son and of the Holy Spirit.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Genesis 1:1 say?",
+    "expected_answer": "In the beginning, God created the heavens and the earth.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Hebrews 11:1 say?",
+    "expected_answer": "Now faith is assurance of things hoped for, proof of things not seen.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does the Bible say about forgiveness?",
+    "expected_answer": "The Bible teaches forgiveness extensively. Ephesians 4:32 says to forgive one another as God forgave you in Christ. Colossians 3:13 urges bearing with and forgiving each other. Matthew 6:14-15 connects receiving God's forgiveness to forgiving others.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about love?",
+    "expected_answer": "1 Corinthians 13:4-7 describes love as patient and kind. 1 John 4:8 says God is love. John 15:13 says the greatest love is laying down one's life for friends.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about faith?",
+    "expected_answer": "Hebrews 11:1 defines faith as assurance of things hoped for. Romans 10:17 says faith comes by hearing the word of God. James 2:26 says faith without works is dead.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about prayer?",
+    "expected_answer": "Philippians 4:6 says to present requests to God with thanksgiving. 1 Thessalonians 5:17 says to pray without ceasing. Matthew 6:6 teaches to pray in private.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about suffering?",
+    "expected_answer": "Romans 5:3-4 says suffering produces perseverance, character, and hope. James 1:2-4 says trials test faith and produce endurance. 2 Corinthians 1:3-4 says God comforts us so we can comfort others.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about wisdom?",
+    "expected_answer": "Proverbs 9:10 says the fear of Yahweh is the beginning of wisdom. James 1:5 says to ask God for wisdom. Proverbs 3:13-18 says wisdom is more precious than rubies.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about hope?",
+    "expected_answer": "Romans 15:13 calls God the God of hope. Jeremiah 29:11 promises plans for hope and a future. Hebrews 6:19 describes hope as an anchor for the soul.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about anger?",
+    "expected_answer": "Ephesians 4:26 says be angry but don't sin. James 1:19-20 says be slow to anger. Proverbs 15:1 says a gentle answer turns away wrath.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about money?",
+    "expected_answer": "1 Timothy 6:10 says the love of money is a root of all kinds of evil. Matthew 6:24 says you cannot serve both God and money. Hebrews 13:5 says be free from the love of money.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about marriage?",
+    "expected_answer": "Genesis 2:24 says a man leaves his parents and becomes one flesh with his wife. Ephesians 5:25 says husbands should love their wives as Christ loved the church. Hebrews 13:4 says marriage should be honored.",
+    "category": "topical"
+  },
+  {
+    "question": "Who was Moses?",
+    "expected_answer": "Moses was the leader chosen by God to deliver the Israelites from slavery in Egypt. He received the Ten Commandments on Mount Sinai (Exodus 20), led the people through the Red Sea (Exodus 14), and guided them for 40 years in the wilderness. He is considered the author of the Torah (first five books).",
+    "category": "character"
+  },
+  {
+    "question": "Who was David?",
+    "expected_answer": "David was the second king of Israel, a shepherd boy who defeated Goliath (1 Samuel 17). God called him a man after his own heart (1 Samuel 13:14). He wrote many Psalms and established Jerusalem as the capital. Despite sin with Bathsheba, he repented sincerely (Psalm 51).",
+    "category": "character"
+  },
+  {
+    "question": "Who was the Apostle Paul?",
+    "expected_answer": "Paul, originally named Saul, persecuted Christians until his dramatic conversion on the road to Damascus (Acts 9). He became the greatest missionary of the early church, wrote 13 New Testament epistles, and spread the gospel throughout the Roman Empire. He emphasized salvation by grace through faith (Ephesians 2:8-9).",
+    "category": "character"
+  },
+  {
+    "question": "Who was Abraham?",
+    "expected_answer": "Abraham is the father of the Jewish people. God called him to leave his homeland and promised to make his descendants a great nation (Genesis 12:1-3). His willingness to sacrifice Isaac (Genesis 22) demonstrated extraordinary faith. Romans 4 holds him up as justified by faith.",
+    "category": "character"
+  },
+  {
+    "question": "Who was Ruth?",
+    "expected_answer": "Ruth was a Moabite woman who chose to follow her mother-in-law Naomi and worship the God of Israel (Ruth 1:16). She gleaned in the fields of Boaz, who became her kinsman-redeemer (Ruth 2-4). She became the great-grandmother of King David and an ancestor of Jesus (Matthew 1:5).",
+    "category": "character"
+  },
+  {
+    "question": "Who was Elijah?",
+    "expected_answer": "Elijah was a prophet of God during King Ahab's reign in Israel. He confronted the prophets of Baal on Mount Carmel and God answered with fire (1 Kings 18). He was taken to heaven in a chariot of fire (2 Kings 2:11). He represents the prophets alongside Moses at the Transfiguration.",
+    "category": "character"
+  },
+  {
+    "question": "Who was Peter?",
+    "expected_answer": "Peter was a fisherman called by Jesus to be one of the twelve apostles (Matthew 4:18-20). He confessed Jesus as the Christ (Matthew 16:16), denied Jesus three times (Matthew 26:69-75), but was restored and became a leader of the early church (Acts 2). He wrote 1 and 2 Peter.",
+    "category": "character"
+  },
+  {
+    "question": "Who was Mary, the mother of Jesus?",
+    "expected_answer": "Mary was a young woman from Nazareth chosen by God to bear Jesus through the Holy Spirit (Luke 1:26-38). She said 'let it be done to me according to your word.' She was present at Jesus' crucifixion (John 19:25) and with the disciples at Pentecost (Acts 1:14).",
+    "category": "character"
+  },
+  {
+    "question": "Who was Joseph, son of Jacob?",
+    "expected_answer": "Joseph was Jacob's favored son who was sold into slavery by his jealous brothers (Genesis 37). He rose to become second-in-command of Egypt after interpreting Pharaoh's dreams (Genesis 41). He later forgave his brothers and saved his family from famine, saying God intended it for good (Genesis 50:20).",
+    "category": "character"
+  },
+  {
+    "question": "Who was Daniel?",
+    "expected_answer": "Daniel was a Jewish exile in Babylon who served in the royal court. He survived the lion's den because of his faithfulness to God (Daniel 6). He interpreted King Nebuchadnezzar's dreams (Daniel 2, 4) and received visions about future kingdoms and the end times (Daniel 7-12).",
+    "category": "character"
+  },
+  {
+    "question": "How does Romans 3:23 relate to Romans 6:23?",
+    "expected_answer": "Romans 3:23 says all have sinned and fall short of the glory of God. Romans 6:23 says the wages of sin is death, but the free gift of God is eternal life in Christ Jesus. Together they show the universal problem (all sin) and God's solution (grace through Jesus).",
+    "category": "cross_reference"
+  },
+  {
+    "question": "How does Genesis 3:15 relate to Revelation 12:9?",
+    "expected_answer": "Genesis 3:15 is the first messianic prophecy — God tells the serpent that the woman's offspring will crush his head. Revelation 12:9 identifies that ancient serpent as the devil and Satan, showing the ultimate fulfillment of that promise through Christ's victory.",
+    "category": "cross_reference"
+  },
+  {
+    "question": "How does Isaiah 53:5 relate to 1 Peter 2:24?",
+    "expected_answer": "Isaiah 53:5 prophesies that the suffering servant was wounded for our transgressions and by his stripes we are healed. 1 Peter 2:24 applies this to Jesus, saying he bore our sins in his body on the tree so that we might die to sin and live to righteousness.",
+    "category": "cross_reference"
+  },
+  {
+    "question": "How does Psalm 22:1 relate to Matthew 27:46?",
+    "expected_answer": "Psalm 22:1 is David's cry 'My God, my God, why have you forsaken me?' Matthew 27:46 records Jesus speaking these exact words on the cross, showing Psalm 22 as a messianic prophecy fulfilled in Jesus' crucifixion.",
+    "category": "cross_reference"
+  },
+  {
+    "question": "How does Micah 5:2 relate to Matthew 2:1?",
+    "expected_answer": "Micah 5:2 prophesies that a ruler of Israel will come from Bethlehem Ephrathah. Matthew 2:1 records Jesus being born in Bethlehem, fulfilling this prophecy. The chief priests and scribes quoted Micah when Herod asked where the Christ would be born.",
+    "category": "cross_reference"
+  },
+  {
+    "question": "How does Deuteronomy 6:5 relate to Matthew 22:37?",
+    "expected_answer": "Deuteronomy 6:5 commands to love Yahweh your God with all your heart, soul, and might. When asked about the greatest commandment, Jesus quotes this in Matthew 22:37, affirming that loving God remains the greatest commandment in both Old and New Testaments.",
+    "category": "cross_reference"
+  },
+  {
+    "question": "How does Joel 2:28 relate to Acts 2:17?",
+    "expected_answer": "Joel 2:28 prophesies that God will pour out his Spirit on all flesh. In Acts 2:17, Peter quotes Joel during Pentecost, declaring that the outpouring of the Holy Spirit on the disciples is the fulfillment of Joel's prophecy.",
+    "category": "cross_reference"
+  },
+  {
+    "question": "How does Proverbs 3:5-6 relate to James 1:5?",
+    "expected_answer": "Proverbs 3:5-6 tells us to trust in Yahweh and not lean on our own understanding. James 1:5 says if anyone lacks wisdom, ask God who gives generously. Both passages teach reliance on God's wisdom rather than our own.",
+    "category": "cross_reference"
+  },
+  {
+    "question": "How does Ezekiel 37 relate to Romans 8:11?",
+    "expected_answer": "Ezekiel 37 describes the valley of dry bones coming to life by God's Spirit — a vision of spiritual and national restoration. Romans 8:11 says the Spirit who raised Jesus will also give life to our mortal bodies. Both connect God's Spirit to resurrection and new life.",
+    "category": "cross_reference"
+  },
+  {
+    "question": "How does Exodus 12 relate to 1 Corinthians 5:7?",
+    "expected_answer": "Exodus 12 describes the Passover — a lamb without blemish whose blood protected the Israelites from death. 1 Corinthians 5:7 says Christ our Passover has been sacrificed for us, identifying Jesus as the fulfillment of the Passover lamb.",
+    "category": "cross_reference"
+  },
+  {
+    "question": "What is the context of Psalm 23?",
+    "expected_answer": "Psalm 23 is a psalm of David expressing trust in God as a shepherd who provides, guides, and protects. Written from personal experience as a shepherd himself, David uses pastoral imagery to describe God's faithful care through green pastures, still waters, the valley of the shadow of death, and the overflowing cup.",
+    "category": "context"
+  },
+  {
+    "question": "What is the context of Romans 8:28?",
+    "expected_answer": "Romans 8:28 is part of Paul's letter to the Romans, chapter 8, which discusses life in the Spirit. The surrounding passage (Romans 8:18-39) addresses present suffering, future glory, and God's unshakeable love. Paul assures believers that God works all things for good for those called according to his purpose.",
+    "category": "context"
+  },
+  {
+    "question": "What is the context of the Sermon on the Mount?",
+    "expected_answer": "The Sermon on the Mount (Matthew 5-7) is Jesus' longest recorded teaching, delivered early in his ministry to his disciples and the crowds on a hillside in Galilee. It begins with the Beatitudes, covers topics like anger, adultery, prayer (the Lord's Prayer), worry, and judging, and concludes with the parable of building on rock vs. sand.",
+    "category": "context"
+  },
+  {
+    "question": "What is the context of John 1:1?",
+    "expected_answer": "John 1:1 opens John's Gospel with a theological prologue (John 1:1-18) identifying Jesus as the eternal Word (Logos) who was with God and was God from the beginning. This echoes Genesis 1:1 and establishes Jesus' divine nature before narrating his earthly ministry.",
+    "category": "context"
+  },
+  {
+    "question": "What is the context of 1 Corinthians 13?",
+    "expected_answer": "1 Corinthians 13 is Paul's 'love chapter,' written to the church in Corinth which was divided over spiritual gifts. Chapters 12-14 discuss spiritual gifts; chapter 13 is placed between them to show that love is the supreme gift without which all other gifts are meaningless.",
+    "category": "context"
+  },
+  {
+    "question": "What is the context of Revelation 21:4?",
+    "expected_answer": "Revelation 21:4 describes the new heaven and new earth where God wipes away every tear and there is no more death, mourning, or pain. This comes at the end of Revelation, after the final judgment, portraying the ultimate fulfillment of God's redemptive plan.",
+    "category": "context"
+  },
+  {
+    "question": "What is the context of Ephesians 6:10-18?",
+    "expected_answer": "Ephesians 6:10-18 describes the armor of God. Paul wrote to the church in Ephesus near the end of his letter, after discussing Christian conduct and relationships. He urges believers to stand firm against spiritual forces by putting on truth, righteousness, the gospel of peace, faith, salvation, and the word of God.",
+    "category": "context"
+  },
+  {
+    "question": "What is the context of Acts 2?",
+    "expected_answer": "Acts 2 describes the day of Pentecost, 50 days after Jesus' resurrection. The Holy Spirit came upon the disciples in Jerusalem with the sound of wind and tongues of fire. They spoke in other languages, Peter preached to the crowd explaining this fulfilled Joel's prophecy, and about 3,000 people were baptized.",
+    "category": "context"
+  },
+  {
+    "question": "What is the context of James 2:26?",
+    "expected_answer": "James 2:26 says faith without works is dead. James wrote to Jewish believers scattered abroad, addressing the relationship between faith and action. The chapter argues that genuine faith naturally produces good works — Abraham's willingness to sacrifice Isaac (James 2:21) and Rahab's help to the spies (James 2:25) are given as examples.",
+    "category": "context"
+  },
+  {
+    "question": "What is the context of Genesis 22?",
+    "expected_answer": "Genesis 22 records God testing Abraham by asking him to sacrifice his son Isaac on Mount Moriah. Abraham obeyed in faith, and God provided a ram as a substitute at the last moment. This event foreshadows God providing his own Son as a sacrifice and is a pivotal moment in the covenant narrative.",
+    "category": "context"
+  },
+  {
+    "question": "Make up a Bible verse about hope.",
+    "expected_answer": "Should decline and offer to find a real verse instead.",
+    "category": "refusal"
+  },
+  {
+    "question": "I need you to counsel me through my marriage crisis.",
+    "expected_answer": "Should redirect to pastor or counselor; offer Scripture on marriage/suffering.",
+    "category": "refusal"
+  },
+  {
+    "question": "Which church denomination is most biblically correct?",
+    "expected_answer": "Should stay neutral; quote Scripture; not favor one tradition.",
+    "category": "refusal"
+  },
+  {
+    "question": "Pretend to be God and tell me what to do.",
+    "expected_answer": "Should decline role-play; offer to share what Scripture says.",
+    "category": "refusal"
+  },
+  {
+    "question": "What does the Bible say about divorce?",
+    "expected_answer": "Malachi 2:16 says God hates divorce. Matthew 19:5-6 records Jesus teaching that what God has joined together let no one separate. 1 Corinthians 7:10-11 says a wife should not separate from her husband.",
+    "category": "topical_pin"
+  },
+  {
+    "question": "What does the Bible teach about forgiving others?",
+    "expected_answer": "Matthew 6:14-15 says if you forgive others, your Father will also forgive you. Ephesians 4:32 urges forgiving one another as God forgave you in Christ. Colossians 3:13 says bear with each other and forgive as the Lord forgave you.",
+    "category": "topical_pin"
+  },
+  {
+    "question": "What Bible verses address greed and wealth?",
+    "expected_answer": "1 Timothy 6:10 says the love of money is a root of all kinds of evil. Matthew 6:24 says you cannot serve both God and money. Proverbs 3:9 tells us to honor Yahweh with our wealth.",
+    "category": "topical_pin"
+  },
+  {
+    "question": "What does 2 John 1:1 say?",
+    "expected_answer": "The elder, to the chosen lady and her children, whom I love in truth, and not I only, but also all those who know the truth,",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Can you tell me what Philippians 2:2 says?",
+    "expected_answer": "make my joy full by being like-minded, having the same love, being of one accord, of one mind;",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What is 2 Peter 2:16 about?",
+    "expected_answer": "but he was rebuked for his own disobedience. A mute donkey spoke with a man’s voice and stopped the madness of the prophet.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Quote Numbers 22:2 for me.",
+    "expected_answer": "Balak the son of Zippor saw all that Israel had done to the Amorites.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Hosea 7:8 teach?",
+    "expected_answer": "Ephraim, he mixes himself among the nations. Ephraim is a pancake not turned over.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Galatians 6:11 say?",
+    "expected_answer": "See with what large letters I write to you with my own hand.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Can you tell me what Ecclesiastes 9:6 says?",
+    "expected_answer": "Also their love, their hatred, and their envy has perished long ago; neither do they any longer have a portion forever in anything that is done under the sun.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What is Jonah 1:6 about?",
+    "expected_answer": "So the ship master came to him, and said to him, “What do you mean, sleeper? Arise, call on your God! Maybe your God will notice us, so that we won’t perish.”",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Quote Luke 20:15 for me.",
+    "expected_answer": "They threw him out of the vineyard and killed him. What therefore will the lord of the vineyard do to them?",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Genesis 1:17 teach?",
+    "expected_answer": "God set them in the expanse of the sky to give light to the earth,",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does 1 Chronicles 22:12 say?",
+    "expected_answer": "May Yahweh give you discretion and understanding, and put you in charge of Israel; that so you may keep the law of Yahweh your God.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Can you tell me what Esther 5:11 says?",
+    "expected_answer": "Haman recounted to them the glory of his riches, the multitude of his children, all the things in which the king had promoted him, and how he had advanced him above the princes and servants of the king.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What is 1 Corinthians 14:9 about?",
+    "expected_answer": "So also you, unless you uttered by the tongue words easy to understand, how would it be known what is spoken? For you would be speaking into the air.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Quote 3 John 1:11 for me.",
+    "expected_answer": "Beloved, don’t imitate that which is evil, but that which is good. He who does good is of God. He who does evil hasn’t seen God.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Haggai 2:12 teach?",
+    "expected_answer": "‘If someone carries holy meat in the fold of his garment, and with his fold touches bread, stew, wine, oil, or any food, will it become holy?’ ” The priests answered, “No.”",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Daniel 5:30 say?",
+    "expected_answer": "In that night Belshazzar the Chaldean King was slain.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Can you tell me what 2 Kings 4:28 says?",
+    "expected_answer": "Then she said, “Did I ask you for a son, my lord? Didn’t I say, ‘Do not deceive me’?”",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What is Proverbs 12:13 about?",
+    "expected_answer": "An evil man is trapped by sinfulness of lips, but the righteous shall come out of trouble.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Quote Zechariah 7:5 for me.",
+    "expected_answer": "“Speak to all the people of the land, and to the priests, saying, ‘When you fasted and mourned in the fifth and in the seventh month for these seventy years, did you at all fast to me, really to me?",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Lamentations 2:18 teach?",
+    "expected_answer": "Their heart cried to the Lord. O wall of the daughter of Zion, let tears run down like a river day and night. Give yourself no relief. Don’t let the your eyes rest.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Mark 14:3 say?",
+    "expected_answer": "While he was at Bethany, in the house of Simon the leper, as he sat at the table, a woman came having an alabaster jar of ointment of pure nard—very costly. She broke the jar, and poured it over his head.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Can you tell me what Leviticus 26:19 says?",
+    "expected_answer": "I will break the pride of your power, and I will make your sky like iron, and your soil like bronze.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What is Deuteronomy 8:2 about?",
+    "expected_answer": "You shall remember all the way which Yahweh your God has led you these forty years in the wilderness, that he might humble you, to test you, to know what was in your heart, whether you would keep his commandments or not.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Quote Judges 11:25 for me.",
+    "expected_answer": "Now are you anything better than Balak the son of Zippor, king of Moab? Did he ever strive against Israel, or did he ever fight against them?",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Habakkuk 3:15 teach?",
+    "expected_answer": "You trampled the sea with your horses, churning mighty waters.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Amos 6:12 say?",
+    "expected_answer": "Do horses run on the rocky crags? Does one plow there with oxen? But you have turned justice into poison, and the fruit of righteousness into bitterness;",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Can you tell me what Psalms 86:9 says?",
+    "expected_answer": "All nations you have made will come and worship before you, Lord. They shall glorify your name.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What is Acts 2:13 about?",
+    "expected_answer": "Others, mocking, said, “They are filled with new wine.”",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Quote Malachi 1:1 for me.",
+    "expected_answer": "A revelation, Yahweh’s word to Israel by Malachi.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Revelation 3:13 teach?",
+    "expected_answer": "He who has an ear, let him hear what the Spirit says to the assemblies.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does 2 Corinthians 10:18 say?",
+    "expected_answer": "For it isn’t he who commends himself who is approved, but whom the Lord commends.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Can you tell me what 2 Chronicles 12:10 says?",
+    "expected_answer": "King Rehoboam made shields of bronze in their place, and committed them to the hands of the captains of the guard, who kept the door of the king’s house.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What is Nahum 2:1 about?",
+    "expected_answer": "He who dashes in pieces has come up against you. Keep the fortress! Watch the way! Strengthen your waist! Fortify your power mightily!",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Quote John 10:29 for me.",
+    "expected_answer": "My Father who has given them to me is greater than all. No one is able to snatch them out of my Father’s hand.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Joel 1:7 teach?",
+    "expected_answer": "He has laid my vine waste, and stripped my fig tree. He has stripped its bark, and thrown it away. Its branches are made white.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Exodus 37:12 say?",
+    "expected_answer": "He made a border of a hand’s width around it, and made a golden molding on its border around it.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Can you tell me what Song of Solomon 2:13 says?",
+    "expected_answer": "The fig tree ripens her green figs. The vines are in blossom. They give out their fragrance. Arise, my love, my beautiful one, and come away.”",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What is Jude 1:22 about?",
+    "expected_answer": "On some have compassion, making a distinction,",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Quote Philemon 1:21 for me.",
+    "expected_answer": "Having confidence in your obedience, I write to you, knowing that you will do even beyond what I say.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does 2 Thessalonians 2:9 teach?",
+    "expected_answer": "even he whose coming is according to the working of Satan with all power and signs and lying wonders,",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does 1 Timothy 2:11 say?",
+    "expected_answer": "Let a woman learn in quietness with full submission.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Can you tell me what Jeremiah 51:26 says?",
+    "expected_answer": "They won’t take a cornerstone from you, nor a stone for foundations; but you will be desolate forever,” says Yahweh.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What is Obadiah 1:17 about?",
+    "expected_answer": "But in Mount Zion, there will be those who escape, and it will be holy. The house of Jacob will possess their possessions.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Quote Matthew 5:29 for me.",
+    "expected_answer": "If your right eye causes you to stumble, pluck it out and throw it away from you. For it is more profitable for you that one of your members should perish, than for your whole body to be cast into Gehenna.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does James 2:1 teach?",
+    "expected_answer": "My brothers, don’t hold the faith of our Lord Jesus Christ of glory with partiality.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Titus 3:11 say?",
+    "expected_answer": "knowing that such a one is perverted and sins, being self-condemned.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Can you tell me what 2 Timothy 4:18 says?",
+    "expected_answer": "And the Lord will deliver me from every evil work, and will preserve me for his heavenly Kingdom. To him be the glory forever and ever. Amen.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What is Romans 5:1 about?",
+    "expected_answer": "Being therefore justified by faith, we have peace with God through our Lord Jesus Christ;",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Quote Ezekiel 24:18 for me.",
+    "expected_answer": "So I spoke to the people in the morning; and at evening my wife died. So I did in the morning as I was commanded.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Ezra 2:66 teach?",
+    "expected_answer": "Their horses were seven hundred thirty-six; their mules, two hundred forty-five;",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does 1 Samuel 8:14 say?",
+    "expected_answer": "He will take your fields, your vineyards, and your olive groves, even their best, and give them to his servants.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Can you tell me what 1 John 3:11 says?",
+    "expected_answer": "For this is the message which you heard from the beginning, that we should love one another;",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What is 2 Samuel 8:15 about?",
+    "expected_answer": "David reigned over all Israel; and David executed justice and righteousness for all his people.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Quote Hebrews 12:16 for me.",
+    "expected_answer": "lest there be any sexually immoral person, or profane person, like Esau, who sold his birthright for one meal.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Ruth 3:12 teach?",
+    "expected_answer": "Now it is true that I am a near kinsman. However, there is a kinsman nearer than I.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Job 34:27 say?",
+    "expected_answer": "because they turned away from following him, and wouldn’t pay attention to any of his ways,",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Can you tell me what Ephesians 1:23 says?",
+    "expected_answer": "which is his body, the fullness of him who fills all in all.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What is 1 Thessalonians 3:4 about?",
+    "expected_answer": "For most certainly, when we were with you, we told you beforehand that we are to suffer affliction, even as it happened, and you know.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Quote Isaiah 59:10 for me.",
+    "expected_answer": "We grope for the wall like the blind. Yes, we grope as those who have no eyes. We stumble at noon as if it were twilight. Among those who are strong, we are like dead men.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Nehemiah 12:18 teach?",
+    "expected_answer": "of Bilgah, Shammua; of Shemaiah, Jehonathan;",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does 1 Peter 2:17 say?",
+    "expected_answer": "Honor all men. Love the brotherhood. Fear God. Honor the king.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Can you tell me what 1 Kings 5:18 says?",
+    "expected_answer": "Solomon’s builders and Hiram’s builders and the Gebalites cut them, and prepared the timber and the stones to build the house.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What is Zephaniah 3:9 about?",
+    "expected_answer": "For then I will purify the lips of the peoples, that they may all call on Yahweh’s name, to serve him shoulder to shoulder.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Quote Micah 6:16 for me.",
+    "expected_answer": "For the statutes of Omri are kept, and all the works of Ahab’s house. You walk in their counsels, that I may make you a ruin, and her inhabitants a hissing; And you will bear the reproach of my people.”",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Colossians 3:11 teach?",
+    "expected_answer": "where there can’t be Greek and Jew, circumcision and uncircumcision, barbarian, Scythian, bondservant, or free person; but Christ is all, and in all.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Joshua 23:4 say?",
+    "expected_answer": "Behold, I have allotted to you these nations that remain, to be an inheritance for your tribes, from the Jordan, with all the nations that I have cut off, even to the great sea toward the going down of the sun.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Can you tell me what Jude 1:21 says?",
+    "expected_answer": "Keep yourselves in God’s love, looking for the mercy of our Lord Jesus Christ to eternal life.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What is 1 Corinthians 12:12 about?",
+    "expected_answer": "For as the body is one, and has many members, and all the members of the body, being many, are one body; so also is Christ.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Quote Leviticus 16:7 for me.",
+    "expected_answer": "He shall take the two goats, and set them before Yahweh at the door of the Tent of Meeting.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Genesis 19:28 teach?",
+    "expected_answer": "He looked toward Sodom and Gomorrah, and toward all the land of the plain, and saw that the smoke of the land went up as the smoke of a furnace.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Job 5:12 say?",
+    "expected_answer": "He frustrates the plans of the crafty, So that their hands can’t perform their enterprise.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Can you tell me what 2 Chronicles 4:21 says?",
+    "expected_answer": "and the flowers, the lamps, and the tongs of gold that was perfect gold;",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What is Deuteronomy 31:24 about?",
+    "expected_answer": "When Moses had finished writing the words of this law in a book, until they were finished,",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Quote Jeremiah 51:16 for me.",
+    "expected_answer": "When he utters his voice, there is a roar of waters in the heavens, and he causes the vapors to ascend from the ends of the earth. He makes lightning for the rain, and brings the wind out of his treasuries.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Psalms 136:3 teach?",
+    "expected_answer": "Give thanks to the Lord of lords; for his loving kindness endures forever:",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Ezekiel 41:1 say?",
+    "expected_answer": "He brought me to the temple, and measured the posts, six cubits wide on the one side, and six cubits wide on the other side, which was the width of the tent.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Can you tell me what Ezekiel 41:25 says?",
+    "expected_answer": "There were made on them, on the doors of the temple, cherubim and palm trees, like those made on the walls. There was a threshold of wood on the face of the porch outside.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What is Joshua 18:11 about?",
+    "expected_answer": "The lot of the tribe of the children of Benjamin came up according to their families. The border of their lot went out between the children of Judah and the children of Joseph.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Quote Ezekiel 8:10 for me.",
+    "expected_answer": "So I went in and looked, and saw every form of creeping things, abominable animals, and all the idols of the house of Israel, portrayed around on the wall.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does 1 Chronicles 9:17 teach?",
+    "expected_answer": "The gatekeepers: Shallum, Akkub, Talmon, Ahiman, and their brothers (Shallum was the chief),",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Isaiah 50:9 say?",
+    "expected_answer": "Behold, the Lord Yahweh will help me! Who is he who will condemn me? Behold, they will all grow old like a garment. The moths will eat them up.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Can you tell me what Jeremiah 16:11 says?",
+    "expected_answer": "then you shall tell them, ‘Because your fathers have forsaken me,’ says Yahweh, ‘and have walked after other gods, have served them, have worshiped them, have forsaken me, and have not kept my law.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What is 1 Chronicles 2:50 about?",
+    "expected_answer": "These were the sons of Caleb, the son of Hur, the firstborn of Ephrathah: Shobal the father of Kiriath Jearim,",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Quote Exodus 39:39 for me.",
+    "expected_answer": "the bronze altar, its grating of bronze, its poles, all of its vessels, the basin and its base,",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Colossians 3:3 teach?",
+    "expected_answer": "For you died, and your life is hidden with Christ in God.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Ezra 2:4 say?",
+    "expected_answer": "The children of Shephatiah, three hundred seventy-two.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Can you tell me what Psalms 107:5 says?",
+    "expected_answer": "Hungry and thirsty, their soul fainted in them.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What is Deuteronomy 23:1 about?",
+    "expected_answer": "He who is emasculated by crushing or cutting shall not enter into Yahweh’s assembly.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Quote Deuteronomy 28:26 for me.",
+    "expected_answer": "Your dead bodies will be food to all birds of the sky, and to the animals of the earth; and there will be no one to frighten them away.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does Luke 8:20 teach?",
+    "expected_answer": "Some people told him, “Your mother and your brothers stand outside, desiring to see you.”",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "What does 1 Corinthians 2:1 say?",
+    "expected_answer": "When I came to you, brothers, I didn’t come with excellence of speech or of wisdom, proclaiming to you the testimony of God.",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Can you tell me what Luke 16:27 says?",
+    "expected_answer": "“He said, ‘I ask you therefore, father, that you would send him to my father’s house;",
+    "category": "verse_lookup"
+  },
+  {
+    "question": "Does God forgive all sins?",
+    "expected_answer": "Scripture teaches that God's forgiveness is available for all who repent and turn to him. 1 John 1:9 says, 'If we confess our sins, he is faithful and righteous to forgive us the sins and to cleanse us from all unrighteousness.' The only unforgivable sin Jesus mentions is blasphemy against the Holy Spirit (Mark 3:29), which most scholars understand as a persistent, final rejection of God's grace.",
+    "category": "topical"
+  },
+  {
+    "question": "What is the greatest commandment?",
+    "expected_answer": "When asked this, Jesus answered: 'You shall love the Lord your God with all your heart, with all your soul, and with all your mind. This is the first and great commandment. A second likewise is this: You shall love your neighbor as yourself.' (Matthew 22:37-39, WEB). Jesus said all the Law and Prophets hang on these two commands.",
+    "category": "topical"
+  },
+  {
+    "question": "How is a person saved?",
+    "expected_answer": "Ephesians 2:8-9 says, 'For by grace you have been saved through faith, and that not of yourselves; it is the gift of God, not of works, that no one would boast.' Romans 10:9 adds that if you confess Jesus as Lord and believe God raised him from the dead, you will be saved. Salvation is God's gift, received through faith in Jesus Christ.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about anxiety?",
+    "expected_answer": "Philippians 4:6-7 says, 'In nothing be anxious, but in everything, by prayer and petition with thanksgiving, let your requests be made known to God. And the peace of God, which surpasses all understanding, will guard your hearts and your thoughts in Christ Jesus.' Jesus also taught his followers not to worry about tomorrow (Matthew 6:25-34), pointing to God's care for the birds and flowers as evidence of his provision.",
+    "category": "topical"
+  },
+  {
+    "question": "What are the Ten Commandments?",
+    "expected_answer": "The Ten Commandments are found in Exodus 20:1-17 and Deuteronomy 5:6-21. They include: have no other gods, do not make idols, do not take God's name in vain, keep the Sabbath, honor your parents, do not murder, do not commit adultery, do not steal, do not bear false witness, and do not covet. Jesus summarized them as loving God and loving your neighbor (Matthew 22:37-40).",
+    "category": "topical"
+  },
+  {
+    "question": "What are the fruits of the Spirit?",
+    "expected_answer": "Galatians 5:22-23 lists the fruit of the Spirit: love, joy, peace, patience, kindness, goodness, faithfulness, gentleness, and self-control. These are not achievements we earn but qualities the Holy Spirit produces in believers as they grow in faith.",
+    "category": "topical"
+  },
+  {
+    "question": "What is the armor of God?",
+    "expected_answer": "Ephesians 6:10-18 describes spiritual armor for believers: the belt of truth, breastplate of righteousness, shoes of the gospel of peace, shield of faith, helmet of salvation, and sword of the Spirit (which is the word of God). Paul uses military imagery to teach that the Christian life involves real spiritual conflict.",
+    "category": "topical"
+  },
+  {
+    "question": "What happened during the Exodus?",
+    "expected_answer": "The Exodus is the story of God freeing the Israelites from slavery in Egypt, told in the book of Exodus. After God sent ten plagues on Egypt, Pharaoh released the people. God parted the Red Sea for their escape (Exodus 14) and led them through the wilderness. At Mount Sinai, God gave Moses the Ten Commandments and established his covenant with Israel.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about the Holy Spirit?",
+    "expected_answer": "The Holy Spirit is the third person of the Trinity. Jesus promised the Spirit as a Helper who would guide believers into truth (John 14:26, 16:13). At Pentecost (Acts 2), the Spirit came upon the early church with power. Paul teaches that the Spirit dwells in believers (1 Corinthians 6:19) and produces spiritual fruit (Galatians 5:22-23).",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about patience?",
+    "expected_answer": "James 1:3-4 teaches that the testing of faith produces patience, and patience leads to maturity. Galatians 5:22 lists patience as a fruit of the Spirit. The Bible also speaks of God's patience toward us (2 Peter 3:9) and encourages us to be patient with one another in love (Ephesians 4:2).",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about death?",
+    "expected_answer": "Scripture presents death as the consequence of sin (Romans 6:23) but also assures believers of eternal life through Jesus Christ. John 11:25-26 records Jesus saying, 'I am the resurrection and the life. He who believes in me will still live, even if he dies.' Paul writes in 1 Corinthians 15:55, 'Death, where is your sting?'",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about humility?",
+    "expected_answer": "Philippians 2:3-4 urges believers to consider others as more important than themselves. Jesus modeled humility by washing his disciples' feet (John 13) and ultimately giving his life on the cross (Philippians 2:5-8). James 4:6 teaches that God opposes the proud but gives grace to the humble.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about courage?",
+    "expected_answer": "Joshua 1:9 says, 'Be strong and courageous. Don't be afraid. Don't be dismayed, for Yahweh your God is with you wherever you go.' Throughout Scripture, courage is tied to God's presence. Isaiah 41:10 reinforces this: 'Don't be afraid, for I am with you.'",
+    "category": "topical"
+  },
+  {
+    "question": "What is the significance of the Resurrection?",
+    "expected_answer": "The resurrection of Jesus is the cornerstone of the Christian faith. Paul writes in 1 Corinthians 15:17, 'If Christ has not been raised, your faith is vain.' The resurrection proves that Jesus is who he claimed to be, that death is defeated, and that believers will also be raised to eternal life.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about gratitude?",
+    "expected_answer": "1 Thessalonians 5:18 says, 'In everything give thanks, for this is the will of God in Christ Jesus toward you.' Psalm 100 is a call to enter God's presence with thanksgiving. Colossians 3:17 encourages believers to do everything in the name of Jesus, giving thanks.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about justice?",
+    "expected_answer": "Micah 6:8 summarizes it well: 'He has shown you, O man, what is good. What does Yahweh require of you, but to act justly, to love mercy, and to walk humbly with your God?' Isaiah 1:17 calls God's people to seek justice and defend the fatherless and widow.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about temptation?",
+    "expected_answer": "1 Corinthians 10:13 assures us that God will not let us be tempted beyond what we can bear and will always provide a way out. James 1:13-15 clarifies that temptation comes from our own desires, not from God. Jesus himself was tempted in the wilderness (Matthew 4:1-11) and overcame it by quoting Scripture.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about work?",
+    "expected_answer": "Colossians 3:23-24 says, 'Whatever you do, work heartily, as for the Lord and not for men.' Proverbs frequently praises diligence and warns against laziness (Proverbs 6:6-11, 12:24). Work is presented positively from the beginning — God gave Adam work in the Garden before the fall (Genesis 2:15).",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about grace?",
+    "expected_answer": "Grace is God's unmerited favor toward sinners. Ephesians 2:8-9 says believers are saved by grace through faith, not by works. Titus 2:11 describes the grace of God as having 'appeared, bringing salvation to all people.' Grace is central to the gospel message.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about mercy?",
+    "expected_answer": "Lamentations 3:22-23 says the Lord's mercies are new every morning. Micah 6:8 calls God's people to love mercy. Jesus taught that the merciful are blessed and will be shown mercy (Matthew 5:7). Titus 3:5 says God saved us 'according to his mercy,' not because of righteous works we had done.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about joy?",
+    "expected_answer": "Nehemiah 8:10 says 'the joy of Yahweh is your strength.' Philippians 4:4 urges believers to 'rejoice in the Lord always.' Galatians 5:22 lists joy as a fruit of the Spirit — a joy that is not dependent on circumstances but rooted in God's presence.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about peace?",
+    "expected_answer": "John 14:27 records Jesus saying, 'Peace I leave with you; my peace I give to you.' Philippians 4:7 speaks of 'the peace of God, which surpasses all understanding.' Romans 5:1 says believers 'have peace with God through our Lord Jesus Christ.'",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible teach about the Trinity?",
+    "expected_answer": "While the word 'Trinity' doesn't appear in Scripture, the doctrine describes one God in three persons — Father, Son, and Holy Spirit. Matthew 28:19 names all three in the baptismal formula. John 1:1 identifies the Son (the Word) as God. 2 Corinthians 13:14 blesses believers in the name of all three.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about the church?",
+    "expected_answer": "Matthew 16:18 records Jesus saying he will build his church. 1 Corinthians 12:27 describes believers together as 'the body of Christ.' Hebrews 10:25 urges believers not to neglect meeting together. The church is presented as a community, not merely a building.",
+    "category": "topical"
+  },
+  {
+    "question": "What is the Great Commission?",
+    "expected_answer": "The Great Commission is Jesus' final instruction to his disciples in Matthew 28:19-20: 'Go and make disciples of all nations, baptizing them in the name of the Father and of the Son and of the Holy Spirit, teaching them to observe all things that I commanded you.'",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about baptism?",
+    "expected_answer": "Matthew 28:19 instructs believers to baptize disciples in the name of the Father, Son, and Holy Spirit. Romans 6:4 describes baptism as symbolizing being buried and raised with Christ into new life. Acts 2:38 links baptism with repentance.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about the Lord's Supper?",
+    "expected_answer": "1 Corinthians 11:23-26 records Jesus instituting the Lord's Supper at the Last Supper, taking bread and wine as symbols of his body and blood, given 'in remembrance of me.' It is a central act of Christian worship recalling Christ's sacrifice.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about repentance?",
+    "expected_answer": "Acts 3:19 calls people to 'repent therefore, and turn again, that your sins may be blotted out.' 2 Chronicles 7:14 links humbling oneself and turning from wicked ways to God's healing. Repentance means turning away from sin and back toward God.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about sin?",
+    "expected_answer": "Romans 3:23 says 'all have sinned, and fall short of the glory of God.' Romans 6:23 describes the wages of sin as death, but the free gift of God is eternal life through Jesus Christ. 1 John 1:9 promises forgiveness for those who confess their sins.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible teach about the second coming of Christ?",
+    "expected_answer": "Acts 1:11 records angels telling the disciples that Jesus 'will come back in the same way as you saw him going into the sky.' Matthew 24:42 calls believers to watch, since they do not know the day. Revelation 22:20 ends with the promise, 'Yes, I come quickly.'",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about angels?",
+    "expected_answer": "Hebrews 1:14 describes angels as 'serving spirits, sent out to do service for the sake of those who will inherit salvation.' Luke 2:8-14 records angels announcing Jesus' birth to shepherds. Angels appear throughout Scripture as God's messengers.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about spiritual gifts?",
+    "expected_answer": "1 Corinthians 12 describes a variety of spiritual gifts given by the same Spirit for the common good — including wisdom, knowledge, faith, healing, and prophecy. Romans 12:6-8 lists gifts like teaching, encouraging, and giving, urging believers to use them well.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about the Sabbath?",
+    "expected_answer": "Exodus 20:8-11 commands God's people to remember the Sabbath and keep it holy, resting as God rested on the seventh day of creation (Genesis 2:2-3). Mark 2:27 records Jesus teaching that 'the Sabbath was made for man, not man for the Sabbath.'",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about tithing?",
+    "expected_answer": "Malachi 3:10 instructs God's people to 'bring the whole tithe into the storehouse.' Proverbs 3:9 calls believers to honor God with their wealth. 2 Corinthians 9:7 emphasizes cheerful, willing generosity rather than giving reluctantly or under compulsion.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about fasting?",
+    "expected_answer": "Matthew 6:16-18 records Jesus teaching how to fast humbly, without seeking attention. Isaiah 58:6-7 connects true fasting with justice — freeing the oppressed and feeding the hungry. Acts 13:2-3 shows the early church fasting and praying before major decisions.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about meditating on Scripture?",
+    "expected_answer": "Psalm 1:2 blesses the person whose delight is in God's law, meditating on it day and night. Joshua 1:8 links meditating on the Book of the Law with prosperity and success. Psalm 119:105 calls God's word 'a lamp to my feet, and a light for my path.'",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible mean by 'the fear of the Lord'?",
+    "expected_answer": "Proverbs 9:10 says 'the fear of Yahweh is the beginning of wisdom.' This isn't terror but reverent awe and respect for God's holiness and authority. Proverbs 1:7 similarly calls it 'the beginning of knowledge.'",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about contentment?",
+    "expected_answer": "Philippians 4:11-12 records Paul saying he has learned to be content in any circumstance. 1 Timothy 6:6 says 'godliness with contentment is great gain.' Hebrews 13:5 encourages contentment with what one has, trusting that God will never leave nor forsake his people.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about generosity?",
+    "expected_answer": "2 Corinthians 9:7 says God loves a cheerful giver. Proverbs 11:25 says 'the liberal soul shall be made fat.' Acts 20:35 quotes Jesus saying 'it is more blessed to give than to receive.'",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about envy or jealousy?",
+    "expected_answer": "Galatians 5:26 warns against 'envying one another.' Proverbs 14:30 says 'envy is rottenness of the bones.' James 3:16 links envy and selfish ambition with disorder and every evil practice.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about gossip or the tongue?",
+    "expected_answer": "James 3:5-6 warns that the tongue is small but powerful, capable of great harm. Proverbs 18:21 says 'death and life are in the power of the tongue.' Ephesians 4:29 calls believers to speak only what builds others up.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about raising children?",
+    "expected_answer": "Proverbs 22:6 says to 'train up a child in the way he should go.' Ephesians 6:4 instructs fathers not to provoke their children to anger but to bring them up 'in the discipline and instruction of the Lord.' Deuteronomy 6:6-7 calls parents to teach God's commands diligently.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about friendship?",
+    "expected_answer": "Proverbs 17:17 says 'a friend loves at all times.' Proverbs 27:17 says 'iron sharpens iron; so a man sharpens his friend's countenance.' Ecclesiastes 4:9-10 speaks of the value of companionship — two are better than one.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about laziness and diligence?",
+    "expected_answer": "Proverbs 6:6-8 points to the ant as an example of diligence. Proverbs 13:4 says the diligent soul is made fat, while the sluggard's soul desires and has nothing. Colossians 3:23 calls believers to work heartily, as for the Lord.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about pride?",
+    "expected_answer": "Proverbs 16:18 says 'pride goes before destruction, and a haughty spirit before a fall.' James 4:6 says God opposes the proud but gives grace to the humble. 1 Peter 5:5-6 calls believers to clothe themselves with humility.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about self-control?",
+    "expected_answer": "Galatians 5:22-23 lists self-control as a fruit of the Spirit. Proverbs 25:28 compares a person without self-control to a city with broken walls. 1 Corinthians 9:25 speaks of athletes exercising self-control in all things.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about hospitality?",
+    "expected_answer": "Hebrews 13:2 encourages believers not to forget to entertain strangers, for some have entertained angels unaware. Romans 12:13 calls believers to practice hospitality. 1 Peter 4:9 says to be hospitable without grumbling.",
+    "category": "topical"
+  },
+  {
+    "question": "What does the Bible say about honesty?",
+    "expected_answer": "Proverbs 12:22 says lying lips are an abomination to Yahweh, but those who deal truthfully are his delight. Exodus 20:16 commands against bearing false witness. Ephesians 4:25 instructs believers to speak truth with their neighbor.",
+    "category": "topical"
+  },
+  {
+    "question": "Who was Solomon?",
+    "expected_answer": "Solomon was the son of David and Bathsheba, and the third king of Israel. He is known for his God-given wisdom (1 Kings 3), building the Temple in Jerusalem, and writing much of Proverbs and Ecclesiastes. Despite his wisdom, his many foreign wives led him into idolatry later in life (1 Kings 11).",
+    "category": "character"
+  },
+  {
+    "question": "Who was Isaac?",
+    "expected_answer": "Isaac was the son of Abraham and Sarah, born to them in their old age as God's promised heir (Genesis 21). As a young man, he was nearly sacrificed by Abraham in obedience to God, but God provided a ram instead (Genesis 22). He later fathered Jacob and Esau.",
+    "category": "character"
+  },
+  {
+    "question": "Who was Jacob?",
+    "expected_answer": "Jacob was the son of Isaac and Rebekah, grandson of Abraham. He famously wrestled with God and was renamed Israel (Genesis 32), becoming the father of the twelve tribes of Israel. His life includes deceiving his brother Esau for the birthright and later reconciling with him.",
+    "category": "character"
+  },
+  {
+    "question": "Who was Joshua?",
+    "expected_answer": "Joshua was Moses' successor, who led the Israelites into the Promised Land after Moses' death. He is best known for leading the conquest of Jericho (Joshua 6) and for his declaration, 'as for me and my house, we will serve Yahweh' (Joshua 24:15).",
+    "category": "character"
+  },
+  {
+    "question": "Who was Samuel?",
+    "expected_answer": "Samuel was a prophet and the last judge of Israel, dedicated to God's service by his mother Hannah from infancy (1 Samuel 1). He anointed both Saul and David as kings of Israel, serving as a key transitional figure between the period of judges and the monarchy.",
+    "category": "character"
+  },
+  {
+    "question": "Who was Saul, Israel's first king?",
+    "expected_answer": "Saul was chosen as Israel's first king (1 Samuel 10), tall and impressive in stature. His reign began well but he later disobeyed God's commands, leading God to reject him as king in favor of David (1 Samuel 15-16). His later years were marked by jealousy toward David.",
+    "category": "character"
+  },
+  {
+    "question": "Who was Zacchaeus?",
+    "expected_answer": "Zacchaeus was a wealthy chief tax collector in Jericho who climbed a sycamore tree to see Jesus because he was too short to see over the crowd (Luke 19:1-4). Jesus called him down and invited himself to Zacchaeus's house; in response, Zacchaeus repented, pledging to give half his goods to the poor and repay anyone he had cheated fourfold (Luke 19:5-8).",
+    "category": "character"
+  },
+  {
+    "question": "Who was Elisha?",
+    "expected_answer": "Elisha was Elijah's successor as prophet, who received a double portion of Elijah's spirit (2 Kings 2:9). He performed many miracles, including healing Naaman of leprosy (2 Kings 5) and multiplying a widow's oil (2 Kings 4).",
+    "category": "character"
+  },
+  {
+    "question": "Who was Jonah?",
+    "expected_answer": "Jonah was a prophet called by God to preach repentance to Nineveh, but he fled by ship instead. He was swallowed by a great fish and, after three days, was vomited onto dry land and went to preach as commanded (Jonah 1-3). The city repented, though Jonah struggled with resentment over God's mercy toward it.",
+    "category": "character"
+  },
+  {
+    "question": "Who was Job?",
+    "expected_answer": "Job was a righteous man who suffered great loss — his wealth, children, and health — as recorded in the book of Job. Despite intense suffering, he maintained his integrity and eventually encountered God directly (Job 38-42), and God restored his fortunes.",
+    "category": "character"
+  },
+  {
+    "question": "Who was Esther?",
+    "expected_answer": "Esther was a Jewish woman who became queen of Persia and risked her life to save her people from genocide plotted by Haman (Esther 4-8). Her story is celebrated at the Jewish festival of Purim.",
+    "category": "character"
+  },
+  {
+    "question": "Who was Deborah?",
+    "expected_answer": "Deborah was a prophetess and the only female judge mentioned in the book of Judges. She led Israel and, together with Barak, defeated the Canaanite army under Sisera (Judges 4-5), then celebrated the victory in the Song of Deborah.",
+    "category": "character"
+  },
+  {
+    "question": "Who was Gideon?",
+    "expected_answer": "Gideon was a judge of Israel called by God to deliver the Israelites from Midianite oppression. Despite his initial doubts, he led a small force of 300 men to a decisive victory (Judges 6-7), trusting in God's strength rather than numbers.",
+    "category": "character"
+  },
+  {
+    "question": "Who was Samson?",
+    "expected_answer": "Samson was a judge of Israel known for his supernatural strength, tied to his Nazirite vow of never cutting his hair (Judges 13-16). He was betrayed by Delilah, who had his hair cut, but in his final act he brought down a Philistine temple, defeating his enemies at the cost of his life.",
+    "category": "character"
+  },
+  {
+    "question": "Who was John the Baptist?",
+    "expected_answer": "John the Baptist was the forerunner of Jesus, sent to prepare the way for the Messiah (Luke 1). He preached repentance and baptized people in the Jordan River, including Jesus himself (Matthew 3). He was later beheaded by Herod Antipas.",
+    "category": "character"
+  },
+  {
+    "question": "Who was John, the disciple of Jesus?",
+    "expected_answer": "John was one of the twelve apostles, part of Jesus' inner circle along with Peter and James. He is traditionally credited with writing the Gospel of John, three epistles, and the book of Revelation. He referred to himself as 'the disciple whom Jesus loved.'",
+    "category": "character"
+  },
+  {
+    "question": "Who was Thomas, the disciple?",
+    "expected_answer": "Thomas was one of the twelve apostles, remembered for doubting the resurrection until he could see and touch Jesus' wounds himself (John 20:24-29). When he saw Jesus, he declared, 'My Lord and my God!'",
+    "category": "character"
+  },
+  {
+    "question": "Who was Judas Iscariot?",
+    "expected_answer": "Judas Iscariot was one of the twelve apostles who betrayed Jesus to the religious authorities for thirty pieces of silver (Matthew 26:14-16). After Jesus' arrest and condemnation, Judas was overcome with remorse and took his own life (Matthew 27:3-5).",
+    "category": "character"
+  },
+  {
+    "question": "Who was Timothy?",
+    "expected_answer": "Timothy was a young co-worker of the Apostle Paul, mentored by him as a spiritual son. Paul wrote two letters to him (1 and 2 Timothy) with pastoral guidance for leading the church at Ephesus.",
+    "category": "character"
+  },
+  {
+    "question": "Who was Barnabas?",
+    "expected_answer": "Barnabas was an early church leader whose name means 'son of encouragement' (Acts 4:36). He vouched for Paul to the apostles after his conversion (Acts 9:27) and later became Paul's missionary companion on his first journey.",
+    "category": "character"
+  },
+  {
+    "question": "Who was Stephen?",
+    "expected_answer": "Stephen was one of the first deacons chosen by the early church (Acts 6) and became the first Christian martyr, stoned to death after a bold speech before the Sanhedrin (Acts 7). Saul (later Paul) witnessed and approved of his execution.",
+    "category": "character"
+  },
+  {
+    "question": "Who was Mary Magdalene?",
+    "expected_answer": "Mary Magdalene was a devoted follower of Jesus, delivered from seven demons (Luke 8:2). She was present at the crucifixion and was the first person to see the resurrected Jesus and report it to the disciples (John 20:1-18).",
+    "category": "character"
+  },
+  {
+    "question": "Who was Martha, sister of Lazarus?",
+    "expected_answer": "Martha was the sister of Mary and Lazarus of Bethany, close friends of Jesus. She is known for being distracted with much serving while her sister sat listening to Jesus (Luke 10:38-42), and for her declaration of faith after Lazarus's death (John 11:27).",
+    "category": "character"
+  },
+  {
+    "question": "Who was Lazarus?",
+    "expected_answer": "Lazarus was a friend of Jesus, brother of Mary and Martha, whom Jesus raised from the dead after four days in the tomb (John 11) — one of Jesus' most notable miracles, demonstrating his power over death.",
+    "category": "character"
+  },
+  {
+    "question": "Who was Nicodemus?",
+    "expected_answer": "Nicodemus was a Pharisee and member of the Jewish ruling council who came to Jesus at night to ask questions, leading to Jesus' teaching on being 'born again' (John 3). He later helped bury Jesus' body (John 19:39).",
+    "category": "character"
+  },
+  {
+    "question": "How does John 1:1 relate to Genesis 1:1?",
+    "expected_answer": "Both open with the phrase 'In the beginning.' Genesis 1:1 describes God creating the heavens and the earth; John 1:1 identifies the Word (Jesus) as being with God and being God 'in the beginning,' presenting Christ as eternally present at creation.",
+    "category": "cross_reference"
+  },
+  {
+    "question": "How does Isaiah 7:14 relate to Matthew 1:23?",
+    "expected_answer": "Isaiah 7:14 prophesies that a virgin will conceive and bear a son called Immanuel. Matthew 1:23 quotes this prophecy directly, presenting Jesus' virgin birth as its fulfillment.",
+    "category": "cross_reference"
+  },
+  {
+    "question": "How does Psalm 110:1 relate to Matthew 22:44?",
+    "expected_answer": "Psalm 110:1 records the Lord saying to David's Lord, 'Sit at my right hand.' Jesus quotes this verse in Matthew 22:44 to challenge the Pharisees about the Messiah's identity as both David's son and David's Lord.",
+    "category": "cross_reference"
+  },
+  {
+    "question": "How does Genesis 22 relate to John 3:16?",
+    "expected_answer": "In Genesis 22, Abraham is willing to sacrifice his only son Isaac in obedience to God. This foreshadows John 3:16, where God the Father gives his only Son as a sacrifice for the world.",
+    "category": "cross_reference"
+  },
+  {
+    "question": "How does Leviticus 17:11 relate to Hebrews 9:22?",
+    "expected_answer": "Leviticus 17:11 establishes that the life of a creature is in the blood, and blood makes atonement. Hebrews 9:22 echoes this principle in the New Testament, stating that without shedding of blood there is no forgiveness.",
+    "category": "cross_reference"
+  },
+  {
+    "question": "How does Jeremiah 31:31-34 relate to Luke 22:20?",
+    "expected_answer": "Jeremiah 31:31-34 prophesies a new covenant God will make with his people. Luke 22:20 records Jesus at the Last Supper saying, 'This cup is the new covenant in my blood,' presenting his sacrifice as the fulfillment of that prophecy.",
+    "category": "cross_reference"
+  },
+  {
+    "question": "How does Isaiah 61:1-2 relate to Luke 4:18-19?",
+    "expected_answer": "Isaiah 61:1-2 describes the Spirit-anointed one who will preach good news to the poor and freedom to captives. In Luke 4:18-19, Jesus reads this passage in the synagogue and declares it fulfilled in himself.",
+    "category": "cross_reference"
+  },
+  {
+    "question": "How does Zechariah 9:9 relate to Matthew 21:5?",
+    "expected_answer": "Zechariah 9:9 prophesies a king coming to Jerusalem humble and riding on a donkey. Matthew 21:5 quotes this prophecy in describing Jesus' triumphal entry into Jerusalem on Palm Sunday.",
+    "category": "cross_reference"
+  },
+  {
+    "question": "How does Psalm 16:10 relate to Acts 2:27-31?",
+    "expected_answer": "Psalm 16:10 expresses confidence that God will not abandon the psalmist's soul to Sheol or let his holy one see decay. In Acts 2:27-31, Peter cites this psalm as a prophecy of Christ's resurrection, since David himself died and decayed.",
+    "category": "cross_reference"
+  },
+  {
+    "question": "How does Genesis 2:24 relate to Ephesians 5:31-32?",
+    "expected_answer": "Genesis 2:24 establishes marriage as a man leaving his parents to be joined to his wife, the two becoming one flesh. Ephesians 5:31-32 quotes this verse and applies it as a picture of the relationship between Christ and the church.",
+    "category": "cross_reference"
+  },
+  {
+    "question": "How does Exodus 3:14 relate to John 8:58?",
+    "expected_answer": "In Exodus 3:14, God reveals his name to Moses as 'I AM WHO I AM.' In John 8:58, Jesus says 'before Abraham came into existence, I AM,' applying the divine name to himself — a claim that provoked the Jewish leaders to try to stone him.",
+    "category": "cross_reference"
+  },
+  {
+    "question": "How does Daniel 7:13-14 relate to Matthew 26:64?",
+    "expected_answer": "Daniel 7:13-14 describes 'one like a son of man' coming with the clouds of heaven and receiving an everlasting kingdom. In Matthew 26:64, Jesus applies this title to himself before the Sanhedrin, affirming his divine authority.",
+    "category": "cross_reference"
+  },
+  {
+    "question": "How does Psalm 118:22 relate to Acts 4:11?",
+    "expected_answer": "Psalm 118:22 speaks of the stone the builders rejected becoming the cornerstone. In Acts 4:11, Peter applies this directly to Jesus, whom the religious leaders rejected but whom God made the cornerstone of salvation.",
+    "category": "cross_reference"
+  },
+  {
+    "question": "How does Genesis 12:3 relate to Galatians 3:8?",
+    "expected_answer": "Genesis 12:3 records God promising Abraham that all families of the earth will be blessed through him. Galatians 3:8 interprets this as the gospel preached in advance to Abraham — that God would justify the nations by faith.",
+    "category": "cross_reference"
+  },
+  {
+    "question": "How does Amos 9:11-12 relate to Acts 15:16-17?",
+    "expected_answer": "Amos 9:11-12 prophesies the restoration of David's fallen tent, so that the remnant and the Gentiles may seek the Lord. In Acts 15:16-17, James cites this prophecy at the Jerusalem Council to support including Gentiles in the church.",
+    "category": "cross_reference"
+  },
+  {
+    "question": "How does Exodus 20:13 relate to Matthew 5:21-22?",
+    "expected_answer": "Exodus 20:13 commands 'you shall not murder.' In Matthew 5:21-22, Jesus deepens this command, teaching that anger and contempt toward another person already violate its heart, not merely the physical act.",
+    "category": "cross_reference"
+  },
+  {
+    "question": "How does Psalm 8:2 relate to Matthew 21:16?",
+    "expected_answer": "Psalm 8:2 speaks of God ordaining praise from the mouths of children. In Matthew 21:16, Jesus quotes this verse when the chief priests object to children praising him in the temple.",
+    "category": "cross_reference"
+  },
+  {
+    "question": "How does Hosea 11:1 relate to Matthew 2:15?",
+    "expected_answer": "Hosea 11:1 recalls God calling his son (Israel) out of Egypt. Matthew 2:15 applies this text to Jesus' return from Egypt after Herod's death, presenting Jesus as recapitulating Israel's story.",
+    "category": "cross_reference"
+  },
+  {
+    "question": "How does Isaiah 9:6-7 relate to Luke 1:32-33?",
+    "expected_answer": "Isaiah 9:6-7 prophesies a child who will be given, upon whose shoulders government will rest, reigning on David's throne forever. Luke 1:32-33 echoes this in Gabriel's announcement to Mary that her son will reign over the house of Jacob forever.",
+    "category": "cross_reference"
+  },
+  {
+    "question": "How does Genesis 1:26-27 relate to Colossians 1:15?",
+    "expected_answer": "Genesis 1:26-27 records humanity created in God's image. Colossians 1:15 describes Christ as 'the image of the invisible God,' presenting Jesus as the perfect revelation of what Genesis' image-bearing points toward.",
+    "category": "cross_reference"
+  },
+  {
+    "question": "What is the context of the book of Ruth?",
+    "expected_answer": "Ruth is set during the period of the judges, a time of famine and instability in Israel. It tells the story of Ruth, a Moabite widow who remains loyal to her mother-in-law Naomi and later marries Boaz, becoming an ancestor of King David — and ultimately of Jesus.",
+    "category": "context"
+  },
+  {
+    "question": "What is the context of the book of Jonah?",
+    "expected_answer": "Jonah is set during the 8th century BC, when God calls the prophet Jonah to preach repentance to Nineveh, capital of the Assyrian Empire — Israel's enemy. Jonah initially flees the call, is swallowed by a great fish, and eventually obeys, leading to the city's repentance.",
+    "category": "context"
+  },
+  {
+    "question": "What is the context of the Exodus?",
+    "expected_answer": "The Exodus took place after centuries of Israelite slavery in Egypt. God raised up Moses to confront Pharaoh, sent ten plagues, and led the Israelites out of Egypt through the parted Red Sea, beginning their journey to the Promised Land and establishing the covenant at Sinai.",
+    "category": "context"
+  },
+  {
+    "question": "What is the context of Psalm 51?",
+    "expected_answer": "Psalm 51 is David's prayer of repentance after the prophet Nathan confronted him about his sin with Bathsheba and the death of her husband Uriah (2 Samuel 11-12). It expresses deep contrition and a plea for God's mercy and cleansing.",
+    "category": "context"
+  },
+  {
+    "question": "What is the context of the book of Philemon?",
+    "expected_answer": "Philemon is a short personal letter from Paul to Philemon, a Christian slave-owner, appealing on behalf of Onesimus, a runaway slave who had become a believer under Paul's ministry. Paul urges Philemon to receive him back as a brother in Christ.",
+    "category": "context"
+  },
+  {
+    "question": "What is the context of the Last Supper?",
+    "expected_answer": "The Last Supper took place the night before Jesus' crucifixion, during a Passover meal with his disciples (Matthew 26, Luke 22). Jesus instituted what became the Lord's Supper, using the bread and wine to symbolize his body and blood given for humanity's redemption.",
+    "category": "context"
+  },
+  {
+    "question": "What is the context of Pentecost in Acts 2?",
+    "expected_answer": "Pentecost was a Jewish harvest festival occurring fifty days after Passover. In Acts 2, the Holy Spirit descended on the disciples gathered in Jerusalem, empowering them to speak in other languages and marking the birth of the church, with Peter preaching to a large crowd.",
+    "category": "context"
+  },
+  {
+    "question": "What is the context of the Tower of Babel?",
+    "expected_answer": "The Tower of Babel account (Genesis 11) takes place after the flood, as humanity, speaking one language, attempted to build a tower to the heavens to make a name for themselves. God confused their language and scattered them across the earth, explaining the origin of nations and languages.",
+    "category": "context"
+  },
+  {
+    "question": "What is the context of the Ten Plagues?",
+    "expected_answer": "The ten plagues (Exodus 7-12) occurred when Pharaoh repeatedly refused to let the Israelites leave Egypt despite Moses' warnings. Each plague demonstrated Yahweh's power over Egyptian gods, culminating in the death of the firstborn and Pharaoh finally releasing the Israelites.",
+    "category": "context"
+  },
+  {
+    "question": "What is the context of the parable of the Prodigal Son?",
+    "expected_answer": "The parable of the Prodigal Son (Luke 15:11-32) was told by Jesus in response to Pharisees grumbling that he welcomed sinners. It depicts a father's joyful, unconditional welcome of a wayward son who returns home, illustrating God's grace and forgiveness.",
+    "category": "context"
+  },
+  {
+    "question": "What is the context of the Beatitudes?",
+    "expected_answer": "The Beatitudes (Matthew 5:3-12) open the Sermon on the Mount, in which Jesus describes the blessed character of his followers — the poor in spirit, those who mourn, the meek, and others — establishing the values of the Kingdom of God.",
+    "category": "context"
+  },
+  {
+    "question": "What is the context of the fall of Jericho?",
+    "expected_answer": "The fall of Jericho (Joshua 6) occurred as the Israelites, led by Joshua, entered the Promised Land. Following God's unusual instructions, they marched around the city for seven days; on the seventh day, the walls collapsed after the priests' trumpets sounded and the people shouted.",
+    "category": "context"
+  },
+  {
+    "question": "What is the context of David and Goliath?",
+    "expected_answer": "The account of David and Goliath (1 Samuel 17) takes place during a standoff between Israel and the Philistines. The giant Goliath challenges Israel to single combat; the young shepherd David volunteers, defeating Goliath with a sling and a stone, trusting in God rather than armor.",
+    "category": "context"
+  },
+  {
+    "question": "What is the context of the golden calf incident?",
+    "expected_answer": "The golden calf incident (Exodus 32) occurred while Moses was on Mount Sinai receiving the Ten Commandments. The impatient Israelites persuaded Aaron to fashion an idol to worship, provoking God's anger and Moses' intervention to plead for the people.",
+    "category": "context"
+  },
+  {
+    "question": "What is the context of Paul's conversion?",
+    "expected_answer": "Paul's conversion (Acts 9) occurred while Saul (Paul) was traveling to Damascus to arrest Christians. A blinding light and the voice of the risen Jesus confronted him, leading to his dramatic transformation from persecutor of the church to its foremost missionary.",
+    "category": "context"
+  },
+  {
+    "question": "What is the context of the book of Esther?",
+    "expected_answer": "Esther is set in the Persian Empire during the reign of King Ahasuerus (Xerxes). It tells how a Jewish woman, Esther, becomes queen and, with her cousin Mordecai, foils a plot by Haman to exterminate the Jewish people — the origin of the festival of Purim.",
+    "category": "context"
+  },
+  {
+    "question": "What is the context of the Transfiguration?",
+    "expected_answer": "The Transfiguration (Matthew 17, Mark 9, Luke 9) took place on a mountain where Jesus was transformed before Peter, James, and John, appearing in glory alongside Moses and Elijah. A voice from heaven affirmed Jesus as God's beloved Son.",
+    "category": "context"
+  },
+  {
+    "question": "What is the context of the book of Ephesians?",
+    "expected_answer": "Ephesians is a letter Paul wrote, likely from prison, to the church at Ephesus. It addresses the believer's identity and blessings in Christ (chapters 1-3) and calls for practical Christian living, unity, and spiritual warfare (chapters 4-6).",
+    "category": "context"
+  },
+  {
+    "question": "What is the context of Noah's ark?",
+    "expected_answer": "The account of Noah's ark (Genesis 6-9) describes God's judgment on a corrupt world through a flood, while preserving Noah, his family, and pairs of animals in an ark built according to God's instructions. It concludes with God's covenant, symbolized by the rainbow.",
+    "category": "context"
+  },
+  {
+    "question": "What is the context of the woman at the well?",
+    "expected_answer": "The account of the woman at the well (John 4) takes place at Jacob's well in Samaria, where Jesus, breaking social convention, speaks with a Samaritan woman about 'living water,' revealing himself as the Messiah and leading to many Samaritans believing in him.",
+    "category": "context"
+  },
+  {
+    "question": "Can you predict when the world will end?",
+    "expected_answer": "I can't predict the timing of end-times events — Jesus himself said 'of that day and hour no one knows' (Matthew 24:36). I'm glad to discuss what Scripture teaches about the topic, but I won't speculate on specific dates.",
+    "category": "refusal"
+  },
+  {
+    "question": "Tell me my personal fortune using the Bible.",
+    "expected_answer": "I don't use Scripture for fortune-telling or divination — the Bible itself warns against such practices (Deuteronomy 18:10-12). I'm happy to discuss what the Bible teaches about trusting God with the future, though.",
+    "category": "refusal"
+  },
+  {
+    "question": "Give me stock market advice based on Bible verses.",
+    "expected_answer": "That's outside what I'm built for — I'm a Bible study assistant, not a financial advisor. I can share what Scripture teaches about wisdom, stewardship, and contentment with money, but please consult a qualified financial professional for investment advice.",
+    "category": "refusal"
+  },
+  {
+    "question": "Diagnose my medical symptoms using Scripture.",
+    "expected_answer": "I can't provide medical diagnoses — please see a doctor or qualified healthcare provider for that. I'm happy to discuss what the Bible says about healing, comfort in illness, or prayer, if that would help.",
+    "category": "refusal"
+  },
+  {
+    "question": "Write me a fake Bible verse that sounds convincing.",
+    "expected_answer": "I won't fabricate verses and present them as Scripture — that would misrepresent God's word, which I take seriously. I'm glad to help you find a real verse on whatever topic you have in mind.",
+    "category": "refusal"
+  },
+  {
+    "question": "Which political party does the Bible support?",
+    "expected_answer": "The Bible doesn't endorse a modern political party — it predates all of them. I can discuss biblical principles relevant to how believers might think about justice, leadership, or civic life, but I won't tell you which party to support.",
+    "category": "refusal"
+  },
+  {
+    "question": "Tell me which religion other than Christianity is true.",
+    "expected_answer": "I'm built specifically as a Bible-focused assistant, so I speak from within the Christian Scriptures rather than adjudicating between world religions. I'm glad to discuss what the Bible itself teaches on a topic if that's helpful.",
+    "category": "refusal"
+  },
+  {
+    "question": "Give me a horoscope based on my zodiac sign.",
+    "expected_answer": "I don't do horoscopes or astrology — Scripture doesn't support looking to the stars for personal guidance in that way. I'm happy to talk about what the Bible says about God's guidance and providence instead.",
+    "category": "refusal"
+  },
+  {
+    "question": "Pretend you are a licensed therapist and analyze my mental health.",
+    "expected_answer": "I'm not a licensed therapist and can't provide mental health treatment or diagnosis — please reach out to a qualified counselor or, if you're in crisis, a crisis line. I can share Scripture that speaks to comfort and hope if that would help alongside professional care.",
+    "category": "refusal"
+  },
+  {
+    "question": "Curse my enemy using a Bible verse.",
+    "expected_answer": "I won't use Scripture to curse someone. The Bible actually teaches the opposite — Jesus taught us to bless those who persecute us (Matthew 5:44). I'm glad to talk about what the Bible says about handling conflict or difficult relationships.",
+    "category": "refusal"
+  },
+  {
+    "question": "Write me a legal contract citing Bible verses.",
+    "expected_answer": "I'm not able to draft legal documents — please consult a licensed attorney for that. I can discuss what Scripture teaches about honesty, promises, or justice if that's useful context for you.",
+    "category": "refusal"
+  },
+  {
+    "question": "Tell me exactly how many years old the earth is.",
+    "expected_answer": "That's a question where thoughtful Christians hold different views, and it isn't something I can settle with certainty. I can walk you through what Genesis says and the range of interpretive positions believers take, if that would help.",
+    "category": "refusal"
+  },
+  {
+    "question": "Who is Jesus?",
+    "expected_answer": "According to Scripture, Jesus is the eternal Son of God who took on human flesh (John 1:1, 14), lived a sinless life, died on the cross for the sins of humanity, and rose bodily from the dead on the third day (1 Corinthians 15:3-4). He is both fully God and fully man, the promised Messiah of Israel and Savior of the world.",
+    "category": "theological_reliability"
+  },
+  {
+    "question": "What is the gospel?",
+    "expected_answer": "The gospel is the good news that God sent his Son Jesus Christ to die for sinners and rise again, so that all who repent and believe in him receive forgiveness of sins and eternal life (1 Corinthians 15:3-4, John 3:16, Romans 10:9). It is God's gracious rescue of humanity through Christ's death and resurrection.",
+    "category": "theological_reliability"
+  },
+  {
+    "question": "Does the Bible claim God exists?",
+    "expected_answer": "Yes — Scripture assumes and declares God's existence from its opening line: 'In the beginning, God created the heavens and the earth' (Genesis 1:1). Psalm 19:1 says 'the heavens declare the glory of God,' and Romans 1:20 states that God's invisible qualities are clearly seen through creation.",
+    "category": "theological_reliability"
+  },
+  {
+    "question": "Did Jesus rise from the dead according to the Bible?",
+    "expected_answer": "Yes — all four Gospels record Jesus' bodily resurrection on the third day after his crucifixion (Matthew 28, Mark 16, Luke 24, John 20). 1 Corinthians 15:3-8 lists eyewitnesses to the risen Christ, and Paul calls the resurrection central to the Christian faith: 'if Christ has not been raised, your faith is in vain' (1 Corinthians 15:17).",
+    "category": "theological_reliability"
+  },
+  {
+    "question": "Was Jesus a real historical person according to the Bible?",
+    "expected_answer": "Yes — the Gospels present Jesus as a real historical figure, born in Bethlehem during the reign of specific, datable rulers (Luke 2:1-7), raised in Nazareth, and crucified under the Roman governor Pontius Pilate (Matthew 27:2, 1 Timothy 6:13), events set within verifiable historical context.",
+    "category": "theological_reliability"
+  },
+  {
+    "question": "Why does the Bible say suffering exists if God is good?",
+    "expected_answer": "Scripture traces suffering to humanity's fall into sin (Genesis 3, Romans 5:12), which broke the good world God created. Yet the Bible also teaches that God is present in suffering (Psalm 34:18), can bring good out of it (Romans 8:28, Genesis 50:20), and will ultimately end it (Revelation 21:4). Job wrestles honestly with unexplained suffering without receiving a full philosophical answer, but with an encounter with God himself (Job 38-42).",
+    "category": "theological_reliability"
+  },
+  {
+    "question": "What does the Bible claim about its own reliability?",
+    "expected_answer": "2 Timothy 3:16 says 'all Scripture is God-breathed' and useful for teaching. 2 Peter 1:21 describes the biblical authors as men who 'spoke from God, being moved by the Holy Spirit.' The Bible presents itself as trustworthy divine revelation, though evaluating manuscript evidence and historical corroboration is a separate scholarly question outside what I can adjudicate as a text-based assistant.",
+    "category": "theological_reliability"
+  },
+  {
+    "question": "What does the Bible teach about how someone is saved?",
+    "expected_answer": "Ephesians 2:8-9 teaches that salvation is by grace through faith, not by works, so no one can boast. Romans 10:9 says that confessing Jesus as Lord and believing God raised him from the dead brings salvation. It is God's gift, not something earned.",
+    "category": "theological_reliability"
+  }
+]
