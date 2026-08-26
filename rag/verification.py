@@ -25,15 +25,68 @@ from typing import NamedTuple
 # Verse reference pattern: optional leading number (1/2/3), one or more capitalized
 # words, then chapter:verse. Mirrors the pattern used across rag/helpers.py and
 # training/evaluate.py so extraction behaves identically everywhere it's used.
+# Word reps are capped ({1,20}) to bound backtracking on adversarial inputs —
+# no real book name exceeds 20 characters.
 VERSE_REF_PATTERN = re.compile(
-    r"(?:[123]?\s?[A-Za-z]+(?:\s[A-Za-z]+){0,3})\s\d+:\d+",
+    r"(?:[123]?\s?[A-Za-z]{1,20}(?:\s[A-Za-z]{1,20}){0,3})\s\d+:\d+",
 )
 
 # Regex false positives from prose immediately before a real reference sweep a
 # connective word into the match, e.g. "... and Psalms 27:1" or "As Hezekiah
 # 3:5". Stripped from the front of a match (not dropped outright) so the real
 # book name — "Psalms", "Hezekiah" — is recovered rather than lost.
-_LEADING_CONNECTIVES = {"and", "or", "the", "of", "in", "to", "as", "see", "cf", "per"}
+_LEADING_CONNECTIVES = {
+    "and",
+    "or",
+    "the",
+    "of",
+    "in",
+    "to",
+    "as",
+    "see",
+    "cf",
+    "per",
+    "about",
+    "from",
+    "with",
+    "through",
+    "for",
+    "on",
+    "at",
+    "by",
+    "into",
+    "does",
+    "do",
+    "did",
+    "say",
+    "says",
+    "said",
+    "wrote",
+    "teach",
+    "teaches",
+    "what",
+    "where",
+    "when",
+    "who",
+    "how",
+    "which",
+    "whom",
+    "that",
+    "this",
+    "those",
+    "these",
+    "love",
+    "reads",
+    "means",
+    "explains",
+    "describes",
+    "according",
+    "gives",
+    "tells",
+    "shows",
+    "proves",
+    "reveals",
+}
 
 # Below this ratio, quoted text is considered too different from the real verse
 # to be a paraphrase — flagged as a possible misquote rather than silently passed.
@@ -53,18 +106,30 @@ VerseLookup = Callable[[str], "str | None"]
 def _split_ref(ref: str) -> tuple[str, str] | None:
     """'John 3:16' -> ('John', '3:16'). None if it doesn't parse.
 
-    Strips a leading run of connective words swept into the match by the
-    greedy book-name group (e.g. "and Romans" -> "Romans", "As Hezekiah" ->
-    "Hezekiah") so the real book name is recovered rather than the whole
-    match being discarded. Always keeps at least one word as the book.
+    When the greedy regex sweeps prose into the match (e.g. "love in John 3:16"
+    from "God's love in John 3:16"), the real book name is recovered by scanning
+    right-to-left for the last word that looks like a book name (capitalized or
+    a numeric-prefix abbreviation).  Possessive fragments (bare ``s``) are
+    discarded.  Always keeps at least one word as the book.
     """
     m = re.match(r"^(.+?)\s+(\d+:\d+)$", ref.strip())
     if not m:
         return None
-    words = m.group(1).strip().split(" ")
-    while len(words) > 1 and words[0].lower() in _LEADING_CONNECTIVES:
-        words.pop(0)
-    book = " ".join(words).strip()
+    raw_words = m.group(1).strip()
+    words: list[str] = []
+    for w in raw_words.split(" "):
+        if w.endswith("'s"):
+            w = w[:-2]
+        if w and w != "s":
+            words.append(w)
+    if not words:
+        return None
+    book_idx = len(words) - 1
+    while book_idx > 0 and not words[book_idx][0].isupper():
+        book_idx -= 1
+    while book_idx > 0 and words[book_idx - 1].isdigit():
+        book_idx -= 1
+    book = " ".join(words[book_idx:]).strip()
     if not book:
         return None
     return book, m.group(2)
@@ -151,12 +216,17 @@ def annotate_unverified_citations(text: str, issues: list[CitationIssue]) -> str
     left to logging only (see rag_server.py) to avoid over-flagging valid
     paraphrase.
     """
-    if not issues:
+    bad_refs = sorted(
+        {issue.ref for issue in issues if issue.reason == "unknown_reference"},
+        key=len,
+        reverse=True,
+    )
+    if not bad_refs:
         return text
-    out = text
-    for issue in issues:
-        if issue.reason != "unknown_reference":
-            continue
-        marker = f"{issue.ref} [⚠ reference not found in indexed text]"
-        out = out.replace(issue.ref, marker)
-    return out
+    # Single pass over an alternation of offending refs, longest first with word
+    # boundaries: sequential str.replace would corrupt "1 John 3:16" when
+    # annotating "John 3:16" and double-mark overlapping occurrences.
+    pattern = re.compile(
+        r"(?<!\w)(?<!\d )(" + "|".join(re.escape(r) for r in bad_refs) + r")(?!\w)"
+    )
+    return pattern.sub(lambda m: f"{m.group(1)} [⚠ reference not found in indexed text]", text)
