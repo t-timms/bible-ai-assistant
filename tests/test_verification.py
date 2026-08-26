@@ -112,3 +112,43 @@ class TestAnnotateUnverifiedCitations:
     def test_no_issues_returns_text_unchanged(self) -> None:
         text = "John 3:16 speaks of God's love."
         assert annotate_unverified_citations(text, []) == text
+
+
+class TestAnnotateNestedRefSafety:
+    """R5b: single-pass longest-first annotation must not corrupt overlapping refs."""
+
+    def test_no_nested_annotation_inside_longer_ref(self) -> None:
+        text = "Compare 1 John 3:16 with John 3:16 today."
+        issues = [
+            CitationIssue(ref="1 John 3:16", reason="unknown_reference"),
+            CitationIssue(ref="John 3:16", reason="unknown_reference"),
+        ]
+        out = annotate_unverified_citations(text, issues)
+        assert out.count("not found in indexed text") == 2
+        assert "[⚠ reference not found in indexed text] [⚠" not in out
+
+    def test_short_ref_not_annotated_inside_numeric_prefixed_ref(self) -> None:
+        text = "Study 1 John 3:16 carefully."
+        issues = [CitationIssue(ref="John 3:16", reason="unknown_reference")]
+        assert annotate_unverified_citations(text, issues) == text
+
+    def test_boundary_digits_not_partially_matched(self) -> None:
+        # "John 3:16" must not be annotated inside "John 3:165".
+        text = "See John 3:165 for details."
+        issues = [CitationIssue(ref="John 3:16", reason="unknown_reference")]
+        assert annotate_unverified_citations(text, issues) == text
+
+
+class TestExtractionPerformance:
+    """R10: bounded word reps keep extraction fast on adversarial input."""
+
+    def test_large_adversarial_input_under_2s(self) -> None:
+        import time
+
+        text = ("word " * 40000) + "John 3:16 " + ("a" * 5000) + " 99:99 end"
+        start = time.monotonic()
+        refs = extract_verse_refs(text)
+        elapsed = time.monotonic() - start
+        # Multi-word book matching absorbs preceding "word" tokens.
+        assert any(r.endswith("John 3:16") for r in refs)
+        assert elapsed < 2.0
