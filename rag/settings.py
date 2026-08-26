@@ -47,6 +47,17 @@ class Settings(BaseSettings):
     chroma_query_timeout_seconds: float = 10.0
 
     # ------------------------------------------------------------------
+    # Context budget / query limits
+    # ------------------------------------------------------------------
+    # Max chars of the rendered context block injected into a user turn.
+    # Enforced after pinning + rerank selection; lowest-ranked extras are
+    # truncated first so pinned verses always survive.
+    context_max_chars: int = 3500
+    # Hard cap on incoming query length, applied before classification,
+    # embedding, and BM25 scoring.
+    max_query_chars: int = 2000
+
+    # ------------------------------------------------------------------
     # Security  (empty string = auth disabled; fine for localhost dev)
     # ------------------------------------------------------------------
     api_key: str = ""
@@ -76,6 +87,8 @@ class Settings(BaseSettings):
     # Request limits
     # ------------------------------------------------------------------
     max_request_body_bytes: int = 1_048_576  # 1 MB
+    # Ceiling applied to client-supplied max_tokens before forwarding to Ollama.
+    max_tokens_ceiling: int = 4096
 
     # ------------------------------------------------------------------
     # CORS (empty list = disabled; use ["*"] to allow all origins in dev)
@@ -134,7 +147,14 @@ class Settings(BaseSettings):
             raise ValueError("OLLAMA_URL has no host")
         return v
 
-    @field_validator("rag_top_k", "hybrid_candidates", "max_request_body_bytes")
+    @field_validator(
+        "rag_top_k",
+        "hybrid_candidates",
+        "max_request_body_bytes",
+        "context_max_chars",
+        "max_query_chars",
+        "max_tokens_ceiling",
+    )
     @classmethod
     def _positive_int(cls, v: int) -> int:
         if v < 1:
