@@ -66,9 +66,9 @@ TEMPLATE """{{{{- if .System }}}}<|im_start|>system
 SYSTEM """{system_text}"""
 
 PARAMETER temperature 0.2
-PARAMETER num_ctx 2048
+PARAMETER num_ctx 4096
 PARAMETER num_predict 256
-PARAMETER repeat_penalty 2.0
+PARAMETER repeat_penalty 1.15
 PARAMETER repeat_last_n 32
 PARAMETER stop "<|im_end|>"
 PARAMETER stop "<|im_start|>"
