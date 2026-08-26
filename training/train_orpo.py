@@ -40,6 +40,25 @@ MAX_SEQ_LENGTH = 2048  # Matches SFT stage (train_unsloth.py) for consistent pos
 BF16 = True
 
 
+def _load_sft_adapter_strict(model, sft_state: dict, source: Path) -> None:
+    """Load SFT adapter weights; hard-fail on unexpected keys (audit T4e).
+
+    A silent partial load (key-name drift between PEFT versions) would leave most
+    LoRA weights randomly initialized while training appears to proceed normally.
+    """
+    from peft import set_peft_model_state_dict
+
+    load_result = set_peft_model_state_dict(model, sft_state)
+    unexpected = list(getattr(load_result, "unexpected_keys", None) or [])
+    if unexpected:
+        preview = ", ".join(sorted(unexpected)[:5])
+        raise RuntimeError(
+            f"SFT adapter {source} produced {len(unexpected)} unexpected keys "
+            f"(e.g. {preview}). Adapter/config mismatch - refusing to continue "
+            "ORPO on partially-loaded weights."
+        )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="ORPO preference training on SFT model.")
     parser.add_argument(
@@ -102,7 +121,8 @@ def main() -> None:
     except ImportError as e:
         raise ImportError(
             "Install deps: pip install unsloth trl datasets wandb. "
-            "Requires trl >= 0.8.0 for ORPOTrainer."
+            "Requires trl >= 0.9 for ORPOTrainer with conversational "
+            "(message-list) datasets."
         ) from e
 
     # Qwen3.5-4B requires transformers>=5 for native qwen3_5 support. transformers<=4.57.2 loads it as
@@ -175,8 +195,16 @@ def main() -> None:
     # load_in_4bit=False: ORPO must match SFT precision (bf16 LoRA, not QLoRA).
     # Using 4-bit here introduces NF4 quantization noise into the alignment signal
     # and creates a precision mismatch with the bf16 SFT checkpoint.
-    model, tokenizer = FastLanguageModel.from_pretrained(
+    try:
+        from training.train_unsloth import load_model_pinned
+    except ImportError:
+        sys.path.insert(0, str(project_root))
+        from training.train_unsloth import load_model_pinned
+
+    model, tokenizer = load_model_pinned(
+        FastLanguageModel.from_pretrained,
         model_name=model_name_to_load,
+        revision=MODEL_REVISION,
         max_seq_length=MAX_SEQ_LENGTH,
         dtype="bfloat16",
         load_in_4bit=False,
@@ -197,7 +225,9 @@ def main() -> None:
             "down_proj",
         ],
         lora_alpha=32,
-        lora_dropout=0.05,
+        # Must match SFT dropout (training/config.yaml lora.dropout / orpo.lora_dropout):
+        # ORPO continues the SFT adapter, so regularization must be identical.
+        lora_dropout=0.1,
         bias="none",
         use_gradient_checkpointing="unsloth",
         random_state=3407,
@@ -205,18 +235,17 @@ def main() -> None:
 
     # Load SFT weights into the LoRA adapter
     import safetensors.torch
-    from peft import set_peft_model_state_dict
 
     adapter_file = sft_path / "adapter_model.safetensors"
     if adapter_file.exists():
         sft_state = safetensors.torch.load_file(str(adapter_file))
-        set_peft_model_state_dict(model, sft_state)
+        _load_sft_adapter_strict(model, sft_state, adapter_file)
         print(f"Loaded SFT adapter weights from {adapter_file}")
     else:
         adapter_bin = sft_path / "adapter_model.bin"
         if adapter_bin.exists():
             sft_state = torch.load(str(adapter_bin), map_location="cpu", weights_only=True)
-            set_peft_model_state_dict(model, sft_state)
+            _load_sft_adapter_strict(model, sft_state, adapter_bin)
             print(f"Loaded SFT adapter weights from {adapter_bin}")
         else:
             raise FileNotFoundError(
@@ -238,30 +267,10 @@ def main() -> None:
     dataset = load_dataset("json", data_files=str(pref_path), split="train")
     print(f"Loaded {len(dataset)} preference pairs")
 
-    # ORPO expects prompt/chosen/rejected as strings. Use prompt + assistant content for chosen/rejected.
-    # Qwen3.5 chat template is strict; bypass it for chosen/rejected by concatenating manually.
-    eos = tokenizer.eos_token or "<|im_end|>"
-
-    def format_for_orpo(examples):
-        prompts, chosens, rejecteds = [], [], []
-        for prompt_msgs, chosen_msgs, rejected_msgs in zip(
-            examples["prompt"], examples["chosen"], examples["rejected"], strict=True
-        ):
-            prompt_text = tokenizer.apply_chat_template(
-                prompt_msgs, tokenize=False, add_generation_prompt=True
-            )
-            chosen_content = chosen_msgs[0]["content"] if chosen_msgs else ""
-            rejected_content = rejected_msgs[0]["content"] if rejected_msgs else ""
-            chosen_text = prompt_text + chosen_content + eos + "\n"
-            rejected_text = prompt_text + rejected_content + eos + "\n"
-            prompts.append(prompt_text)
-            chosens.append(chosen_text)
-            rejecteds.append(rejected_text)
-        return {"prompt": prompts, "chosen": chosens, "rejected": rejecteds}
-
-    dataset = dataset.map(
-        format_for_orpo, batched=True, remove_columns=dataset.column_names, desc="Formatting"
-    )
+    # Conversational passthrough (audit T4c): build_preference_data.py already emits
+    # message-list rows ({prompt: [system,user], chosen/rejected: [assistant]}).
+    # ORPOTrainer (trl >= 0.9) applies the chat template itself. The old manual
+    # render here double-applied the template and re-trained on prompt tokens.
 
     # 10% held-out validation set — catches preference overfitting with limited data
     splits = dataset.train_test_split(test_size=0.1, seed=3407)

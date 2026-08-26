@@ -26,17 +26,23 @@ if sys.platform == "win32":
         pass
 
 import argparse
+import hashlib
+import logging
+import math
+from collections.abc import Callable, Sequence
 from pathlib import Path
+from typing import Any
+
+logger = logging.getLogger(__name__)
 
 # Training config defaults — must match training/config.yaml.
 # YAML values override these at runtime via _load_config_yaml().
 MODEL_NAME = "Qwen/Qwen3.5-4B"
-# Pinned commit SHA for the tokenizer load below (H-5 supply-chain hardening — see
-# rag/settings.py for the same rationale). NOT passed to FastLanguageModel.from_pretrained
-# (Unsloth's own model download) — that path wasn't verified against a real Unsloth
-# install before this change, so it's left unpinned rather than risk breaking a
-# multi-hour training run on an unverified kwarg. Verified against the HF Hub API
-# directly on 2026-08-24 — re-verify before bumping MODEL_NAME.
+# Pinned commit SHA for reproducible loads (H-5 supply-chain hardening — see
+# rag/settings.py for the same rationale). Passed to FastLanguageModel.from_pretrained
+# via load_model_pinned(): if Unsloth's signature rejects `revision`, we fall back
+# UNPINNED with a loud warning instead of breaking a multi-hour run (audit T7).
+# Verified against the HF Hub API directly on 2026-08-24 — re-verify before bumping MODEL_NAME.
 MODEL_REVISION = "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
 # Qwen3.5: Unsloth does NOT recommend QLoRA 4-bit (quantization differences cause garbage output). Use bf16 LoRA.
 LOAD_IN_4BIT = False
@@ -50,12 +56,131 @@ NUM_EPOCHS = 3
 BATCH_SIZE = 2
 GRADIENT_ACCUMULATION = 8
 LEARNING_RATE = 2.0e-4
-WARMUP_STEPS = 100
+LR_SCHEDULER_TYPE = "cosine"  # audit T5: replaces linear drift
+WARMUP_RATIO = 0.03  # ratio-based; absolute warmup_steps drifted on short runs
+MAX_EVAL_STEPS = 50  # cap for derived eval/save cadence
 EVAL_SPLIT = 0.1
-SAVE_STEPS = 500
 LOGGING_STEPS = 50
 BF16 = True  # REQUIRED for Blackwell. Do not use fp16.
 RANDOM_STATE = 3407
+
+# ChatML assistant-turn start marker: loss is masked (-100) up to and including
+# this span so training signal applies to completions only (audit T6).
+ASSISTANT_START_SPAN = "<|im_start|>assistant\n"
+IGNORE_INDEX = -100
+WEIGHTS_FILE_SUFFIXES = frozenset({".safetensors", ".bin", ".gguf"})
+
+
+def estimate_total_steps(
+    n_train_examples: int, epochs: float, batch_size: int, grad_accum_steps: int
+) -> int:
+    """Optimizer-step estimate: ceil(n * epochs / effective_batch)."""
+    effective_batch = max(1, batch_size * grad_accum_steps)
+    return max(1, math.ceil(n_train_examples * epochs / effective_batch))
+
+
+def suggest_eval_steps(total_steps: int, cap: int = MAX_EVAL_STEPS) -> int:
+    """Eval/save cadence sized to the run: min(cap, total_steps // 6), at least 1.
+
+    //6 guarantees >=6 eval/save points so load_best_model_at_end +
+    metric_for_best_model have something meaningful to select from.
+    """
+    if total_steps < 1:
+        raise ValueError(f"total_steps must be >= 1, got {total_steps}")
+    return max(1, min(cap, total_steps // 6))
+
+
+def find_last_subsequence(haystack: Sequence[int], needle: Sequence[int]) -> int:
+    """Start index of the LAST occurrence of ``needle`` in ``haystack``, or -1."""
+    if not needle or len(needle) > len(haystack):
+        return -1
+    first, n = needle[0], len(needle)
+    for i in range(len(haystack) - n, -1, -1):
+        if haystack[i] == first and list(haystack[i : i + n]) == list(needle):
+            return i
+    return -1
+
+
+def build_completion_labels(
+    input_ids: Sequence[int],
+    assistant_span_ids: Sequence[int],
+    pad_id: int,
+    ignore_index: int = IGNORE_INDEX,
+) -> list[int]:
+    """Labels masking everything up to and including the LAST assistant-start span.
+
+    Completion tokens (and <|im_end|>) keep their ids; padding is masked. Raises
+    when the span is absent so chat-template drift fails loudly instead of
+    silently training on prompt tokens.
+    """
+    span_start = find_last_subsequence(input_ids, assistant_span_ids)
+    if span_start == -1:
+        raise ValueError(
+            "Assistant start marker not found in tokenized sample — chat template "
+            f"drift? Expected span tokens {list(assistant_span_ids)} present in input."
+        )
+    labels = [ignore_index] * len(input_ids)
+    for i in range(span_start + len(assistant_span_ids), len(input_ids)):
+        if input_ids[i] != pad_id:
+            labels[i] = input_ids[i]
+    return labels
+
+
+def load_model_pinned(
+    from_pretrained: Callable[..., Any], model_name: str, revision: str | None, **kwargs: Any
+) -> Any:
+    """``from_pretrained`` with revision pinning; loud UNPINNED fallback on TypeError.
+
+    Unsloth's FastLanguageModel.from_pretrained has not always accepted `revision`;
+    rather than risk breaking a run on an unverified kwarg, we attempt pinned,
+    catch TypeError, warn, and retry unpinned (audit T7).
+    """
+    if not revision:
+        return from_pretrained(model_name=model_name, **kwargs)
+    try:
+        return from_pretrained(model_name=model_name, revision=revision, **kwargs)
+    except TypeError as exc:
+        logger.warning(
+            "REPRO WARNING: %s rejected revision=%r (%s). Continuing UNPINNED — "
+            "weights may differ from the verified snapshot. Investigate Unsloth "
+            "support for `revision` before trusting this run.",
+            getattr(from_pretrained, "__name__", "from_pretrained"),
+            revision,
+            exc,
+        )
+        return from_pretrained(model_name=model_name, **kwargs)
+
+
+def sha256_file(path: Path, chunk_size: int = 1024 * 1024) -> str:
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        while chunk := handle.read(chunk_size):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def verify_weights_dir(dir_path: Path) -> dict[str, str]:
+    """Hash weight files under ``dir_path``; verify *.sha256 sidecars when present.
+
+    Returns {relative_path: sha256}. Raises FileNotFoundError when no weight
+    files exist and ValueError on any sidecar mismatch.
+    """
+    results: dict[str, str] = {}
+    for path in sorted(dir_path.rglob("*")):
+        if not (path.is_file() and path.suffix.lower() in WEIGHTS_FILE_SUFFIXES):
+            continue
+        digest = sha256_file(path)
+        results[path.relative_to(dir_path).as_posix()] = digest
+        sidecar = path.with_suffix(path.suffix + ".sha256")
+        if sidecar.exists():
+            expected = sidecar.read_text(encoding="utf-8").strip().split()[0].lower()
+            if expected != digest:
+                raise ValueError(
+                    f"Checksum mismatch for {path}: sidecar expects {expected}, got {digest}"
+                )
+    if not results:
+        raise FileNotFoundError(f"No weight files (*.safetensors/*.bin/*.gguf) in {dir_path}")
+    return results
 
 
 def _load_config_yaml(project_root: Path) -> None:
@@ -73,7 +198,8 @@ def _load_config_yaml(project_root: Path) -> None:
         return
     global MODEL_NAME, LOAD_IN_4BIT, MAX_SEQ_LENGTH, LORA_R, LORA_ALPHA, LORA_DROPOUT
     global LORA_TARGET_MODULES, OUTPUT_DIR, NUM_EPOCHS, BATCH_SIZE, GRADIENT_ACCUMULATION
-    global LEARNING_RATE, WARMUP_STEPS, SAVE_STEPS, LOGGING_STEPS, BF16, EVAL_SPLIT, RANDOM_STATE
+    global LEARNING_RATE, LR_SCHEDULER_TYPE, WARMUP_RATIO, MAX_EVAL_STEPS, LOGGING_STEPS
+    global BF16, EVAL_SPLIT, RANDOM_STATE
     if "model" in cfg:
         m = cfg["model"]
         MODEL_NAME = m.get("name", MODEL_NAME)
@@ -92,8 +218,9 @@ def _load_config_yaml(project_root: Path) -> None:
         BATCH_SIZE = t.get("per_device_train_batch_size", BATCH_SIZE)
         GRADIENT_ACCUMULATION = t.get("gradient_accumulation_steps", GRADIENT_ACCUMULATION)
         LEARNING_RATE = float(t.get("learning_rate", LEARNING_RATE))
-        WARMUP_STEPS = t.get("warmup_steps", WARMUP_STEPS)
-        SAVE_STEPS = t.get("save_steps", SAVE_STEPS)
+        LR_SCHEDULER_TYPE = t.get("lr_scheduler_type", LR_SCHEDULER_TYPE)
+        WARMUP_RATIO = float(t.get("warmup_ratio", WARMUP_RATIO))
+        MAX_EVAL_STEPS = int(t.get("max_eval_steps", MAX_EVAL_STEPS))
         LOGGING_STEPS = t.get("logging_steps", LOGGING_STEPS)
         BF16 = t.get("bf16", BF16)
         EVAL_SPLIT = float(t.get("eval_split", EVAL_SPLIT))
@@ -119,10 +246,23 @@ def main() -> None:
         action="store_true",
         help="Disable W&B logging (use if W&B service fails on Windows)",
     )
+    parser.add_argument(
+        "--verify-weights",
+        type=str,
+        default=None,
+        metavar="DIR",
+        help="Hash weight files under DIR (verifying *.sha256 sidecars), print results, exit.",
+    )
     args = parser.parse_args()
 
     project_root = Path(__file__).resolve().parents[1]
     _load_config_yaml(project_root)
+
+    if args.verify_weights:
+        hashes = verify_weights_dir(Path(args.verify_weights))
+        for rel, digest in hashes.items():
+            print(f"{digest}  {rel}")
+        return
     train_file = project_root / "data" / "processed" / "train.json"
     if not train_file.exists():
         raise FileNotFoundError(
@@ -191,8 +331,12 @@ def main() -> None:
                     bak = p.with_suffix(p.suffix + ".bak")
                     os.rename(p, bak)
                     tokenizer_renames.append((bak, p))
-        model, tokenizer = FastLanguageModel.from_pretrained(
+        # Pinned load (audit T7): pass MODEL_REVISION when Unsloth accepts it;
+        # fall back unpinned with a loud warning otherwise.
+        model, tokenizer = load_model_pinned(
+            FastLanguageModel.from_pretrained,
             model_name=model_path,
+            revision=None if use_local_model else MODEL_REVISION,
             max_seq_length=MAX_SEQ_LENGTH,
             dtype="bfloat16",  # Required for Blackwell (RTX 5070 Ti)
             load_in_4bit=LOAD_IN_4BIT,
@@ -257,8 +401,13 @@ def main() -> None:
             return_tensors=None,
         )
         pad_id = text_tokenizer.pad_token_id
+        # Loss masking (audit T6): -100 up to and including the assistant-start
+        # span so only completion tokens contribute to loss.
+        assistant_span_ids = text_tokenizer(ASSISTANT_START_SPAN, add_special_tokens=False)[
+            "input_ids"
+        ]
         out["labels"] = [
-            [idx if idx != pad_id else -100 for idx in ids] for ids in out["input_ids"]
+            build_completion_labels(ids, assistant_span_ids, pad_id) for ids in out["input_ids"]
         ]
         return out
 
@@ -272,6 +421,23 @@ def main() -> None:
     eval_dataset = split["test"]
     print(f"Train: {len(train_dataset)} examples, Eval: {len(eval_dataset)} examples")
 
+    # Derived cadence (audit T5): absolute save/eval steps drifted off-peak on
+    # short runs and left load_best_model_at_end nothing to select from.
+    total_steps_estimate = estimate_total_steps(
+        len(train_dataset), NUM_EPOCHS, BATCH_SIZE, GRADIENT_ACCUMULATION
+    )
+    eval_steps = suggest_eval_steps(total_steps_estimate, MAX_EVAL_STEPS)
+    if eval_steps > total_steps_estimate:
+        raise RuntimeError(
+            f"Derived eval_steps ({eval_steps}) exceeds estimated total optimizer "
+            f"steps ({total_steps_estimate}) — adjust batch size or epochs."
+        )
+    print(
+        f"Schedule: ~{total_steps_estimate} optimizer steps, "
+        f"eval/save every {eval_steps}, scheduler={LR_SCHEDULER_TYPE}, "
+        f"warmup_ratio={WARMUP_RATIO}"
+    )
+
     # Training args — bf16 required for Blackwell
     # skip_prepare_dataset: we already tokenized above; avoids Unsloth tokenization map (Windows spawn issue)
     training_args = SFTConfig(
@@ -280,11 +446,12 @@ def main() -> None:
         per_device_train_batch_size=BATCH_SIZE,
         gradient_accumulation_steps=GRADIENT_ACCUMULATION,
         learning_rate=LEARNING_RATE,
-        warmup_steps=WARMUP_STEPS,
-        save_steps=SAVE_STEPS,
+        lr_scheduler_type=LR_SCHEDULER_TYPE,
+        warmup_ratio=WARMUP_RATIO,
+        save_steps=eval_steps,
         logging_steps=LOGGING_STEPS,
         eval_strategy="steps",
-        eval_steps=SAVE_STEPS,
+        eval_steps=eval_steps,
         load_best_model_at_end=True,
         metric_for_best_model="eval_loss",
         report_to="none" if args.no_wandb else "wandb",

@@ -16,12 +16,153 @@ Usage:
   python training/dataset_builder.py --output data/processed/train.json
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import random
+import re
+from collections.abc import Iterator
 from pathlib import Path
 
+from rag.prompt_format import augment_question, extract_question
+
 random.seed(42)
+
+# ═══════════════════════════════════════════════════════════════════════
+# Decontamination (audit F-1: verbatim train/eval contamination)
+# ═══════════════════════════════════════════════════════════════════════
+
+# Normalization contract (shared with build_preference_data via this module):
+#   1. lowercase
+#   2. collapse every whitespace run to a single space
+#   3. strip leading/trailing whitespace
+#   4. repeatedly strip trailing characters in _TRAILING_STRIP_CHARS, then strip again.
+_TRAILING_STRIP_CHARS = "?.!,;:'\"…"
+
+
+def normalize_question(text: str) -> str:
+    """Canonical normalized form of a question for contamination/dedup comparison."""
+    t = re.sub(r"\s+", " ", text.lower()).strip()
+    while t and t[-1] in _TRAILING_STRIP_CHARS:
+        t = t[:-1].rstrip()
+    return t
+
+
+def _read_json_text(path: Path) -> str:
+    """Decode JSON bytes tolerating UTF-8/UTF-16 BOMs written by Windows tooling."""
+    data = path.read_bytes()
+    if data[:2] in (b"\xff\xfe", b"\xfe\xff"):
+        return data.decode("utf-16")
+    return data.decode("utf-8-sig")
+
+
+def _extract_questions_from_json(path: Path) -> set[str]:
+    """Collect question-ish strings from a benchmark suite / eval JSON.
+
+    Tolerant of schema variants: walks the whole document and takes string values
+    under known question keys. Verse-text-bearing keys ("text", "answer") are
+    deliberately NOT collected — over-matching those would exclude huge swaths of
+    training data; zero-tolerance applies to *questions* only.
+    """
+    raw = json.loads(_read_json_text(path))
+    found: set[str] = set()
+    question_keys = {"question", "prompt", "query", "input", "user_message"}
+
+    def walk(node: object) -> None:
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key in question_keys and isinstance(value, str):
+                    found.add(value)
+                else:
+                    walk(value)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+
+    walk(raw)
+    return found
+
+
+def load_contamination_questions(project_root: Path) -> set[str]:
+    """Normalized questions that must NEVER appear in training data.
+
+    Reads whatever ``benchmarks/suites/*.json`` snapshots exist at call time
+    (glob — works whether the dir has 0 or N files). If no snapshots exist yet,
+    falls back to ALSO excluding overlaps against ``prompts/evaluation_questions.json``
+    so decontamination is active even before snapshots land.
+    """
+    questions: set[str] = set()
+    suites_dir = project_root / "benchmarks" / "suites"
+    suite_files = sorted(suites_dir.glob("*.json")) if suites_dir.is_dir() else []
+    for path in suite_files:
+        questions.update(_extract_questions_from_json(path))
+    if not suite_files:
+        eval_file = project_root / "prompts" / "evaluation_questions.json"
+        if eval_file.exists():
+            questions.update(_extract_questions_from_json(eval_file))
+    return {normalize_question(q) for q in questions if q.strip()}
+
+
+def iter_user_contents(example: dict) -> Iterator[str]:
+    """Yield user-turn texts from an SFT example or a preference pair."""
+    if "messages" in example:
+        for message in example["messages"]:
+            if message.get("role") == "user":
+                yield message.get("content", "")
+        return
+    prompt = example.get("prompt")
+    if isinstance(prompt, str):
+        yield prompt
+    elif isinstance(prompt, list):
+        for message in prompt:
+            if message.get("role") == "user":
+                yield message.get("content", "")
+
+
+def primary_question_key(example: dict) -> str | None:
+    """Normalized first user question — the dedup key for an example/pair."""
+    for content in iter_user_contents(example):
+        stripped = extract_question(content)
+        if stripped.strip():
+            return normalize_question(stripped)
+    return None
+
+
+def filter_contaminated(examples: list[dict], contaminated: set[str]) -> tuple[list[dict], int]:
+    """Zero-tolerance exclusion: drop any example whose normalized question text
+    matches a contaminated question. Returns ``(kept, n_excluded)``."""
+    kept = []
+    n_excluded = 0
+    for example in examples:
+        keys = {normalize_question(extract_question(c)) for c in iter_user_contents(example)}
+        if keys & contaminated:
+            n_excluded += 1
+        else:
+            kept.append(example)
+    return kept, n_excluded
+
+
+def dedupe_by_normalized_question(examples: list[dict]) -> tuple[list[dict], int]:
+    """Near-dup gate: keep-first on normalized primary user question.
+
+    Applies within and across categories (callers concatenate categories before
+    calling). Examples without an extractable question are always kept.
+    Returns ``(kept, n_removed)``.
+    """
+    seen: set[str] = set()
+    kept = []
+    n_removed = 0
+    for example in examples:
+        key = primary_question_key(example)
+        if key is not None and key in seen:
+            n_removed += 1
+            continue
+        if key is not None:
+            seen.add(key)
+        kept.append(example)
+    return kept, n_removed
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # Book genre classification
@@ -229,18 +370,29 @@ QUESTION_TEMPLATES = [
 ]
 
 
-def _detect_theme(text: str) -> str | None:
+def detect_theme(text: str) -> str | None:
+    """Theme with the most keyword hits in ``text``; None when no keyword appears.
+
+    Scoring by hit count replaces the old first-match walk (audit T3): dict order
+    made "love" win any verse that also mentioned fear/sin/etc. Ties resolve by
+    THEME_KEYWORDS declaration order — earlier themes are the more distinctive,
+    central concepts, so on equal evidence they are the safer label.
+    """
     lower = text.lower()
+    best_theme: str | None = None
+    best_score = 0
     for theme, keywords in THEME_KEYWORDS.items():
-        if any(kw in lower for kw in keywords):
-            return theme
-    return None
+        score = sum(lower.count(kw) for kw in keywords)
+        if score > best_score:
+            best_theme = theme
+            best_score = score
+    return best_theme
 
 
 def _make_explanation(verse: dict) -> str:
     book = verse["book"]
     genre = BOOK_GENRE.get(book, "epistles")
-    theme = _detect_theme(verse["text"])
+    theme = detect_theme(verse["text"])
     if theme and random.random() < 0.5:
         return random.choice(THEME_EXPLANATIONS[theme])
     templates = GENRE_EXPLANATIONS.get(genre, GENRE_EXPLANATIONS["epistles"])
@@ -251,13 +403,13 @@ def _format_response(ref: str, text: str, explanation: str, book: str, fmt: int)
     if fmt == 0:
         return f'"{text}" \u2014 {ref} (WEB). {explanation}'
     elif fmt == 1:
-        return f'{ref} says: "{text}" {explanation}'
+        return f'{ref} (WEB) says: "{text}" {explanation}'
     elif fmt == 2:
-        return f'{explanation} As {ref} puts it: "{text}"'
+        return f'{explanation} As {ref} (WEB) puts it: "{text}"'
     elif fmt == 3:
         return f'"{text}" \u2014 {ref} (WEB).'
     else:
-        return f'In {book}, {ref} reads: "{text}" {explanation}'
+        return f'In {book}, {ref} (WEB) reads: "{text}" {explanation}'
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -391,22 +543,50 @@ def build_verse_lookups(verses: list[dict], system_prompt: str, n: int = 600) ->
 # Category 2: RAG-grounded examples (~500)
 # ═══════════════════════════════════════════════════════════════════════
 
-_RAG_INSTRUCTION = (
-    "Answer the user's question naturally and directly. "
-    "For verse lookups (e.g. 'What does X say?'), give the verse in quotes and 2-3 sentences. "
-    "For biographical or thematic questions (e.g. 'Who was X?', 'What does the Bible say about X?'), "
-    "give a narrative explanation using these verses\u2014do not default to a single verse. "
-    "Speak conversationally, like a helpful assistant."
-)
+# Theme-aware phrasings for multi-verse questions (audit T3: never emit
+# "What does Genesis teach about this topic?" — if no theme is detectable in a
+# cluster, the example is skipped instead).
+THEME_QUESTION_TEMPLATES = {
+    "love": ["What does {book} teach about love?", "What does {book} say about loving others?"],
+    "faith": [
+        "What does {book} teach about faith?",
+        "What can we learn about faith from {book}?",
+    ],
+    "hope": ["What does {book} teach about hope?", "Where does {book} point to hope?"],
+    "fear": ["What does {book} say about fear?", "How does {book} address fear?"],
+    "sin": ["What does {book} teach about sin?", "How does {book} deal with sin?"],
+    "mercy": ["What does {book} teach about mercy?", "How does {book} show God's mercy?"],
+    "joy": ["What does {book} say about joy?", "What does {book} teach about joy?"],
+    "peace": ["What does {book} say about peace?", "What does {book} teach about peace?"],
+    "prayer": ["What does {book} teach about prayer?", "How does {book} model prayer?"],
+    "wisdom": ["What does {book} teach about wisdom?", "Where does {book} point to wisdom?"],
+}
 
 
-def _make_rag_prompt(context_verses: list[dict], question: str) -> str:
-    lines = []
-    for v in context_verses:
-        ref = f"{v['book']} {v['chapter']}:{v['verse']}"
-        lines.append(f"- **{ref}**: {v['text']}")
-    context = "\n".join(lines)
-    return f"Relevant Bible verses:\n\n{context}\n\n---\n\n{_RAG_INSTRUCTION}\n\nUser question: {question}"
+def _verse_ref(v: dict) -> str:
+    return f"{v['book']} {v['chapter']}:{v['verse']}"
+
+
+def _cluster_theme(cluster: list[dict]) -> str | None:
+    """Theme with the most keyword hits across ALL cluster verses (not just the first)."""
+    scores: dict[str, int] = {}
+    for v in cluster:
+        lower = v["text"].lower()
+        for theme, keywords in THEME_KEYWORDS.items():
+            scores[theme] = scores.get(theme, 0) + sum(lower.count(kw) for kw in keywords)
+    best = max(scores, key=lambda t: (scores[t], -list(THEME_KEYWORDS).index(t)))
+    return best if scores[best] > 0 else None
+
+
+def _format_multiverse_answer(cluster: list[dict], book: str) -> str:
+    refs_joined = " ".join(f'{_verse_ref(cv)} (WEB) says: "{cv["text"]}"' for cv in cluster)
+    genre = BOOK_GENRE.get(book, "epistles")
+    closing = random.choice(GENRE_EXPLANATIONS.get(genre, GENRE_EXPLANATIONS["epistles"])).format(
+        book=book
+    )
+    # closing keeps its original capitalization (audit T3: .lower() destroyed
+    # mid-sentence "God"/book names); it stands alone as its own sentence.
+    return f"{refs_joined} Together, these passages paint one picture. {closing}"
 
 
 def build_rag_grounded(verses: list[dict], system_prompt: str, n: int = 500) -> list[dict]:
@@ -421,14 +601,14 @@ def build_rag_grounded(verses: list[dict], system_prompt: str, n: int = 500) -> 
     single_n = int(n * 0.6)
     sample_single = random.sample(usable, min(single_n, len(usable)))
     for v in sample_single:
-        ref = f"{v['book']} {v['chapter']}:{v['verse']}"
+        ref = _verse_ref(v)
         question = random.choice(QUESTION_TEMPLATES).format(ref=ref)
         explanation = _make_explanation(v)
-        prompt = _make_rag_prompt([v], question)
+        prompt = augment_question(question, [(ref, v["text"])])
         answer = f'"{v["text"]}" \u2014 {ref} (WEB). {explanation}'
         examples.append(_msg(system_prompt, prompt, answer))
 
-    # Multi-verse RAG (thematic) (~40% of n)
+    # Multi-verse RAG (thematic) (~40% of n); skip clusters with no detectable theme
     multi_n = n - single_n
     all_books = list(books.keys())
     for _ in range(multi_n):
@@ -439,23 +619,56 @@ def build_rag_grounded(verses: list[dict], system_prompt: str, n: int = 500) -> 
         cluster = sorted(
             random.sample(bv, min(3, len(bv))), key=lambda x: (x["chapter"], x["verse"])
         )
-        question = (
-            f"What does {book} teach about {_detect_theme(cluster[0]['text']) or 'this topic'}?"
-        )
-        prompt = _make_rag_prompt(cluster, question)
-        refs = []
-        for cv in cluster:
-            r = f"{cv['book']} {cv['chapter']}:{cv['verse']}"
-            refs.append(f'{r} says: "{cv["text"]}"')
-        joined = " ".join(refs)
-        genre = BOOK_GENRE.get(book, "epistles")
-        closing = random.choice(
-            GENRE_EXPLANATIONS.get(genre, GENRE_EXPLANATIONS["epistles"])
-        ).format(book=book)
-        answer = f"{joined} Together, these passages show us that {closing.lower()}"
+        theme = _cluster_theme(cluster)
+        if theme is None:
+            continue
+        question = random.choice(THEME_QUESTION_TEMPLATES[theme]).format(book=book)
+        entries = [(_verse_ref(cv), cv["text"]) for cv in cluster]
+        prompt = augment_question(question, entries)
+        answer = _format_multiverse_answer(cluster, book)
         examples.append(_msg(system_prompt, prompt, answer))
 
     return examples[:n]
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Category 2b: RAG-grounded multi-turn (~40)
+# ═══════════════════════════════════════════════════════════════════════
+# At inference the RAG server injects context into user turns of multi-turn
+# conversations too, so training needs multi-turn examples whose first turn uses
+# the canonical augmented format (audit F-2/F-3).
+
+_RAG_MULTITURN_FOLLOWUPS = [
+    ("How does that apply today?", "The same truth holds now: "),
+    ("Can you unpack why that matters?", "It matters because "),
+]
+
+
+def _multiturn_followup_answer(v: dict) -> tuple[str, str]:
+    genre = BOOK_GENRE.get(v["book"], "epistles")
+    closing = random.choice(GENRE_EXPLANATIONS.get(genre, GENRE_EXPLANATIONS["epistles"])).format(
+        book=v["book"]
+    )
+    question, opener = random.choice(_RAG_MULTITURN_FOLLOWUPS)
+    return question, f"{opener}{closing}"
+
+
+def build_rag_multiturn(verses: list[dict], system_prompt: str, n: int = 40) -> list[dict]:
+    usable = [v for v in verses if len(v["text"]) >= 40]
+    if not usable:
+        return []
+    examples = []
+    for v in random.sample(usable, min(n, len(usable))):
+        ref = _verse_ref(v)
+        question = random.choice(QUESTION_TEMPLATES).format(ref=ref)
+        explanation = _make_explanation(v)
+        turn1_user = augment_question(question, [(ref, v["text"])])
+        turn1_asst = f'"{v["text"]}" \u2014 {ref} (WEB). {explanation}'
+        turn2_user, turn2_asst = _multiturn_followup_answer(v)
+        examples.append(
+            _msg_multi(system_prompt, [(turn1_user, turn1_asst), (turn2_user, turn2_asst)])
+        )
+    return examples
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1272,6 +1485,17 @@ def main() -> None:
     parser.add_argument(
         "--rag-grounded", type=int, default=500, help="Number of RAG-grounded examples"
     )
+    parser.add_argument(
+        "--rag-multiturn",
+        type=int,
+        default=40,
+        help="Number of RAG-grounded multi-turn conversations",
+    )
+    parser.add_argument(
+        "--no-decontaminate",
+        action="store_true",
+        help="Skip benchmark-overlap exclusion (NOT recommended; audit F-1)",
+    )
     args = parser.parse_args()
 
     project_root = Path(__file__).resolve().parents[1]
@@ -1302,45 +1526,71 @@ def main() -> None:
         raise ValueError("No valid verses found.")
     print(f"Loaded {len(verses)} verses from {input_path.name}")
 
-    all_examples = []
+    categories: dict[str, list[dict]] = {}
 
     print("Building verse lookups...")
-    all_examples.extend(build_verse_lookups(verses, system_prompt, n=args.verse_lookups))
+    categories["verse_lookups"] = build_verse_lookups(verses, system_prompt, n=args.verse_lookups)
 
     print("Building RAG-grounded examples...")
-    all_examples.extend(build_rag_grounded(verses, system_prompt, n=args.rag_grounded))
+    categories["rag_grounded"] = build_rag_grounded(verses, system_prompt, n=args.rag_grounded)
+
+    print("Building RAG-grounded multi-turn conversations...")
+    categories["rag_multiturn"] = build_rag_multiturn(verses, system_prompt, n=args.rag_multiturn)
 
     print("Building thematic Q&A...")
-    all_examples.extend(build_thematic(system_prompt))
+    categories["thematic"] = build_thematic(system_prompt)
 
     print("Building general assistant Q&A...")
-    all_examples.extend(build_general_assistant(system_prompt))
+    categories["general_assistant"] = build_general_assistant(system_prompt)
 
     print("Building meta-question examples...")
-    all_examples.extend(build_meta_questions(system_prompt))
+    categories["meta_questions"] = build_meta_questions(system_prompt)
 
     print("Building multi-turn conversations...")
-    all_examples.extend(build_multiturn(system_prompt))
+    categories["multi_turn"] = build_multiturn(system_prompt)
 
     print("Building refusal/boundary examples...")
-    all_examples.extend(build_refusals(system_prompt))
+    categories["refusals"] = build_refusals(system_prompt)
 
     print("Building cross-reference reasoning examples...")
-    all_examples.extend(build_cross_reference(system_prompt))
+    categories["cross_reference"] = build_cross_reference(system_prompt)
+
+    if args.no_decontaminate:
+        print("WARNING: --no-decontaminate set; benchmark overlap NOT excluded.")
+    else:
+        contaminated = load_contamination_questions(project_root)
+        source = (
+            f"{len(list((project_root / 'benchmarks' / 'suites').glob('*.json')))} suite file(s)"
+            if (project_root / "benchmarks" / "suites").is_dir()
+            and any((project_root / "benchmarks" / "suites").glob("*.json"))
+            else "prompts/evaluation_questions.json fallback"
+        )
+        print(f"Decontaminating against {len(contaminated)} questions ({source})...")
+        for name, examples in categories.items():
+            kept, n_excluded = filter_contaminated(examples, contaminated)
+            categories[name] = kept
+            if n_excluded:
+                print(f"  excluded {n_excluded}/{n_excluded + len(kept)} {name} examples")
+
+    all_examples = [ex for examples in categories.values() for ex in examples]
+    all_examples, n_dups = dedupe_by_normalized_question(all_examples)
+    if n_dups:
+        print(f"Removed {n_dups} near-duplicate examples (normalized-question keep-first)")
 
     random.shuffle(all_examples)
 
     output_path.write_text(json.dumps(all_examples, indent=2, ensure_ascii=False), encoding="utf-8")
 
     counts = {
-        "verse_lookups": args.verse_lookups,
-        "rag_grounded": args.rag_grounded,
-        "thematic": len(_THEMATIC_QA),
-        "general_assistant": len(_GENERAL_QA),
-        "meta_questions": len(_META_QA),
-        "multi_turn": len(_MULTITURN_CONVOS),
-        "refusals": len(_REFUSAL_QA),
-        "cross_reference": len(_CROSS_REFERENCE_QA),
+        "verse_lookups": len(categories["verse_lookups"]),
+        "rag_grounded": len(categories["rag_grounded"]),
+        "rag_multiturn": len(categories["rag_multiturn"]),
+        "thematic": len(categories["thematic"]),
+        "general_assistant": len(categories["general_assistant"]),
+        "meta_questions": len(categories["meta_questions"]),
+        "multi_turn": len(categories["multi_turn"]),
+        "refusals": len(categories["refusals"]),
+        "cross_reference": len(categories["cross_reference"]),
     }
     print(f"\nWrote {len(all_examples)} examples to {output_path}")
     for category, count in counts.items():
