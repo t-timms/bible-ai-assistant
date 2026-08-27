@@ -341,7 +341,7 @@ Same 13-line block duplicated. Should be a shared utility.
 
 **Fix:** Use `curl` or wrap in `try/except` with `sys.exit(1)` on failure.
 
-**Status:** ✅ Fixed — replaced `urllib.request` with `curl -fsS` in both rag-server and tts healthchecks (2026-05-08).
+**Status:** ✅ Fixed — rag-server probe is stdlib-based with an explicit `timeout=4` (2026-08-25). Note: the earlier "replace with `curl -fsS`" approach was itself a bug — the runtime image is `python:*-slim`, which ships no curl, so a curl-based healthcheck can never pass and any `service_healthy` dependency on it hangs. Unhandled-exception exit codes are correct behavior for healthcheck probes; the real fix is keeping probes stdlib-only in slim images.
 
 ---
 

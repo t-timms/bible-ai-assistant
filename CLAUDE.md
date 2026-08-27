@@ -118,8 +118,9 @@ wandb login
 ### fp8 Training (Blackwell native)
 ```python
 from trl import ORPOConfig
+
 config = ORPOConfig(
-    fp8=True,           # Blackwell sm_120 native fp8 kernels
+    fp8=True,  # Blackwell sm_120 native fp8 kernels
     bf16=False,
     attn_implementation="flash_attention_2",
 )
@@ -151,10 +152,11 @@ All training runs logged to W&B. 34 runs tracked.
 
 ```python
 import wandb, os
+
 wandb.init(
     project=os.environ["WANDB_PROJECT"],  # "bible-ai-assistant"
     config=config,
-    tags=["orpo", "qwen3", "v2"]
+    tags=["orpo", "qwen3", "v2"],
 )
 # Log: loss, eval metrics, VRAM peak, hallucination rate
 ```

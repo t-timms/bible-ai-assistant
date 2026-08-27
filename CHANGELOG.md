@@ -4,6 +4,49 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) for milestone releases.
 
+## [Unreleased]
+
+### Added
+
+- **Shared prompt format contract** — `rag/prompt_format.py` with `augment_question` / `extract_question` as the single source of truth for SFT/inference/evaluation prompt assembly; byte-exact smoke tests (`tests/test_prompt_format.py`)
+- **Benchmark protocol v3** — `benchmarks/manifest.v3.yaml`: frozen suite snapshots (sha256-pinned), contamination disclosure, fuzzy threshold 0.85, min-n=30 policy, decoding-param recording
+- **282-question evaluation suite** — `benchmarks/suites/evaluation_questions.v2.json` (expanded from 57); v1 snapshot preserved for reproducibility
+- **Retrieval evaluation harness** — `scripts/build_qrels.py` + `scripts/retrieval_metrics.py`: recall@k / MRR / nDCG over dense/BM25/fused/fused+rerank variants; synthetic qrels tests
+- **Benchmark statistics** — `scripts/benchmark_stats.py`: Wilson CIs, McNemar exact test, paired bootstrap delta (pure-python, no scipy); `tests/test_stats.py`
+- **Train-eval overlap detector** — `scripts/check_train_eval_overlap.py` + pytest wrapper; enforces zero normalized-question overlap between training pools and eval suites
+- **GGUF export in-repo** — `training/export_gguf.py` (was external); quantize + Modelfile generation pipeline
+- **Decontamination filter** — training pipeline filters eval-overlapping questions from generated datasets using shared `normalize_question` contract
+- **Prompt loss masking** — SFT training masks system prompt and padding tokens (was padding-only)
+- **Cosine scheduler + warmup** — explicit `lr_scheduler_type: cosine` and `warmup_ratio: 0.05` in training config
+- **`uv lock --check` gate** in CI — ensures lockfile freshness
+- **15 new test modules** — 412 total tests (was 183)
+
+### Changed
+
+- **uv.lock regenerated** — gradio 6.9.0→6.26.0 (CVE-2026-1839 fix), starlette 1.6.0, transformers 5.3.0, torch 2.11.0, chromadb stays 1.5.5 per documented rationale
+- **BM25 tokenizer** — punctuation-aware tokenization (`re.findall(r"[a-z0-9']+")`) replaces whitespace-only; identical in indexing and query paths; stale index detection via version marker
+- **Embedding normalization** — collections now use cosine space; `normalize_embeddings=True` at encode time
+- **Context budget** — multi-turn context accumulation eliminated (extract stale context from prior turns); `context_max_chars=3500` enforced after rerank; `num_ctx` raised to 4096
+- **Serving hardening** — model allowlist, max_tokens clamp, body-size guard before buffering, X-Request-ID validation, rate-limit-on-auth-fail, warm-up on startup, dedicated dense-search thread pool
+- **Citation verification** — exception-guarded (never destroys a generated response over infra failure); possessive fragments and connective words properly stripped from verse refs
+- **ORPO training** — conversational format inputs, hard negatives, rebalanced pair budget (2080 total), revision pinning, weight hashing
+- **docker-compose.yml** — security env passthrough (API_KEY, RATE_LIMIT, LOG_JSON, CORS_ORIGINS); latent healthcheck bug fixed (curl-less python-slim image → stdlib probe)
+
+### Fixed
+
+- **SFT/inference prompt-format skew** — bulk of SFT data trained a format that never occurred at inference; unified via shared `prompt_format.py`
+- **Train/eval contamination** — ~100+ verbatim duplicates between training pools and eval suite identified and decontaminated
+- **`verify_citations` crash** — unguarded call in response path could 500 after generation succeeded
+- **Streaming bypass** — streaming requests now go through verification and output scrubbing
+- **Benchmark default** — `run_benchmark.py` defaulted to manifest v1; now auto-resolves latest
+- **Passage-expansion collision** — `"John 3:16"` no longer matches `"1 John 3:16"` via pipe-delimited child_ids
+- **Citation aliases** — expanded beyond Psalm(s) to cover Song of Solomon, numeric-prefix abbreviations (~20 entries)
+- **Dead knobs** — `settings.hybrid_candidates` now wired into retrieval; `settings.ollama_model` is the allowlist source
+- **Dockerfile.rag healthcheck** — switched from curl (not in python-slim) to stdlib probe; added timeout
+- **Stale lockfile** — `uv.lock` regenerated with CVE-fixed gradio; `uv lock --check` in CI prevents future drift
+
+---
+
 ## [0.9.0] - 2026-05-07
 
 ### Added
