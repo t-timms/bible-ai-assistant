@@ -40,6 +40,22 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
     rag_top_k: int = 5
     hybrid_candidates: int = 20
+    # Wall-clock budget for the dense ChromaDB query (H-8). A soft timeout — see
+    # comment in rag/retrieval.py on why a truly hung call can't be hard-killed
+    # from a thread in CPython — but bounds how long a slow query dominates the
+    # response, and unblocks the pipeline to proceed on BM25 results alone.
+    chroma_query_timeout_seconds: float = 10.0
+
+    # ------------------------------------------------------------------
+    # Context budget / query limits
+    # ------------------------------------------------------------------
+    # Max chars of the rendered context block injected into a user turn.
+    # Enforced after pinning + rerank selection; lowest-ranked extras are
+    # truncated first so pinned verses always survive.
+    context_max_chars: int = 3500
+    # Hard cap on incoming query length, applied before classification,
+    # embedding, and BM25 scoring.
+    max_query_chars: int = 2000
 
     # ------------------------------------------------------------------
     # Security  (empty string = auth disabled; fine for localhost dev)
@@ -71,6 +87,8 @@ class Settings(BaseSettings):
     # Request limits
     # ------------------------------------------------------------------
     max_request_body_bytes: int = 1_048_576  # 1 MB
+    # Ceiling applied to client-supplied max_tokens before forwarding to Ollama.
+    max_tokens_ceiling: int = 4096
 
     # ------------------------------------------------------------------
     # CORS (empty list = disabled; use ["*"] to allow all origins in dev)
@@ -87,6 +105,33 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
     embed_model: str = "nomic-ai/nomic-embed-text-v1.5"
     reranker_model: str = "BAAI/bge-reranker-v2-m3"
+    # Pinned commit SHAs (H-5 — trust_remote_code=True on an unpinned model id is a
+    # supply-chain risk: a compromised upstream repo could push malicious code to
+    # "main" and it would execute here on next load). Verified against the HF Hub
+    # API directly (not just an LLM summary of it) on 2026-08-24 — re-verify before
+    # bumping. Empty string = unpinned (only if you deliberately want latest).
+    embed_model_revision: str = "e9b6763023c676ca8431644204f50c2b100d9aab"
+    reranker_model_revision: str = "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e"
+
+    # ------------------------------------------------------------------
+    # Citation verification (rag/verification.py) — checks that cited verse
+    # references actually exist in the indexed Bible text, not just that the
+    # book name is real. "log" only records issues (structured log line);
+    # "annotate" additionally appends a visible warning marker next to any
+    # reference that doesn't resolve. Default "log" until validated against
+    # live model traffic — see docs/MODEL_COMPARISON.md.
+    # ------------------------------------------------------------------
+    citation_verification_enabled: bool = True
+    citation_verification_mode: str = "log"
+
+    @field_validator("citation_verification_mode")
+    @classmethod
+    def _valid_citation_mode(cls, v: str) -> str:
+        valid = {"log", "annotate"}
+        low = v.lower()
+        if low not in valid:
+            raise ValueError(f"CITATION_VERIFICATION_MODE must be one of {valid}")
+        return low
 
     # ------------------------------------------------------------------
     # Validators
@@ -102,11 +147,25 @@ class Settings(BaseSettings):
             raise ValueError("OLLAMA_URL has no host")
         return v
 
-    @field_validator("rag_top_k", "hybrid_candidates", "max_request_body_bytes")
+    @field_validator(
+        "rag_top_k",
+        "hybrid_candidates",
+        "max_request_body_bytes",
+        "context_max_chars",
+        "max_query_chars",
+        "max_tokens_ceiling",
+    )
     @classmethod
     def _positive_int(cls, v: int) -> int:
         if v < 1:
             raise ValueError("must be >= 1")
+        return v
+
+    @field_validator("chroma_query_timeout_seconds")
+    @classmethod
+    def _positive_timeout(cls, v: float) -> float:
+        if v <= 0:
+            raise ValueError("must be > 0")
         return v
 
     @field_validator("app_env")

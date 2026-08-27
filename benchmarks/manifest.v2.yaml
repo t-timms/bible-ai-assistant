@@ -1,0 +1,58 @@
+# Bible Assistant — versioned evaluation protocol (v2)
+# Bump protocol_id / version when you change the question suite, judge rubric, or metric definitions.
+# v1 -> v2 changes (2026-08-24): scores from v1 and v2 are NOT directly comparable.
+
+protocol_id: bible_assistant_baseline_v2
+protocol_version: 2
+suite_path: prompts/evaluation_questions.json
+
+description: >
+  Regression and A/B harness aligned with common LLM product practice: fixed held-out prompts,
+  automated metrics, optional LLM-as-judge, and JSON artifacts for diffing across runs.
+  This is not a universal "industry standard" Bible benchmark — no reproducible, submittable
+  external benchmark for this domain exists (checked; see README/docs note on The Gospel
+  Coalition's "AI Christian Benchmark" — 7 hand-graded questions on frontier chatbots, no public
+  rubric, no submission path). This frozen internal suite is the benchmark for this project.
+
+changes_from_v1:
+  - "Question suite expanded from 57 to 282 questions (verse_lookup, topical, character,
+     cross_reference, context, refusal, topical_pin, and new theological_reliability)."
+  - "New theological_reliability category (8 questions), inspired by (not affiliated with, not
+     scored against) The Gospel Coalition's 7-question 'AI Christian Benchmark' framing."
+  - "check_hallucination now verifies cited chapter:verse against the real indexed Bible text
+     (rag/verification.py), not just that the book name is real. A real book with a fabricated
+     verse number (e.g. '1 Corinthians 47:99') is now caught; v1 missed this class entirely."
+  - "New verse_accuracy_fuzzy metric (check_verse_accuracy_fuzzy) alongside the original
+     exact-substring verse_accuracy — the exact metric penalizes valid paraphrase (documented,
+     unfixed, in v1's docs/MODEL_COMPARISON.md); fuzzy scoring does not have this failure mode."
+  - "Every reference cited in the eval suite's own expected_answer text was validated against
+     the real WEB corpus (data/raw/bible_web.json) before this file was committed — this eval
+     set must not itself contain fabricated citations."
+
+metrics:
+  keyword:
+    summary: >
+      Exact-substring overlap (verse_accuracy) + fuzzy overlap (verse_accuracy_fuzzy) +
+      citation regex + real per-verse citation verification (rag/verification.py)
+    cli: python training/evaluate.py --protocol-id bible_assistant_baseline_v2 --ollama-model <name>
+  judge:
+    summary: Five 1–5 rubric dimensions (same judge model required for comparability)
+    cli: python training/evaluate.py --judge --protocol-id bible_assistant_baseline_v2 --ollama-model <name>
+
+judge:
+  # Default judge in evaluate.py; override with --judge-model. Example alternates: qwen3:32b, qwen3-coder:30b
+  default_model: qwen3.5:27b
+  default_url_env: OLLAMA_URL
+  dimensions:
+    - faithfulness
+    - citation
+    - hallucination
+    - helpfulness
+    - conciseness
+
+reproducibility_checklist:
+  - RAG server and Chroma index unchanged (or document commit + index build)
+  - Same Ollama model tag (e.g. bible-assistant-orpo vs bible-assistant-orpo-f16)
+  - Same judge model weights for --judge runs
+  - Record GPU/driver and llama.cpp / Ollama versions in run notes when comparing quantizations
+  - Report which protocol_id (v1 or v2) a given result used — v1 and v2 scores are not comparable
