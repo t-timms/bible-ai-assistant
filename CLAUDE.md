@@ -4,6 +4,11 @@ Flagship portfolio project. Locally-hosted Bible Q&A assistant with fine-tuned Q
 hybrid RAG, ORPO preference alignment, and constitutional AI guardrails.
 Read this before making any changes.
 
+> **V2 rebuild in progress on branch `v2`** - dataset engine `training/build_dataset_v2.py`
+(~62k multi-translation examples), config `training/config.v2.yaml`. Hard rule: never train on
+eval/benchmark data (decontamination enforced). Tests: `--extra dev --extra rag`.
+See AGENTS.md "V2 rebuild workstream".
+
 ---
 
 ## What This Is

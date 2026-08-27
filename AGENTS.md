@@ -16,6 +16,22 @@ This file orients AI agents and developers on how to work on the Bible AI Assist
 | `prompts/system_prompt.txt` | Canonical system prompt; used in SOUL.md, Gradio, and training data. |
 | `docs/architecture.md` | Two-phase architecture (PC vs Jetson+VPS). |
 
+## V2 rebuild workstream (branch `v2`, in progress)
+
+Full-canon retraining campaign; details in `docs/PROJECT_STATUS_AND_GOALS.md` (V2 section).
+
+- **Dataset engine:** `python training/build_dataset_v2.py [--limit-per-cat N] [--offline-only]` ->
+  ~62k examples -> `data/processed/train_v2.json` + sha-pinned manifest sidecar. Sources auto-download
+  to `data/raw_v2/` (gitignored, re-downloadable).
+- **Config:** `training/config.v2.yaml` (Qwen3.5-14B QLoRA + GRPO verifiable-reward scaffold).
+- **New categories:** verse_recall, translation_specific, reverse_lookup, near_miss_guard,
+  passage_recall, cross_reference_chains, topical_collections, chapter_context.
+- **Hard rules:**
+  - NEVER train on benchmark/eval data - decontamination runs automatically; CommonEval and
+    `benchmarks/suites/*` are eval-only by design.
+  - Cross-reference data is CC-BY (openbible.info) - training use only, attribution stays in manifest.
+  - Test with `uv run --extra dev --extra rag pytest -q` (429 tests; API tests need the rag extra).
+
 ## Tech constraints
 
 - **Training:** bf16 only; PyTorch nightly + CUDA 12.8+ for RTX 5070 Ti (Blackwell). No fp16.

@@ -10,3 +10,5 @@ alwaysApply: true
 - **Training:** Use **bf16=True** only. Never use fp16 for training on RTX 5070 Ti (Blackwell / sm_120). PyTorch must be nightly with CUDA 12.8+ for this GPU.
 - **Versions:** Milestone commits include a version tag (e.g. `v0.3.0: Fine-tuning complete`). Update `CHANGELOG.md` on release. Commit messages: present tense, first line &lt;72 chars.
 - **Scripts:** Training and RAG scripts live in `training/` and `rag/`. Keep paths relative to repo root; use `Path(__file__).resolve().parents[1]` for project root when needed.
+
+- **V2 rebuild (branch `v2`):** never train on eval/benchmark data; dataset engine `training/build_dataset_v2.py`, config `training/config.v2.yaml`; tests need `--extra dev --extra rag`.
