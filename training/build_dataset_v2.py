@@ -403,7 +403,9 @@ def gen_passage_recall(corpus, sp, n):
         texts = [kjv["verses"][k] for k in span]
         book_disp, ch = span[0][0], span[0][1]
         q = f"What do these verses say together: {book_disp} {ch}:{span[0][2]}-{span[-1][2]}?"
-        body = "\n".join(f"{book_disp} {ch}:{k[2]} \u2014 {t}" for k, t in zip(span, texts, strict=True))
+        body = "\n".join(
+            f"{book_disp} {ch}:{k[2]} \u2014 {t}" for k, t in zip(span, texts, strict=True)
+        )
         ctx = [(f"{book_disp} {ch}:{k[2]}", t) for k, t in zip(span, texts, strict=True)]
         a = f"{book_disp} {ch}:{span[0][2]}-{span[-1][2]} (KJV):\n{body}"
         out.append(_msg(sp, augment_question(q, ctx), a))
@@ -500,10 +502,7 @@ def gen_topical_collections(corpus, sp, n):
         picks = [anchor, *random.sample(picks_pool, 4)]
         verb = random.choice(facets)[1]
         q = verb.format(topic=topic, ref=_display(anchor))
-        lines = [
-            f"• {_display(k)} — “{clip_snippet(kjv['verses'][k], 90)}”"
-            for k in picks
-        ]
+        lines = [f"• {_display(k)} — “{clip_snippet(kjv['verses'][k], 90)}”" for k in picks]
         a = (
             f"Here are five passages on {topic}, spanning old and new covenant writings:\n"
             + "\n".join(lines)

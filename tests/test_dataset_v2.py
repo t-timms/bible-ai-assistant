@@ -180,10 +180,7 @@ class TestContaminationIntegration:
 
 class TestManifestIntegrity:
     def test_finalize_writes_examples_and_manifest(self, tmp_path: Path):
-        exs = [
-            v2._msg(SYSTEM_PROMPT, f"question {i}?", f"answer {i}!")
-            for i in range(2)
-        ]
+        exs = [v2._msg(SYSTEM_PROMPT, f"question {i}?", f"answer {i}!") for i in range(2)]
         examples = {"verse_recall": exs}
         dest = tmp_path / "train_v2.json"
         manifest = v2.finalize(examples, dest)
