@@ -34,6 +34,7 @@ import re
 import sys
 import urllib.request
 from collections import Counter
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -59,6 +60,7 @@ random.seed(RANDOM_SEED)
 # Public-domain source registry (URLs verified live 2026-08-27)
 # ═══════════════════════════════════════════════════════════════════════
 
+_ALLOWED_SCHEME, _ALLOWED_HOST = "https", "raw.githubusercontent.com"
 RAW_BASE = "https://raw.githubusercontent.com/nigelmsipa/public-domain-bibles/master"
 XREF_URL = "https://raw.githubusercontent.com/EyasuTew/bible_databases/master/cross_references.txt"
 TRANSLATIONS = ("KJV", "ASV", "WEB", "DARBY", "YLT", "BBE")
@@ -84,9 +86,11 @@ def fetch_or_cache(name: str, url: str, cache_dir: Path, offline_only: bool) -> 
         print(f"  [skip] {name}: not cached and --offline-only")
         return None
     print(f"  [fetch] {name} <- {url}")
+    if not url.startswith(f"{_ALLOWED_SCHEME}://{_ALLOWED_HOST}/"):
+        raise ValueError(f"Refusing non-allowlisted source URL: {url}")
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "bible-ai-assistant-v2"})
-        with urllib.request.urlopen(req, timeout=120) as resp:  # noqa: S310 (pinned https hosts)
+        with urllib.request.urlopen(req, timeout=120) as resp:  # nosec B310 - scheme+host validated above
             data = resp.read()
     except Exception as exc:  # pragma: no cover - network variance
         print(f"  [warn] {name} download failed: {exc}")
@@ -596,7 +600,7 @@ def build_all(limit_per_cat: int | None, offline_only: bool = False) -> dict:
     sp = load_system_prompt(PROJECT_ROOT, for_training=True)
 
     n = limit_per_cat or 12000  # per-category ceiling knobs below tune toward ~55k
-    budgets = {
+    budgets: dict[str, tuple[Callable[..., list], int]] = {
         "verse_recall": (gen_verse_recall, min(n, 10000)),
         "translation_specific": (gen_translation_specific, min(n, 7000)),
         "reverse_lookup": (gen_reverse_lookup, min(n, 9000)),
