@@ -1,9 +1,41 @@
 # Bible AI Assistant — Project Status & End Goal
 
-**Last updated:** March 2026 (Gradio 6 demo UI + RAG retrieval hardening)
+**Last updated:** August 2026 (v2 rebuild kickoff — see V2 section below)
 
 ---
 
+## V2 Rebuild (Aug 2026) — in progress, branch `v2`
+
+Decision: the v1 model layer (1.8k-example 4B fine-tune) is the ceiling, not the system.
+The validated RAG/eval/CI stack stays; the model layer is rebuilt at full-canon scale.
+
+### Done
+- **Dataset engine `training/build_dataset_v2.py`** (commit `cec12ce`): 61,556 post-dedupe examples
+  across 8 categories — verbatim recall in 6 public-domain translations (KJV/ASV/WEB/DARBY/YLT/BBE),
+  translation comparisons, reverse lookup, off-by-one near-miss guards, passage spans,
+  TSK cross-reference chains (CC-BY, openbible.info), anchored topical sets,
+  unique-trigram chapter-context recognition — plus inherited general/meta/refusal pools.
+  Every prompt uses the production `prompt_format` context wrapper; provenance (source sha256s,
+  seed, drop counts) recorded in `data/processed/train_v2.manifest.json`.
+- **V2 config `training/config.v2.yaml`**: Qwen3.5-14B QLoRA + GRPO scaffold whose rewards are
+  fully programmatic (citation-exists / exact-text-match / format-compliance).
+- 17 offline tests for the engine; repo suite 429 passing.
+
+### Plan & schedule (RTX 5070 Ti 16 GB)
+| Phase | Work | Duration |
+|---|---|---|
+| 0 | External-benchmark adapters + base-model ablation | 1 evening |
+| 1 | SFT: 8B 4-bit (~1–1.5 d) first; 14B (~2–3 d) only if 8B clears | overnight runs |
+| 2 | GRPO verifiable rewards + constrained decoding (ref trie) | ~1–2 d |
+| 3 | Rubric-class benchmarks (honest scoreboard) | after 1–2 |
+| 4 | Publish suite + leaderboard entries | after 2 |
+Realistic end-to-end: under two weeks to a full head-to-head benchmark table.
+
+### Rules that outlive v1
+- Eval/benchmark data is never training data (decontamination enforced).
+- v1 lesson stands: diversity over repetition (the 31k repetitive dump caused overfit failures).
+
+---
 ## What We've Done So Far
 
 ### 1. Core Infrastructure ✓

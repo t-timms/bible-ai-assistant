@@ -1,0 +1,58 @@
+# Bible AI Assistant - V2 Training Config
+# Full-canon rebuild: Qwen3.5-14B QLoRA + verifiable-reward GRPO scaffold.
+#
+# NOTE (from v1 learnings, kept): Unsloth does not recommend 4-bit loading for
+# Qwen3.5; the commented 4-bit block below is the documented fallback if 16GB
+# VRAM cannot hold bf16 LoRA at seq length 2048 for the 14B — try bf16 first,
+# then shorten sequences, only fall back to 4-bit as last resort.
+
+model:
+  name: "Qwen/Qwen3.5-14B"
+  load_in_4bit: false          # flip true ONLY after OOM test above
+  max_seq_length: 2048
+  # v2 dataset has longer passages; raise to 3072 in a separate run if VRAM allows
+
+lora:
+  r: 32                        # doubled vs v1: more capacity for canon-scale memorization
+  alpha: 64                    # keep alpha = 2*r
+  dropout: 0.05                # less regularization: 50k+ examples dilute overfit risk
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+  bias: "none"
+
+training:
+  output_dir: "checkpoints_v2"
+  eval_split: 0.05             # eval data now drawn from frozen suite snapshots instead
+  num_train_epochs: 2          # large corpus -> fewer epochs to avoid overfitting
+  per_device_train_batch_size: 1   # 14B needs the tighter footprint
+  gradient_accumulation_steps: 16  # effective batch 16 preserved
+  learning_rate: 1.0e-4        # lower for larger base
+  lr_scheduler_type: "cosine"
+  warmup_ratio: 0.03
+  max_eval_steps: 50
+  logging_steps: 25
+  bf16: true                   # REQUIRED on Blackwell
+  report_to: "wandb"
+  random_state: 20260827
+
+grpo:
+  # Stage-3 scaffold. Reward is fully programmatic (no LLM judge):
+  #   R = w1*citation_exists_in_index + w2*quoted_text_matches_named_translation
+  #     + w3*format_compliance (prompt_format contract)
+  reward_weights:
+    citation_exists: 0.5
+    text_match_exact: 0.35      # normalized comparison; near_match partial credit optional
+    format_compliance: 0.15
+  num_generations: 8            # group size for relative advantage
+  beta_kl: 0.02                 # light KL anchor to SFT policy
+  max_completion_length: 512
+
+data:
+  train_file: "data/processed/train_v2.json"
+  manifest_file: "data/processed/train_v2.manifest.json"

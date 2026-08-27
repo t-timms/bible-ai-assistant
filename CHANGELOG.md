@@ -7,6 +7,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [Unreleased]
 
 ### Added
+- **V2 dataset engine** — `training/build_dataset_v2.py`: 61,556 post-dedupe examples across
+  8 categories (multi-translation verbatim recall, reverse lookup, off-by-one near-miss guards,
+  passage spans, TSK cross-reference chains, anchored topical sets, unique-trigram chapter
+  context); sha-pinned public-domain sources (6 translations) with manifest sidecar; 17 offline tests
+- **V2 training config** — `training/config.v2.yaml`: Qwen3.5-14B QLoRA recipe + GRPO scaffold
+  with fully programmatic verifiable rewards
+
 
 - **Shared prompt format contract** — `rag/prompt_format.py` with `augment_question` / `extract_question` as the single source of truth for SFT/inference/evaluation prompt assembly; byte-exact smoke tests (`tests/test_prompt_format.py`)
 - **Benchmark protocol v3** — `benchmarks/manifest.v3.yaml`: frozen suite snapshots (sha256-pinned), contamination disclosure, fuzzy threshold 0.85, min-n=30 policy, decoding-param recording

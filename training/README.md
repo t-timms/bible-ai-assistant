@@ -10,8 +10,11 @@ bf16 LoRA fine-tuning of Qwen3.5-4B on the Bible dataset.
 | `train_orpo.py` | ORPO preference alignment (runs after SFT; requires separate env). See [ORPO Two-Env Setup](../docs/ORPO_TWO_ENV_SETUP.md). |
 | `merge_adapters.py` | Merge LoRA adapters into full model for export. |
 | `dataset_builder.py` | Build Q&A dataset from raw sources → `data/processed/train.json`. |
+| `build_dataset_v2.py` | **V2 engine:** ~62k multi-translation examples (6 public-domain translations, TSK cross-refs, near-miss guards) → `data/processed/train_v2.json` + manifest sidecar. `--limit-per-cat N` small builds; `--offline-only` reuses cache. |
 | `evaluate.py` | Run evaluation test set; `--ollama-model`, `--protocol-id` for A/B. See `docs/BENCHMARK_PROTOCOL.md`. |
 | `config.yaml` | Hyperparameters (batch size, LR, epochs, etc.). |
+| `config.v2.yaml` | V2 recipe: Qwen3.5-14B QLoRA + GRPO verifiable-reward scaffold. |
+| `config.v2.yaml` | V2 recipe: Qwen3.5-14B QLoRA + GRPO verifiable-reward scaffold. |
 
 ## Environment
 

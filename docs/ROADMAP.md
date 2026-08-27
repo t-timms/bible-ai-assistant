@@ -1,5 +1,19 @@
 # Bible AI Assistant — Remediation Roadmap
 
+## Block 0 — V2 rebuild workstream 🚧 (branch `v2`)
+
+Full-canon model-layer replacement; the RAG/eval/CI stack below stays as-is.
+Status & schedule live in `docs/PROJECT_STATUS_AND_GOALS.md` → "V2 Rebuild".
+
+- [x] Dataset engine: 8 categories, ~62k post-dedupe examples, sha-pinned sources (`cec12ce`)
+- [x] V2 config: 14B QLoRA + GRPO verifiable-reward scaffold
+- [ ] SFT launch (8B first, then 14B comparison)
+- [ ] GRPO wiring: programmatic reward via `rag/verification.py` logic
+- [ ] Constrained decoding: verse-reference trie (structural hallucination immunity)
+- [ ] External benchmark adapters (biblebench.org, YouVersion, CommonEval, recall suites)
+
+---
+
 **Purpose:** Reference for coding agents. Completed blocks are marked ✅. Each block is a self-contained PR.
 
 ---
