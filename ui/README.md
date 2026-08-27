@@ -4,13 +4,13 @@ Landing page + **text** and **voice** chat. All LLM traffic goes through the **R
 
 ## Dependencies
 
-If you used **`requirements-rag.txt`** only, Gradio is not installed yet:
+The UI extra ships with the project's standard install:
 
 ```powershell
-pip install -r requirements-ui.txt
+pip install -e ".[rag,ui]"
 ```
 
-The UI is tested with **Gradio 6.x** (`requirements-ui.txt`). Gradio 6 moved `theme` / `css` to `launch()` and adjusted `Chatbot` props.
+The UI is tested with **Gradio 6.x**. Gradio 6 moved `theme` / `css` to `launch()` and adjusted `Chatbot` props.
 
 ## Launch
 
@@ -34,6 +34,7 @@ python ui/app.py
 | `GRADIO_HOST` | `127.0.0.1` |
 | `GRADIO_PORT` or `GRADIO_SERVER_PORT` | `7860` — if that port is busy, the app tries **7861, 7862, …** automatically and prints the URL |
 | `TTS_URL` | `http://localhost:8880` |
+| `RAG_API_KEY` | *(empty)* — set to the RAG server's `API_KEY` so the UI authenticates automatically |
 
 The UI pings RAG `/health` on load and offers **Refresh connection status**. You can change the **Ollama model name** in the sidebar without restarting the app.
 

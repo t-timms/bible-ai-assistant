@@ -27,12 +27,31 @@ training:
   per_device_train_batch_size: 2   # 4 OOMs with 2048 seq; use grad_accum 8 for effective 16
   gradient_accumulation_steps: 8
   learning_rate: 2.0e-4
-  warmup_steps: 100
-  save_steps: 500
+  # Schedule coherence (audit T5): cosine decay + ratio-based warmup instead of the
+  # old linear schedule with absolute warmup_steps=100 (drifted off-peak on short runs).
+  lr_scheduler_type: "cosine"
+  warmup_ratio: 0.03
+  # eval/save cadence is DERIVED at startup: total_steps = ceil(n*epochs/effective_batch),
+  # eval every min(max_eval_steps, total_steps // 6) so load_best_model_at_end actually fires.
+  max_eval_steps: 50
   logging_steps: 50
   bf16: true   # REQUIRED for Blackwell (RTX 5070 Ti). Do not use fp16.
   report_to: "wandb"
   random_state: 3407  # Seed for train/eval split and LoRA init
+
+orpo:
+  # Must match lora.dropout above so ORPO continues SFT with identical regularization.
+  lora_dropout: 0.1
+  # Per-category preference pair budget (audit T4b; total ~2080).
+  pair_counts:
+    hard_negative: 600
+    instruction_leak: 380
+    verbose: 320
+    repetition: 240
+    answer_prefix: 220
+    think_tag_leak: 150
+    hallucination_fake_book: 80
+    bible_for_everything: 90
 
 data:
   train_file: "data/processed/train.json"

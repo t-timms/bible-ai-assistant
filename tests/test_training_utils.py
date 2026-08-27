@@ -471,3 +471,321 @@ class TestMergeAdaptersMain:
         )
         with pytest.raises(FileNotFoundError):
             main()
+
+
+# ---------------------------------------------------------------------------
+# training.train_unsloth — derived schedule math (audit T5)
+# ---------------------------------------------------------------------------
+
+
+class TestEstimateTotalSteps:
+    def test_known_value(self) -> None:
+        from training.train_unsloth import estimate_total_steps
+
+        assert estimate_total_steps(1000, 3, 2, 8) == 188
+
+    def test_minimum_one_step(self) -> None:
+        from training.train_unsloth import estimate_total_steps
+
+        assert estimate_total_steps(1, 0.01, 2, 8) == 1
+
+
+class TestSuggestEvalSteps:
+    def test_caps_at_max(self) -> None:
+        from training.train_unsloth import suggest_eval_steps
+
+        assert suggest_eval_steps(10_000_000, cap=50) == 50
+
+    def test_sixth_of_run(self) -> None:
+        from training.train_unsloth import suggest_eval_steps
+
+        assert suggest_eval_steps(188) == 31
+
+    def test_tiny_run_gets_one(self) -> None:
+        from training.train_unsloth import suggest_eval_steps
+
+        assert suggest_eval_steps(3) == 1
+
+    def test_rejects_nonpositive(self) -> None:
+        from training.train_unsloth import suggest_eval_steps
+
+        with pytest.raises(ValueError):
+            suggest_eval_steps(0)
+
+
+# ---------------------------------------------------------------------------
+# training.train_unsloth — ChatML loss masking (audit T6)
+# ---------------------------------------------------------------------------
+
+
+class TestFindLastSubsequence:
+    def test_finds_last_occurrence(self) -> None:
+        from training.train_unsloth import find_last_subsequence
+
+        assert find_last_subsequence([1, 2, 4, 5, 1, 2, 4, 5], [4, 5]) == 6
+
+    def test_missing_returns_minus_one(self) -> None:
+        from training.train_unsloth import find_last_subsequence
+
+        assert find_last_subsequence([1, 2, 3], [9, 9]) == -1
+
+    def test_empty_needle_returns_minus_one(self) -> None:
+        from training.train_unsloth import find_last_subsequence
+
+        assert find_last_subsequence([1, 2], []) == -1
+
+    def test_needle_longer_than_haystack(self) -> None:
+        from training.train_unsloth import find_last_subsequence
+
+        assert find_last_subsequence([1], [1, 2]) == -1
+
+
+class TestBuildCompletionLabels:
+    def test_masks_prompt_and_padding(self) -> None:
+        from training.train_unsloth import build_completion_labels
+
+        ids = [1, 2, 4, 5, 9, 10, 0, 0]
+        labels = build_completion_labels(ids, [4, 5], pad_id=0)
+        assert labels == [-100, -100, -100, -100, 9, 10, -100, -100]
+
+    def test_masks_up_to_and_including_span(self) -> None:
+        from training.train_unsloth import build_completion_labels
+
+        labels = build_completion_labels([4, 5, 7], [4, 5], pad_id=0)
+        assert labels == [-100, -100, 7]
+
+    def test_loud_failure_without_span(self) -> None:
+        from training.train_unsloth import build_completion_labels
+
+        with pytest.raises(ValueError, match="Assistant start marker not found"):
+            build_completion_labels([1, 2, 3], [4, 5], pad_id=0)
+
+
+# ---------------------------------------------------------------------------
+# training.train_unsloth — pinned loading + weight verification (audit T7)
+# ---------------------------------------------------------------------------
+
+
+class TestLoadModelPinned:
+    def test_passes_revision_when_accepted(self) -> None:
+        from training.train_unsloth import load_model_pinned
+
+        seen: dict = {}
+
+        def fake_fp(model_name, **kwargs):
+            seen.update(kwargs)
+            seen["model_name"] = model_name
+            return "model"
+
+        assert load_model_pinned(fake_fp, "m", "abc123", max_seq_length=8) == "model"
+        assert seen["revision"] == "abc123"
+        assert seen["max_seq_length"] == 8
+
+    def test_loud_unpinned_fallback_on_type_error(self, caplog: pytest.LogCaptureFixture) -> None:
+        import logging
+
+        from training.train_unsloth import load_model_pinned
+
+        def fake_fp(model_name, **kwargs):
+            if "revision" in kwargs:
+                raise TypeError("unexpected keyword argument 'revision'")
+            return ("model", "tok")
+
+        with caplog.at_level(logging.WARNING, logger="training.train_unsloth"):
+            result = load_model_pinned(fake_fp, "m", "abc123")
+        assert result == ("model", "tok")
+        assert any("UNPINNED" in r.getMessage() for r in caplog.records)
+
+    def test_none_revision_skips_pinning(self) -> None:
+        from training.train_unsloth import load_model_pinned
+
+        seen: dict = {}
+
+        def fake_fp(model_name, **kwargs):
+            seen.update(kwargs)
+            return "m"
+
+        load_model_pinned(fake_fp, "m", None)
+        assert "revision" not in seen
+
+
+class TestSha256AndVerifyWeightsDir:
+    def test_sha256_file_matches_hashlib(self, tmp_path) -> None:
+        import hashlib
+
+        from training.train_unsloth import sha256_file
+
+        f = tmp_path / "w.bin"
+        f.write_bytes(b"payload-bytes")
+        assert sha256_file(f) == hashlib.sha256(b"payload-bytes").hexdigest()
+
+    def test_hashes_weight_files_only(self, tmp_path) -> None:
+        import hashlib
+
+        from training.train_unsloth import verify_weights_dir
+
+        (tmp_path / "model.safetensors").write_bytes(b"w")
+        (tmp_path / "config.json").write_text("{}")
+        result = verify_weights_dir(tmp_path)
+        assert list(result) == ["model.safetensors"]
+        assert result["model.safetensors"] == hashlib.sha256(b"w").hexdigest()
+
+    def test_sidecar_match_passes(self, tmp_path) -> None:
+        import hashlib
+
+        from training.train_unsloth import verify_weights_dir
+
+        digest = hashlib.sha256(b"data").hexdigest()
+        (tmp_path / "model.bin").write_bytes(b"data")
+        (tmp_path / "model.bin.sha256").write_text(digest + "  model.bin\n")
+        assert verify_weights_dir(tmp_path)["model.bin"] == digest
+
+    def test_sidecar_mismatch_raises(self, tmp_path) -> None:
+        from training.train_unsloth import verify_weights_dir
+
+        (tmp_path / "model.bin").write_bytes(b"data")
+        (tmp_path / "model.bin.sha256").write_text("0" * 64)
+        with pytest.raises(ValueError, match="Checksum mismatch"):
+            verify_weights_dir(tmp_path)
+
+    def test_no_weight_files_raises_file_not_found(self, tmp_path) -> None:
+        from training.train_unsloth import verify_weights_dir
+
+        (tmp_path / "readme.txt").write_text("hi")
+        with pytest.raises(FileNotFoundError):
+            verify_weights_dir(tmp_path)
+
+
+# ---------------------------------------------------------------------------
+# training.export_gguf — command builders + llama.cpp discovery (audit T8)
+# ---------------------------------------------------------------------------
+
+
+class TestExportGgufCommands:
+    def test_build_convert_command(self) -> None:
+        from training.export_gguf import build_convert_command
+
+        cmd = build_convert_command(
+            "py",
+            Path("lc/convert_hf_to_gguf.py"),
+            Path("models/m"),
+            Path("out/m.f16.gguf"),
+        )
+        assert cmd[0] == "py"
+        assert "--outfile" in cmd and "--outtype" in cmd
+        assert cmd[-1] == "f16"
+
+    def test_build_quantize_command(self) -> None:
+        from training.export_gguf import build_quantize_command
+
+        cmd = build_quantize_command(Path("q.exe"), Path("a.gguf"), Path("b.gguf"), "q4_k_m")
+        assert cmd[0].endswith("q.exe")
+        assert cmd[-1] == "q4_k_m"
+
+
+class TestFindLlamaCpp:
+    def test_env_dir_with_convert_script(self, tmp_path) -> None:
+        from training.export_gguf import find_llama_cpp
+
+        (tmp_path / "convert_hf_to_gguf.py").write_text("#")
+        assert (
+            find_llama_cpp(environ={"LLAMA_CPP_DIR": str(tmp_path)}, which=lambda n: None)
+            == tmp_path
+        )
+
+    def test_env_dir_without_script_returns_none(self, tmp_path) -> None:
+        from training.export_gguf import find_llama_cpp
+
+        empty = tmp_path / "empty"
+        empty.mkdir()
+        assert find_llama_cpp(environ={"LLAMA_CPP_DIR": str(empty)}, which=lambda n: None) is None
+
+    def test_no_env_no_path_returns_none(self) -> None:
+        from training.export_gguf import find_llama_cpp
+
+        assert find_llama_cpp(environ={}, which=lambda n: None) is None
+
+    def test_path_hit_walks_up_to_checkout(self, tmp_path) -> None:
+        from training.export_gguf import find_llama_cpp
+
+        checkout = tmp_path / "llama.cpp"
+        bindir = checkout / "build" / "bin"
+        bindir.mkdir(parents=True)
+        (checkout / "convert_hf_to_gguf.py").write_text("#")
+        binary = bindir / "llama-quantize.exe"
+        binary.write_bytes(b"x")
+        assert find_llama_cpp(environ={}, which=lambda n: str(binary)) == checkout
+
+
+class TestExportGgufOrchestration:
+    def _setup_checkout(self, tmp_path):
+        checkout = tmp_path / "lc"
+        checkout.mkdir()
+        (checkout / "convert_hf_to_gguf.py").write_text("#")
+        bindir = checkout / "build" / "bin"
+        bindir.mkdir(parents=True)
+        (bindir / "llama-quantize.exe").write_bytes(b"x")
+        return checkout
+
+    def test_runs_convert_then_quantize(self, tmp_path, capsys) -> None:
+        from training.export_gguf import export_gguf
+
+        checkout = self._setup_checkout(tmp_path)
+        model_dir = tmp_path / "merged-model"
+        model_dir.mkdir()
+        out_dir = tmp_path / "out"
+        commands: list[list[str]] = []
+
+        def fake_runner(cmd, check=True):
+            commands.append([str(c) for c in cmd])
+            for item in {str(c) for c in cmd}:
+                if item.endswith(".gguf"):
+                    Path(item).write_bytes(item.encode())
+            return 0
+
+        f16, quantized = export_gguf(
+            model_dir,
+            out_dir,
+            quant="q4_k_m",
+            python_exe="py",
+            runner=fake_runner,
+            environ={"LLAMA_CPP_DIR": str(checkout)},
+            which=lambda n: None,
+        )
+        assert len(commands) == 2
+        assert "--outtype" in commands[0]
+        assert commands[1][-1] == "q4_k_m"
+        assert f16.name == "merged-model.f16.gguf"
+        assert quantized.name == "merged-model.q4_k_m.gguf"
+        assert "sha256(" in capsys.readouterr().out
+
+    def test_missing_llama_cpp_prints_setup_instructions(self, tmp_path) -> None:
+        from training.export_gguf import export_gguf
+
+        model_dir = tmp_path / "m"
+        model_dir.mkdir()
+        with pytest.raises(FileNotFoundError, match="llama.cpp not found"):
+            export_gguf(
+                model_dir,
+                tmp_path / "out",
+                runner=lambda *a, **k: 0,
+                environ={},
+                which=lambda n: None,
+            )
+
+    def test_missing_quantize_binary_raises(self, tmp_path) -> None:
+        from training.export_gguf import export_gguf
+
+        checkout = tmp_path / "lc"
+        checkout.mkdir()
+        (checkout / "convert_hf_to_gguf.py").write_text("#")
+        model_dir = tmp_path / "m"
+        model_dir.mkdir()
+        with pytest.raises(FileNotFoundError, match="llama-quantize binary not found"):
+            export_gguf(
+                model_dir,
+                tmp_path / "out",
+                runner=lambda *a, **k: 0,
+                environ={"LLAMA_CPP_DIR": str(checkout)},
+                which=lambda n: None,
+            )

@@ -2,21 +2,76 @@
 """
 Build preference dataset for ORPO training.
 
-Generates ~500 preference pairs (prompt, chosen, rejected) covering failure modes
-(documented in docs/architecture.md): hallucinated verses, instruction leaking,
-repetition, "Answer:" prefix, over-verbose responses, and Bible-for-everything.
+Generates ~2,080 preference pairs (prompt/chosen/rejected as conversational
+message lists — TRL applies the chat template itself) covering failure modes:
+hallucinated verses (strawman fake books AND hard negatives: real book names
+with off-by-N references quoting the correct text), instruction leaking,
+repetition, "Answer:" prefix, over-verbose responses, think-tag leaks, and
+Bible-for-everything.
+
+Every generated question is screened against benchmarks/suites/*.json snapshots
+(falling back to prompts/evaluation_questions.json when no snapshots exist yet)
+so no eval question leaks into preference training (audit F-1).
 
 Usage:
   python training/build_preference_data.py
   python training/build_preference_data.py --output data/processed/preferences.json
+  python training/build_preference_data.py --category-count hard_negative=800
 """
+
+from __future__ import annotations
 
 import argparse
 import json
 import random
 from pathlib import Path
 
+from rag.prompt_format import augment_question
+from training.dataset_builder import (
+    dedupe_by_normalized_question,
+    filter_contaminated,
+    load_contamination_questions,
+)
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+# Per-category pair budget (audit T4b: strawman categories shrunk, hard-negative
+# and instruction-leak categories grown; total ~2080). Overridable via
+# training/config.yaml `orpo.pair_counts` or --category-count name=N.
+DEFAULT_PAIR_COUNTS: dict[str, int] = {
+    "hard_negative": 600,
+    "instruction_leak": 380,
+    "verbose": 320,
+    "repetition": 240,
+    "answer_prefix": 220,
+    "think_tag_leak": 150,
+    "hallucination_fake_book": 80,
+    "bible_for_everything": 90,
+}
+
+
+def resolve_pair_counts(
+    config_path: Path | None = None,
+    overrides: dict[str, int] | None = None,
+) -> dict[str, int]:
+    """Merge built-in defaults <- config.yaml `orpo.pair_counts` <- explicit overrides."""
+    counts = dict(DEFAULT_PAIR_COUNTS)
+    path = config_path or (PROJECT_ROOT / "training" / "config.yaml")
+    if path.exists():
+        try:
+            import yaml
+        except ImportError:
+            yaml = None  # type: ignore[assignment]
+        if yaml is not None:
+            cfg = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+            for name, value in (cfg.get("orpo", {}).get("pair_counts") or {}).items():
+                if name in counts:
+                    counts[name] = int(value)
+    for name, value in (overrides or {}).items():
+        if name not in counts:
+            raise KeyError(f"Unknown preference category: {name!r}")
+        counts[name] = int(value)
+    return counts
 
 
 def load_system_prompt() -> str:
@@ -67,6 +122,81 @@ def _ref(v: dict) -> str:
 # Rejection pattern generators
 # ---------------------------------------------------------------------------
 
+# Offsets tried (in random order) when building a plausible-but-wrong reference.
+_OFF_BY_N_OFFSETS = (1, -1, 2, -2, 3, -3)
+
+_HARD_NEGATIVE_REJECTED_TAILS = [
+    "This verse reminds us of God's faithfulness.",
+    "A powerful verse that speaks to God's nature.",
+    "This passage offers meaningful insight for believers.",
+    "A meaningful verse that reveals God's character.",
+]
+
+_HARD_NEGATIVE_CHOSEN_TAILS = [
+    "This passage offers meaningful insight for believers.",
+    "A powerful verse that speaks to God's nature.",
+    "This verse reminds us of God's faithfulness.",
+]
+
+
+def _build_wrong_reference(
+    v: dict, by_book: dict[str, list[dict]], known_refs: set[str]
+) -> str | None:
+    """Plausible-but-wrong citation under a REAL book name.
+
+    Priority: same-book off-by-N verse shift (lands on a real neighboring ref
+    when one exists, or on a fabricated-but-plausible number at chapter edges —
+    the exact measured failure mode), then a next-chapter shift, then a real
+    cross-book ref from the corpus. Returns None only when the corpus is too
+    small to construct any wrong reference.
+    """
+    book = v["book"]
+    for offset in random.sample(_OFF_BY_N_OFFSETS, len(_OFF_BY_N_OFFSETS)):
+        new_verse = v["verse"] + offset
+        candidate = f"{book} {v['chapter']}:{new_verse}"
+        if new_verse >= 1 and candidate != _ref(v):
+            return candidate
+    candidate = f"{book} {v['chapter'] + 1}:{v['verse']}"
+    if candidate != _ref(v):
+        return candidate
+    other_books = [b for b in by_book if b != book]
+    if not other_books:
+        return None
+    return _ref(random.choice(by_book[random.choice(other_books)]))
+
+
+def _build_hard_negative_pairs(verses: list[dict], n: int = 600) -> list[dict]:
+    """Chosen: correct grounded answer. Rejected: SAME verse text cited under a
+    plausible-but-wrong real-book reference.
+
+    Unlike the fake-book strawman, both responses are equally polished — the only
+    discriminative signal is the citation itself, which forces the model to bind
+    verse text to its true location instead of pattern-matching book plausibility.
+    """
+    by_book: dict[str, list[dict]] = {}
+    for v in verses:
+        by_book.setdefault(v["book"], []).append(v)
+    known_refs = {_ref(v) for v in verses}
+
+    pairs = []
+    for v in random.sample(verses, min(n, len(verses))):
+        true_ref = _ref(v)
+        wrong_ref = _build_wrong_reference(v, by_book, known_refs)
+        if wrong_ref is None:
+            continue
+        question = f"What does {true_ref} say?"
+        context = augment_question(question, [(true_ref, v["text"])])
+        chosen = (
+            f'"{v["text"]}" \u2014 {true_ref} (WEB). {random.choice(_HARD_NEGATIVE_CHOSEN_TAILS)}'
+        )
+        rejected = (
+            f'"{v["text"]}" \u2014 {wrong_ref} (WEB). '
+            f"{random.choice(_HARD_NEGATIVE_REJECTED_TAILS)}"
+        )
+        pairs.append({"prompt": context, "chosen": chosen, "rejected": rejected})
+    return pairs
+
+
 LEAKED_INSTRUCTIONS = [
     "Avoid repetition. Trim redundancy. Just answer. Then exit.",
     "Meta-instruction: respond concisely. Do not elaborate.",
@@ -97,7 +227,7 @@ def _build_hallucination_pairs(verses: list[dict], n: int = 80) -> list[dict]:
     for v in sample:
         ref = _ref(v)
         question = f"What does {ref} say?"
-        context = f"Context:\n- **{ref}**: {v['text']}\n\nQ: {question}"
+        context = augment_question(question, [(ref, v["text"])])
 
         chosen = f'"{v["text"]}" \u2014 {ref} (WEB). This passage offers meaningful insight for believers.'
 
@@ -118,7 +248,7 @@ def _build_instruction_leak_pairs(verses: list[dict], n: int = 80) -> list[dict]
     for v in sample:
         ref = _ref(v)
         question = f"What does {ref} say?"
-        context = f"Context:\n- **{ref}**: {v['text']}\n\nQ: {question}"
+        context = augment_question(question, [(ref, v["text"])])
 
         chosen = f'"{v["text"]}" \u2014 {ref} (WEB). A powerful verse that speaks to God\'s nature.'
 
@@ -135,7 +265,7 @@ def _build_repetition_pairs(verses: list[dict], n: int = 70) -> list[dict]:
     for v in sample:
         ref = _ref(v)
         question = f"What does {ref} say?"
-        context = f"Context:\n- **{ref}**: {v['text']}\n\nQ: {question}"
+        context = augment_question(question, [(ref, v["text"])])
 
         chosen = (
             f'"{v["text"]}" \u2014 {ref} (WEB). '
@@ -155,7 +285,7 @@ def _build_answer_prefix_pairs(verses: list[dict], n: int = 70) -> list[dict]:
     for v in sample:
         ref = _ref(v)
         question = f"What does {ref} say?"
-        context = f"Context:\n- **{ref}**: {v['text']}\n\nQ: {question}"
+        context = augment_question(question, [(ref, v["text"])])
 
         chosen = f'"{v["text"]}" \u2014 {ref} (WEB). A meaningful verse from {v["book"]}.'
         rejected = (
@@ -218,7 +348,7 @@ def _build_verbose_pairs(verses: list[dict], n: int = 70) -> list[dict]:
     for v in sample:
         ref = _ref(v)
         question = f"What does {ref} say?"
-        context = f"Context:\n- **{ref}**: {v['text']}\n\nQ: {question}"
+        context = augment_question(question, [(ref, v["text"])])
         chosen = (
             f'"{v["text"]}" \u2014 {ref} (WEB). '
             f"This passage from {v['book']} offers meaningful guidance for the faithful."
@@ -542,7 +672,7 @@ def _build_think_tag_pairs(verses: list[dict], n: int = 60) -> list[dict]:
     for v in sample:
         ref = _ref(v)
         question = f"What does {ref} say?"
-        context = f"Context:\n- **{ref}**: {v['text']}\n\nQ: {question}"
+        context = augment_question(question, [(ref, v["text"])])
 
         chosen = f'"{v["text"]}" \u2014 {ref} (WEB). This verse speaks to the heart of the matter.'
 
@@ -560,10 +690,16 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Build preference dataset for ORPO.")
     parser.add_argument("--output", type=Path, default=None)
     parser.add_argument(
-        "--count-per-category",
-        type=int,
-        default=70,
-        help="Approximate examples per rejection category",
+        "--category-count",
+        action="append",
+        default=[],
+        metavar="NAME=COUNT",
+        help=(
+            "Override one category's pair count, e.g. --category-count hard_negative=800. "
+            "Repeatable. Valid names: "
+            + ", ".join(sorted(DEFAULT_PAIR_COUNTS))
+            + " (defaults come from training/config.yaml orpo.pair_counts)."
+        ),
     )
     parser.add_argument(
         "--seed",
@@ -576,6 +712,14 @@ def main() -> None:
     # Seed inside main() — not at module level — to avoid side-effects on callers
     random.seed(args.seed)
 
+    overrides: dict[str, int] = {}
+    for raw in args.category_count:
+        name, sep, value = raw.partition("=")
+        if not sep or not value.isdigit():
+            parser.error(f"--category-count expects NAME=COUNT, got {raw!r}")
+        overrides[name.strip()] = int(value)
+    counts = resolve_pair_counts(overrides=overrides)
+
     out_path = args.output or (PROJECT_ROOT / "data" / "processed" / "preferences.json")
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -583,31 +727,37 @@ def main() -> None:
     verses = load_verses()
     print(f"Loaded {len(verses)} verses")
 
-    n = args.count_per_category
+    generators = {
+        "hard_negative": _build_hard_negative_pairs,
+        "hallucination_fake_book": _build_hallucination_pairs,
+        "instruction_leak": _build_instruction_leak_pairs,
+        "repetition": _build_repetition_pairs,
+        "answer_prefix": _build_answer_prefix_pairs,
+        "verbose": _build_verbose_pairs,
+        "think_tag_leak": _build_think_tag_pairs,
+    }
+
     all_pairs: list[dict] = []
-
-    print("Building hallucination pairs...")
-    all_pairs.extend(_build_hallucination_pairs(verses, n + 10))
-
-    print("Building instruction leak pairs...")
-    all_pairs.extend(_build_instruction_leak_pairs(verses, n + 10))
-
-    print("Building repetition pairs...")
-    all_pairs.extend(_build_repetition_pairs(verses, n))
-
-    print("Building answer-prefix pairs...")
-    all_pairs.extend(_build_answer_prefix_pairs(verses, n))
-
-    print("Building verbose pairs...")
-    all_pairs.extend(_build_verbose_pairs(verses, n))
+    for name, build in generators.items():
+        print(f"Building {name} pairs...")
+        all_pairs.extend(build(verses, counts[name]))
 
     print("Building bible-for-everything pairs...")
-    all_pairs.extend(_build_bible_for_everything_pairs(n))
+    all_pairs.extend(_build_bible_for_everything_pairs(counts["bible_for_everything"]))
 
-    print("Building think-tag leak pairs...")
-    all_pairs.extend(_build_think_tag_pairs(verses, n - 10))
+    contaminated = load_contamination_questions(PROJECT_ROOT)
+    if contaminated:
+        print(f"Decontaminating against {len(contaminated)} benchmark questions...")
+        all_pairs, n_excluded = filter_contaminated(all_pairs, contaminated)
+        if n_excluded:
+            print(f"  excluded {n_excluded} contaminated pairs")
 
-    # Wrap with system prompt in chat format for ORPO
+    all_pairs, n_dups = dedupe_by_normalized_question(all_pairs)
+    if n_dups:
+        print(f"Removed {n_dups} near-duplicate pairs (normalized-question keep-first)")
+
+    # Conversational format: TRL (>=0.9) applies the chat template itself — no
+    # manual prompt rendering, which is what caused the double-prompt class.
     formatted = []
     for pair in all_pairs:
         formatted.append(
@@ -625,13 +775,8 @@ def main() -> None:
     out_path.write_text(json.dumps(formatted, indent=2, ensure_ascii=False), encoding="utf-8")
 
     print(f"\nWrote {len(formatted)} preference pairs to {out_path}")
-    print(f"  hallucination: {n + 10}")
-    print(f"  instruction_leak: {n + 10}")
-    print(f"  repetition: {n}")
-    print(f"  answer_prefix: {n}")
-    print(f"  verbose: {n}")
-    print(f"  bible_for_everything: {n}")
-    print(f"  think_tag_leak: {n - 10}")
+    for name in (*generators, "bible_for_everything"):
+        print(f"  {name}: requested {counts[name]}")
 
 
 if __name__ == "__main__":

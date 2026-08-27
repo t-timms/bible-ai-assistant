@@ -22,6 +22,8 @@ from __future__ import annotations
 import contextvars
 import logging
 import logging.handlers
+import re
+import threading
 import uuid
 from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
@@ -34,6 +36,7 @@ from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, field_validator
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
@@ -53,8 +56,15 @@ from rag.helpers import (
     _strip_thinking_from_stream,
     _topical_anchor_refs,
 )
-from rag.retrieval import _retrieve, release_resources
+from rag.prompt_format import augment_question, extract_question
+from rag.retrieval import (
+    IndexUnavailableError,
+    _retrieve_entries,
+    release_resources,
+    verse_text_lookup,
+)
 from rag.settings import settings
+from rag.verification import annotate_unverified_citations, verify_citations
 
 # ---------------------------------------------------------------------------
 # Request-ID context — injected by middleware, read by logging filter
@@ -131,7 +141,12 @@ def _rate_limit_key() -> str:
     return settings.rate_limit
 
 
-limiter = Limiter(key_func=get_remote_address)
+# Enforcement happens in SlowAPIMiddleware via default_limits, NOT a per-route
+# @limiter.limit decorator: the decorator fires inside the endpoint — AFTER the
+# auth dependency — so unauthenticated brute-force attempts would never be
+# rate-limited. The middleware path enforces before routing into the handler.
+# A callable limit value keeps settings.rate_limit runtime-patchable.
+limiter = Limiter(key_func=get_remote_address, default_limits=[_rate_limit_key])
 
 
 # ---------------------------------------------------------------------------
@@ -153,6 +168,9 @@ async def _require_api_key(api_key: str | None = Security(_api_key_header)) -> N
 # Request ID middleware
 # ---------------------------------------------------------------------------
 
+# Client-supplied IDs must be short and injection-safe: word chars, dot, dash.
+_REQUEST_ID_RE = re.compile(r"[\w\-.]{1,64}")
+
 
 class _RequestIDMiddleware(BaseHTTPMiddleware):
     """Attach a unique X-Request-ID to every request/response and inject it into
@@ -163,7 +181,11 @@ class _RequestIDMiddleware(BaseHTTPMiddleware):
         request: Request,
         call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
-        request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+        # Header values are echoed back into responses and log lines: validate
+        # shape/length so clients can't inject arbitrary bytes (header
+        # injection / log forging). Invalid values fall back to a fresh UUID.
+        candidate = request.headers.get("X-Request-ID") or ""
+        request_id = candidate if _REQUEST_ID_RE.fullmatch(candidate) else str(uuid.uuid4())
         token = _request_id_ctx.set(request_id)
         try:
             response = await call_next(request)
@@ -201,9 +223,29 @@ class _ChatCompletionRequest(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+def _warm_up_models() -> None:
+    """Preload embedder/index/BM25/reranker off the request path (best-effort).
+
+    Runs in a daemon thread during startup: without this, the first request pays
+    model load + index open latency. Failures are logged, never fatal — the lazy
+    loaders still initialize on demand.
+    """
+    try:
+        from rag.retrieval import _get_bm25, _get_rag, _get_reranker
+
+        _, _, embedder = _get_rag()
+        embedder.encode(["warm-up"], show_progress_bar=False, normalize_embeddings=True)
+        _get_bm25()
+        _get_reranker()
+        logger.info("Model warm-up complete")
+    except Exception as e:
+        logger.warning("Model warm-up skipped: %s", e)
+
+
 @asynccontextmanager
 async def _lifespan(app: FastAPI):  # noqa: ARG001
-    """Release heavy model objects on shutdown."""
+    """Warm models up in the background; release heavy objects on shutdown."""
+    threading.Thread(target=_warm_up_models, daemon=True, name="rag-warmup").start()
     yield
     release_resources()
 
@@ -217,6 +259,9 @@ app = FastAPI(
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
+# SlowAPIMiddleware is added BEFORE _RequestIDMiddleware so the request-ID
+# middleware stays outermost and 429 responses still carry X-Request-ID.
+app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(_RequestIDMiddleware)
 
 # ---------------------------------------------------------------------------
@@ -247,6 +292,24 @@ try:
     logger.info("Prometheus metrics available at /metrics")
 except ImportError:
     logger.debug("prometheus-fastapi-instrumentator not installed — /metrics disabled")
+
+
+def _exempt_path_from_rate_limit(path: str) -> None:
+    """Mark an already-registered route as rate-limit exempt.
+
+    slowapi tracks exemptions as dotted "module.function" endpoint names, which
+    can't be attached via @limiter.exempt to routes registered after app setup
+    (Instrumentator adds /metrics dynamically).
+    """
+    for route in app.routes:
+        if getattr(route, "path", None) != path:
+            continue
+        endpoint = getattr(route, "endpoint", None)
+        if endpoint is not None:
+            limiter._exempt_routes.add(f"{endpoint.__module__}.{endpoint.__name__}")
+
+
+_exempt_path_from_rate_limit("/metrics")
 
 
 @app.exception_handler(Exception)
@@ -285,6 +348,7 @@ async def _handle_unhandled(request: Request, exc: Exception) -> JSONResponse:
     tags=["ops"],
     response_model=dict[str, str],
 )
+@limiter.exempt
 def health() -> dict[str, str]:
     """Returns service status. Used by load balancers and readiness probes.
 
@@ -300,7 +364,6 @@ def health() -> dict[str, str]:
     tags=["chat"],
     dependencies=[Depends(_require_api_key)],
 )
-@limiter.limit(_rate_limit_key)
 async def chat_completions(request: Request):
     """OpenAI-compatible chat completions endpoint with hybrid RAG retrieval.
 
@@ -325,15 +388,41 @@ async def chat_completions(request: Request):
             detail="Content-Type must be application/json",
         )
 
-    # Guard against oversized payloads — read body first; size is the authoritative check
-    raw = await request.body()
-    if len(raw) > settings.max_request_body_bytes:
-        raise HTTPException(status_code=413, detail="Request body too large")
+    # Reject oversized payloads before buffering them: Content-Length gives a
+    # cheap early rejection; the streamed read below enforces the cap
+    # authoritatively (chunked encoding or lying headers).
+    content_length = request.headers.get("content-length")
+    if content_length is not None:
+        try:
+            declared = int(content_length)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail="Invalid Content-Length header") from e
+        if declared > settings.max_request_body_bytes:
+            raise HTTPException(status_code=413, detail="Request body too large")
+
+    received = 0
+    chunks: list[bytes] = []
+    async for chunk in request.stream():
+        received += len(chunk)
+        if received > settings.max_request_body_bytes:
+            raise HTTPException(status_code=413, detail="Request body too large")
+        chunks.append(chunk)
+    raw = b"".join(chunks)
 
     try:
         parsed = _ChatCompletionRequest.model_validate_json(raw)
     except Exception as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
+
+    # Model allowlist: the server serves exactly one fine-tune; anything else
+    # would silently bypass it by hitting base Ollama models.
+    if parsed.model != settings.ollama_model:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Unknown model {parsed.model!r}: this server serves {settings.ollama_model!r} only"
+            ),
+        )
 
     messages = [m.model_dump() for m in parsed.messages]
     model = parsed.model
@@ -356,6 +445,8 @@ async def chat_completions(request: Request):
     if last_user_content and last_user_content.strip():
         q = _strip_openclaw_metadata(last_user_content.strip())
         q = _EVAL_SUFFIX_PATTERN.sub("", q).strip()
+        # Cap query length before classification/embedding/BM25 scoring.
+        q = q[: settings.max_query_chars]
         last_q_for_policy = q
         if _is_meta_question(q):
             for i in range(len(messages) - 1, -1, -1):
@@ -369,8 +460,10 @@ async def chat_completions(request: Request):
                 pin_refs.append(vr)
             topical_pins = _topical_anchor_refs(q)
             pin_refs.extend(topical_pins)
-            context = await _retrieve(q, top_k=settings.rag_top_k, pin_refs=pin_refs or None)
-            if context and context.strip():
+            context_entries = await _retrieve_entries(
+                q, top_k=settings.rag_top_k, pin_refs=pin_refs or None
+            )
+            if context_entries:
                 notes: list[str] = []
                 if vr:
                     notes.append(
@@ -381,7 +474,25 @@ async def chat_completions(request: Request):
                         "Use only passages that fit the topic; do not substitute unrelated stories."
                     )
                 note_block = ("\n\nNote: " + " ".join(notes)) if notes else ""
-                augmented = "Context:\n" + context + "\n\nQ: " + q + note_block
+                augmented = augment_question(q + note_block, context_entries)
+                # Multi-turn hygiene: only the LAST user turn carries retrieved
+                # context. Earlier turns are reduced to their bare question
+                # (extract_question unwraps previously-augmented turns) so stale
+                # Context blocks don't accumulate across conversation rounds.
+                last_user_idx = next(
+                    (
+                        i
+                        for i in range(len(messages) - 1, -1, -1)
+                        if messages[i].get("role") == "user"
+                    ),
+                    None,
+                )
+                for i, msg in enumerate(messages):
+                    if i == last_user_idx or msg.get("role") != "user":
+                        continue
+                    prev_content = msg.get("content")
+                    if isinstance(prev_content, str) and prev_content.strip():
+                        messages[i] = {**msg, "content": extract_question(prev_content)}
                 for i in range(len(messages) - 1, -1, -1):
                     if messages[i].get("role") == "user":
                         messages[i] = {**messages[i], "content": augmented}
@@ -411,7 +522,8 @@ async def chat_completions(request: Request):
         "model": model,
         "messages": messages,
         "stream": stream,
-        "max_tokens": parsed.max_tokens or 2048,
+        # Clamp client-supplied max_tokens so a caller can't inflate generation cost.
+        "max_tokens": min(parsed.max_tokens or 2048, settings.max_tokens_ceiling),
         # Qwen3+ in Ollama: suppress chain-of-thought by default
         "think": False,
     }
@@ -477,6 +589,29 @@ async def chat_completions(request: Request):
                 content = _strip_thinking(raw_text) if raw_text else ""
                 content = _strip_repetition_and_meta(content) if content else ""
                 out = content.rstrip()
+                if out and settings.citation_verification_enabled:
+                    # Verification must never take down a good response:
+                    # IndexUnavailableError = infrastructure outage (logged as
+                    # error), anything else is unexpected (logged as warning).
+                    try:
+                        issues = verify_citations(out, verse_text_lookup)
+                    except IndexUnavailableError as e:
+                        logger.error(
+                            "Citation verification unavailable (index missing/stale): %s",
+                            e,
+                        )
+                        issues = []
+                    except Exception as e:
+                        logger.warning("Citation verification failed unexpectedly: %s", e)
+                        issues = []
+                    if issues:
+                        logger.warning(
+                            "Citation verification: %d issue(s) — %s",
+                            len(issues),
+                            [(i.ref, i.reason) for i in issues],
+                        )
+                        if settings.citation_verification_mode == "annotate":
+                            out = annotate_unverified_citations(out, issues)
                 if out:
                     data["choices"][0]["message"]["content"] = out
                 else:

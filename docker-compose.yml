@@ -16,6 +16,13 @@
 #   gradio-ui   → http://localhost:7860  (Gradio web interface)
 #   tts         → http://localhost:8880  (Kokoro TTS, OpenAI-compatible)
 #
+# Security posture:
+#   All published ports bind to 127.0.0.1 by default — nothing is reachable
+#   from your LAN unless you deliberately change the binding (e.g. "8081:8081").
+#   To require API keys on the RAG endpoints, export before `docker compose up`:
+#     API_KEY=<secret>            # clients send: Authorization: Bearer <secret>
+#     RAG_API_KEY=<same secret>   # lets the Gradio UI authenticate automatically
+#
 # Ollama runs on the host and is reached via host.docker.internal:11434.
 # On Linux, add --add-host=host.docker.internal:host-gateway to the rag-server
 # service if host.docker.internal is not automatically available.
@@ -27,16 +34,23 @@ services:
       dockerfile: deployment/pc/Dockerfile.rag
     image: bible-ai-rag:latest
     ports:
-      - "8081:8081"
+      - "127.0.0.1:8081:8081"
     environment:
       OLLAMA_URL: "http://host.docker.internal:11434"
       RAG_HOST: "0.0.0.0"
       RAG_PORT: "8081"
+      # Empty string = feature disabled (matches Settings defaults), so these
+      # passthroughs are safe when the host variables are unset.
+      API_KEY: "${API_KEY:-}"
+      RATE_LIMIT: "${RATE_LIMIT:-60/minute}"
+      LOG_JSON: "${LOG_JSON:-false}"
+      CORS_ORIGINS: "${CORS_ORIGINS:-[]}"
     volumes:
       # Mount pre-built ChromaDB index read-only (build with: build-index)
       - ./rag/chroma_db:/app/rag/chroma_db:ro
     healthcheck:
-      test: ["CMD", "sh", "-c", "curl -fsS http://localhost:8081/health > /dev/null || exit 1"]
+      # python:slim ships no curl/wget — probe with the stdlib instead.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8081/health', timeout=4)"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -46,7 +60,7 @@ services:
   tts:
     image: ghcr.io/remsky/kokoro-fastapi-cpu:latest
     ports:
-      - "8880:8880"
+      - "127.0.0.1:8880:8880"
     volumes:
       # Cache downloaded models so they survive container restarts.
       - kokoro-models:/app/models
@@ -64,12 +78,13 @@ services:
       dockerfile: deployment/pc/Dockerfile.ui
     image: bible-ai-ui:latest
     ports:
-      - "7860:7860"
+      - "127.0.0.1:7860:7860"
     environment:
       RAG_SERVER_URL: "http://rag-server:8081"
       TTS_URL: "http://tts:8880"
       GRADIO_HOST: "0.0.0.0"
       GRADIO_PORT: "7860"
+      RAG_API_KEY: "${RAG_API_KEY:-${API_KEY:-}}"
     depends_on:
       rag-server:
         condition: service_healthy
