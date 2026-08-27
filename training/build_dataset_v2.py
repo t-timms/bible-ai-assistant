@@ -392,7 +392,8 @@ def gen_passage_recall(corpus, sp, n):
         b, c, v = book_key(key)
         chapters.setdefault((b, c), []).append(key)
     long_chapters = [(bc, ks) for bc, ks in chapters.items() if len(ks) >= 12]
-    for _ in range(min(n * 3, max(1, len(long_chapters)))):
+    total_attempts = min(n * 6, 60_000)
+    for _attempt in range(total_attempts):
         bc, keys = random.choice(long_chapters) if long_chapters else ((None, None), [])
         if not keys:
             break
@@ -411,7 +412,7 @@ def gen_passage_recall(corpus, sp, n):
 
 def gen_cross_reference_chains(xrefs, corpus, sp, n):
     out = []
-    strong = [r for r in xrefs if r[2] >= 4]
+    strong = [r for r in xrefs if r[2] >= 1]
     if not strong or not corpus:
         return out
     primary_name, primary_src = next(iter(corpus.items()))
@@ -470,6 +471,8 @@ _TOPICS = {
 
 
 def gen_topical_collections(corpus, sp, n):
+    """Anchored topical sets: the anchor reference varies, so every question
+    survives dedupe while staying thematically real."""
     out = []
     kjv = corpus.get("KJV") or next(iter(corpus.values()))
     buckets = {}
@@ -478,22 +481,88 @@ def gen_topical_collections(corpus, sp, n):
         for topic, terms in _TOPICS.items():
             if any(term in low for term in terms):
                 buckets.setdefault(topic, []).append(key)
-    topics = [t for t, ks in buckets.items() if len(ks) >= 5]
+    topics = [t for t, ks in buckets.items() if len(ks) >= 8]
     if not topics:
         return out
+    facets = [
+        ("anchored", "{topic} study plan built around {ref}?"),
+        ("list", "Beyond {ref}, what else speaks about {topic}?"),
+        ("chain", "Give me a {topic} chain starting at {ref}."),
+        ("survey", "Survey Scripture on {topic}; begin from {ref}."),
+        ("five", "Five verses about {topic} — include {ref} among them."),
+    ]
     for _ in range(n):
         topic = random.choice(topics)
-        picks = random.sample(buckets[topic], 5)
+        anchor = random.choice(buckets[topic])
+        picks_pool = [k for k in buckets[topic] if k != anchor]
+        if len(picks_pool) < 4:
+            continue
+        picks = [anchor, *random.sample(picks_pool, 4)]
+        verb = random.choice(facets)[1]
+        q = verb.format(topic=topic, ref=_display(anchor))
         lines = [
-            f"\u2022 {_display(k)} \u2014 \u201c{clip_snippet(kjv['verses'][k], 90)}\u201d"
+            f"• {_display(k)} — “{clip_snippet(kjv['verses'][k], 90)}”"
             for k in picks
         ]
-        q = f"What verses would you point me to about {topic}?"
-        ctx = [(_display(k), kjv["verses"][k]) for k in picks]
         a = (
             f"Here are five passages on {topic}, spanning old and new covenant writings:\n"
             + "\n".join(lines)
         )
+        ctx = [(_display(k), kjv["verses"][k]) for k in picks]
+        out.append(_msg(sp, augment_question(q, ctx), a))
+    return out
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Chapter-context recognition (leading-trigram uniqueness guarantees that
+# every question is unambiguous corpus-wide and survives dedupe)
+# ═══════════════════════════════════════════════════════════════════════
+
+_TRIGRAMS = re.compile(r"[a-z']{4,}")
+
+
+def gen_chapter_context(corpus, sp, n):
+    """'Where does it say "<distinctive opening>"?' -> book/chapter + verse."""
+    out = []
+    kjv = corpus.get("KJV") or next(iter(corpus.values()))
+    counts: dict[str, int] = {}
+    for txt in kjv["verses"].values():
+        toks = _TRIGRAMS.findall(txt.lower())
+        seen = set()
+        for i in range(len(toks) - 2):
+            gram = " ".join(toks[i : i + 3])
+            if gram not in seen:
+                seen.add(gram)
+                counts[gram] = counts.get(gram, 0) + 1
+    unique_openers = []
+    for key, txt in kjv["verses"].items():
+        if not (40 <= len(txt) <= 160) or len(txt.split()) < 7:
+            continue
+        low = txt.lower()
+        toks = _TRIGRAMS.findall(low)
+        for i in range(min(6, len(toks) - 2)):
+            gram_tokens = toks[i : i + 3]
+            if counts.get(" ".join(gram_tokens), 0) != 1:
+                continue
+            # tokens may sit apart due to punctuation -> tolerant separators
+            pat = re.compile(r"[^a-z']{0,4}".join(map(re.escape, gram_tokens)), re.I)
+            m = pat.search(txt)
+            if not m:
+                continue
+            snippet = txt[max(0, m.start() - 8) : m.end() + 12].strip()
+            unique_openers.append((key, clip_snippet(snippet, 70)))
+            break
+    random.shuffle(unique_openers)
+    qs = [
+        'Where does the Bible say "{snip}"?',
+        'Locate this line in Scripture: "{snip}".',
+        'I remember a passage going "{snip}" — what is its reference?',
+    ]
+    for key, snip in unique_openers[:n]:
+        q = random.choice(qs).format(snip=snip)
+        text = kjv["verses"][key]
+        ctx = [(_display(key), text)]
+        a = f"That\u2019s {_display(key)} (KJV): \u201c{text}\u201d"
         out.append(_msg(sp, augment_question(q, ctx), a))
     return out
 
@@ -527,15 +596,16 @@ def build_all(limit_per_cat: int | None, offline_only: bool = False) -> dict:
     xrefs = load_crossrefs(cache_dir, offline_only)
     sp = load_system_prompt(PROJECT_ROOT, for_training=True)
 
-    n = limit_per_cat or 6000  # per-category default toward ~50k total
+    n = limit_per_cat or 12000  # per-category ceiling knobs below tune toward ~55k
     budgets = {
-        "verse_recall": (gen_verse_recall, n),
-        "translation_specific": (gen_translation_specific, min(n, 4000)),
-        "reverse_lookup": (gen_reverse_lookup, min(n, 6000)),
+        "verse_recall": (gen_verse_recall, min(n, 10000)),
+        "translation_specific": (gen_translation_specific, min(n, 7000)),
+        "reverse_lookup": (gen_reverse_lookup, min(n, 9000)),
         "near_miss_guard": (gen_near_miss_guard, min(n, 5000)),
-        "passage_recall": (gen_passage_recall, min(n, 6000)),
+        "passage_recall": (gen_passage_recall, min(n, 12000)),
         "cross_reference_chains": (gen_cross_reference_chains, min(n, 8000)),
-        "topical_collections": (gen_topical_collections, min(n, 4000)),
+        "topical_collections": (gen_topical_collections, min(n, 6000)),
+        "chapter_context": (gen_chapter_context, min(n, 9000)),
     }
 
     examples: dict[str, list] = {}
