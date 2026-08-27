@@ -16,6 +16,9 @@ from pathlib import Path
 
 from sentence_transformers import SentenceTransformer
 
+from rag.helpers import INDEX_VERSION, strip_document_prefix, tokenize_for_bm25
+from rag.settings import settings
+
 try:
     import chromadb
     from chromadb.config import Settings
@@ -35,6 +38,16 @@ PASSAGES_COLLECTION = "bible_passages"
 DOCUMENT_PREFIX = "search_document: "
 PASSAGE_WINDOW = 5
 PASSAGE_STRIDE = 3
+
+
+def _collection_metadata(description: str) -> dict[str, str | int]:
+    """Collection metadata shared by both collections (R2 cosine space + R1/R2/R3
+    index-version marker so stale artifacts are detected at load time)."""
+    return {
+        "description": description,
+        "hnsw:space": "cosine",
+        "index_version": INDEX_VERSION,
+    }
 
 
 def _load_verses(raw_path: Path) -> list[dict]:
@@ -78,7 +91,7 @@ def _build_verse_index(
 
     collection = client.create_collection(
         name=VERSES_COLLECTION,
-        metadata={"description": "Individual Bible verses for RAG retrieval"},
+        metadata=_collection_metadata("Individual Bible verses for RAG retrieval"),
     )
 
     ids, metadatas, documents = [], [], []
@@ -100,7 +113,10 @@ def _build_verse_index(
         batch_docs = documents[i : i + BATCH_SIZE]
         batch_meta = metadatas[i : i + BATCH_SIZE]
         embeddings = model.encode(
-            batch_docs, batch_size=min(BATCH_SIZE, 256), show_progress_bar=False
+            batch_docs,
+            batch_size=min(BATCH_SIZE, 256),
+            show_progress_bar=False,
+            normalize_embeddings=True,
         )
         collection.add(
             ids=batch_ids,
@@ -133,7 +149,7 @@ def _build_passage_index(
 
     collection = client.create_collection(
         name=PASSAGES_COLLECTION,
-        metadata={"description": "5-verse passage windows for parent-child retrieval"},
+        metadata=_collection_metadata("5-verse passage windows for parent-child retrieval"),
     )
 
     by_chapter: dict[str, list[dict]] = defaultdict(list)
@@ -166,7 +182,10 @@ def _build_passage_index(
                     "chapter": chapter,
                     "first_verse": first_v,
                     "last_verse": last_v,
-                    "child_ids": json.dumps(child_ids),
+                    # Delimited encoding (R3): "|ref1|ref2|" so the $contains
+                    # lookup of "|John 3:16|" cannot substring-match the
+                    # "1 John 3:16" entry inside "|1 John 3:16||1 John 3:17|".
+                    "child_ids": "|" + "|".join(child_ids) + "|",
                     "reference": passage_id,
                 }
             )
@@ -177,7 +196,9 @@ def _build_passage_index(
         batch_ids = ids[i : i + passage_batch]
         batch_docs = documents[i : i + passage_batch]
         batch_meta = metadatas[i : i + passage_batch]
-        embeddings = model.encode(batch_docs, batch_size=32, show_progress_bar=False)
+        embeddings = model.encode(
+            batch_docs, batch_size=32, show_progress_bar=False, normalize_embeddings=True
+        )
         collection.add(
             ids=batch_ids,
             embeddings=embeddings.tolist(),
@@ -193,14 +214,17 @@ def _build_bm25_index(ids: list[str], documents: list[str], db_path: Path) -> No
     """Build BM25 index and save as JSON (safe serialization).
 
     The BM25Okapi object itself is reconstructed at load time from the stored
-    documents, so we only persist the ids and document strings.
+    documents, so we only persist the ids and document strings. The JSON embeds
+    INDEX_VERSION so rag/retrieval.py can detect (and refuse) stale indexes
+    built with an older tokenizer.
     """
-    # Verify BM25 can be built (catches issues early)
-    tokenized = [doc.lower().split() for doc in documents]
+    # Same corpus prep + tokenizer as the query path in rag/retrieval.py:
+    # strip the embedding prefix, then punctuation-aware tokenization.
+    tokenized = [tokenize_for_bm25(strip_document_prefix(doc)) for doc in documents]
     BM25Okapi(tokenized)
     bm25_path = db_path / "bm25_index.json"
     with open(bm25_path, "w", encoding="utf-8") as f:
-        json.dump({"ids": ids, "documents": documents}, f)
+        json.dump({"index_version": INDEX_VERSION, "ids": ids, "documents": documents}, f)
     print(f"  BM25 index saved to {bm25_path}")
 
 
@@ -216,9 +240,15 @@ def main() -> None:
     verses = _load_verses(raw_path)
     print(f"Loaded {len(verses)} verses.")
 
-    print("Loading embedding model (nomic-embed-text-v1.5)...")
-    # trust_remote_code required by nomic-embed-text-v1.5 for custom pooling
-    model = SentenceTransformer("nomic-ai/nomic-embed-text-v1.5", trust_remote_code=True)
+    print(f"Loading embedding model ({settings.embed_model})...")
+    # trust_remote_code required by nomic-embed-text-v1.5 for custom pooling.
+    # revision pinned (H-5) — must match rag/retrieval.py's embedder so index-build
+    # and query-time embeddings stay consistent.
+    model = SentenceTransformer(
+        settings.embed_model,
+        revision=settings.embed_model_revision or None,
+        trust_remote_code=True,
+    )
 
     client = chromadb.PersistentClient(
         path=str(db_path), settings=Settings(anonymized_telemetry=False)
@@ -232,6 +262,14 @@ def main() -> None:
 
     print("\n--- Building BM25 index ---")
     _build_bm25_index(ids, documents, db_path)
+
+    marker_path = db_path / "index_meta.json"
+    marker = {
+        "index_version": INDEX_VERSION,
+        "hnsw_space": "cosine",
+        "embeddings_normalized": True,
+    }
+    marker_path.write_text(json.dumps(marker), encoding="utf-8")
 
     print(f"\nDone. All indexes saved to {db_path}")
 

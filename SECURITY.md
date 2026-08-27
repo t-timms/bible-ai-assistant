@@ -125,3 +125,25 @@ If you are deploying the Bible AI Assistant in any environment beyond your local
 6. **Keep dependencies updated** — run `pip list --outdated` regularly and apply security patches promptly.
 
 Failing to follow these steps in a networked deployment is a configuration issue, not a vulnerability in the project itself, but we are happy to advise.
+
+### Model Revision Pinning (Supply Chain)
+
+`trust_remote_code=True` is required by `nomic-embed-text-v1.5` (custom pooling) and
+Qwen3.5 (custom architecture/tokenizer modules) — it executes Python code shipped in
+those Hub repos. Loading an unpinned model id (`revision` defaulting to `main`) means
+a compromised or malicious push to that repo's `main` branch would execute here on
+the next model load, with no code review in between.
+
+`rag/settings.py` (`embed_model_revision`, `reranker_model_revision`) and the
+`MODEL_REVISION` constant in `training/train_unsloth.py`, `training/train_orpo.py`,
+and `scripts/test_base_model.py` pin these to specific commit SHAs, verified directly
+against the Hugging Face Hub API (not an LLM's summary of it) on 2026-08-24. Before
+bumping any of these to track a newer upload, re-verify the new SHA the same way:
+`curl -s https://huggingface.co/api/models/<org>/<name> | grep -oE '"sha":"[a-f0-9]+"'`.
+
+**Not yet pinned:** the Unsloth-specific `FastLanguageModel.from_pretrained` call in
+`training/train_unsloth.py` / `training/train_orpo.py` (Unsloth's own download path,
+not verified against a real Unsloth install before this note was added — pinning it
+blind risked breaking a multi-hour training run on an unverified kwarg), and
+`training/merge_adapters.py`'s base-model load (path is user-supplied, may be a local
+checkpoint rather than a Hub id). Revisit both once validated at small scale.

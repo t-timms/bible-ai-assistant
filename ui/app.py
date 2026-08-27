@@ -5,11 +5,12 @@ Expects RAG server at localhost:8081, Kokoro TTS at localhost:8880.
 Environment variables (all optional, defaults shown):
   RAG_SERVER_URL   http://127.0.0.1:8081
   TTS_URL          http://127.0.0.1:8880
-  OLLAMA_MODEL     bible-assistant-orpo
+  OLLAMA_MODEL     bible-assistant
   GRADIO_HOST      127.0.0.1
   GRADIO_PORT      7860
 """
 
+import logging
 import os
 import tempfile
 from pathlib import Path
@@ -17,10 +18,13 @@ from pathlib import Path
 import gradio as gr
 import httpx
 
+logger = logging.getLogger(__name__)
+
 _RAG_BASE = os.getenv("RAG_SERVER_URL", "http://127.0.0.1:8081")
 RAG_URL = _RAG_BASE.rstrip("/") + "/v1/chat/completions"
 TTS_URL = os.getenv("TTS_URL", "http://127.0.0.1:8880") + "/v1/audio/speech"
-MODEL_NAME = os.getenv("OLLAMA_MODEL", "bible-assistant-orpo")
+# Must match the RAG server's model allowlist (rag.settings.ollama_model).
+MODEL_NAME = os.getenv("OLLAMA_MODEL", "bible-assistant")
 RAG_API_KEY = os.getenv("RAG_API_KEY", "")
 WHISPER_MODEL = "large-v3-turbo"
 GRADIO_TITLE = os.getenv("GRADIO_TITLE", "Bible AI Assistant")
@@ -40,9 +44,9 @@ def _get_whisper():
                 device="cuda",
                 compute_type="float16",
             )
-            print("[Voice] Faster-Whisper using GPU (cuda)")
+            logger.info("Faster-Whisper using GPU (cuda)")
         except Exception as e:
-            print(f"[Voice] Faster-Whisper GPU failed ({e}), falling back to CPU")
+            logger.warning("Faster-Whisper GPU failed (%s), falling back to CPU", e)
             _whisper_model = WhisperModel(WHISPER_MODEL, device="cpu", compute_type="int8")
     return _whisper_model
 
@@ -101,7 +105,7 @@ def _synthesize_local(text: str) -> str | None:
     try:
         if _kokoro_pipeline is None:
             _kokoro_pipeline = KPipeline(lang_code="a")  # American English
-            print("[Voice] Kokoro TTS using local pipeline (GPU if available)")
+            logger.info("Kokoro TTS using local pipeline (GPU if available)")
         chunks = []
         for _gs, _ps, audio in _kokoro_pipeline(text, voice="af_bella"):
             chunks.append(audio)

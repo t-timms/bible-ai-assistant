@@ -2,6 +2,16 @@
 
 Comparison of the two final models produced by the Bible AI Assistant training pipeline.
 
+> **Methodology note (2026-08-24):** The numbers below were measured under benchmark protocol
+> **v1** (`bible_assistant_baseline_v1`, 57 questions) with the original `check_hallucination`,
+> which only validated that a cited *book name* was real — a real book with a fabricated verse
+> number (e.g. "1 Corinthians 47:99") passed as "not hallucinated." Protocol **v2**
+> (`bible_assistant_baseline_v2`, 282 questions, see `docs/BENCHMARK_PROTOCOL.md`) verifies the
+> actual chapter:verse against the indexed Bible text and adds a fuzzy verse-accuracy metric that
+> doesn't penalize valid paraphrase. v1 and v2 numbers are **not comparable** — do not read a v2
+> re-run against these figures as an apples-to-apples before/after. New measurements will be
+> appended here once a v2 run is complete; until then, treat the numbers below as historical only.
+
 ## Models Under Evaluation
 
 | Property | SFT-Only (v8) | SFT+ORPO (v8-orpo) |

@@ -17,6 +17,13 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Verify lockfile freshness
+        # Fails when pyproject.toml bounds change without regenerating uv.lock
+        # (this exact drift shipped vulnerable gradio 6.9.0 via `uv sync` once).
+        run: |
+          pip install uv
+          uv lock --check
+
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -59,7 +66,9 @@ jobs:
           pip install -e ".[rag,dev]"
           pip install mypy
 
-      - run: mypy --ignore-missing-imports rag/ training/ scripts/
+      - run: mypy --ignore-missing-imports rag/ training/
+        # scripts/ excluded: standalone CLI tools without __init__.py cause
+        # mypy's module-path ambiguity error ("Source file found twice").
 
   security:
     name: Security
@@ -82,6 +91,11 @@ jobs:
       - name: Install project and security tools
         run: |
           python -m pip install --upgrade pip
+          # [build-system] requires in pyproject.toml only governs the isolated
+          # build env for this package's own wheel -- it doesn't upgrade the
+          # ambient/active environment pip-audit scans below, which is why this
+          # explicit upgrade is also needed (PYSEC-2026-3447).
+          pip install --upgrade "setuptools>=83.0.0"
           pip install -e ".[rag,ui]"
           pip install "pip-audit>=2.7.0" "bandit[toml]>=1.7.9"
 
@@ -89,7 +103,36 @@ jobs:
         # pip-audit scans the active environment — no requirement file needed
         # CVE-2026-4539 (pygments 2.19.2): no upstream fix available yet.
         # Revisit when pygments ships a patched release.
-        run: pip-audit --ignore-vuln CVE-2026-4539 --ignore-vuln CVE-2026-1839
+        #
+        # CVE-2026-1839 (transformers Trainer._load_rng_state unsafe torch.load):
+        # fixed upstream in v5.0.0rc3; this repo locks transformers >= 5.3 with
+        # torch >= 2.6 (uv.lock: 5.3.0 / 2.11.0), so no installed version falls
+        # inside the affected range. The ignore exists only because pip-audit's
+        # OSV ranges can over-match pre-fix version floors; drop it if the
+        # advisory ever flags a genuinely affected installed version.
+        #
+        # PYSEC-2026-311, CVE-2026-45830, CVE-2026-45831, CVE-2026-45833 (chromadb):
+        # all in chromadb's own multi-tenant server layer -- authenticated-user
+        # privilege escalation via update_collection's trust_remote_code model
+        # loading (45833), V1 endpoint tenant/database scoping bypass (45830),
+        # cross-tenant authorization gaps (45831). This project only uses
+        # chromadb.PersistentClient (rag/retrieval.py, rag/build_index.py) --
+        # embedded, in-process, no chromadb server/API ever exposed on a
+        # network port, no chromadb-level authentication/authorization
+        # configured or reachable. The vulnerable code paths (V1/V2 HTTP
+        # endpoints, authenticated-user RBAC) are not present in this
+        # deployment. No fixed chromadb release exists yet (latest on PyPI is
+        # still 1.5.9, the version already in use) -- revisit when one ships,
+        # and re-check applicability if chromadb's own server component is
+        # ever run standalone instead of embedded.
+        run: >
+          pip-audit
+          --ignore-vuln CVE-2026-4539
+          --ignore-vuln CVE-2026-1839
+          --ignore-vuln PYSEC-2026-311
+          --ignore-vuln CVE-2026-45830
+          --ignore-vuln CVE-2026-45831
+          --ignore-vuln CVE-2026-45833
 
       - name: Run bandit static analysis
         run: bandit -c pyproject.toml -r rag/ training/ scripts/ ui/ voice/ -ll --quiet
@@ -123,7 +166,9 @@ jobs:
           pip install -e ".[rag,dev]"
 
       - name: Run unit tests with coverage
-        run: python -m pytest tests/ -v --tb=short -x --cov=rag --cov=training --cov-report=term-missing --cov-fail-under=50 --junitxml=test-results.xml
+        # No --cov-fail-under here on purpose: pyproject [tool.coverage.report]
+        # fail_under = 60 is the single source of truth for the gate.
+        run: python -m pytest tests/ -v --tb=short -x --cov=rag --cov=training --cov-report=term-missing --junitxml=test-results.xml
         env:
           PYTHONPATH: .
 

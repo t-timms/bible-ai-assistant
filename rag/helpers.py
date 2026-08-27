@@ -8,7 +8,6 @@ from __future__ import annotations
 import json as _json
 import re
 from typing import Any
-from urllib.parse import urlparse
 
 from rag.response_cleanup import strip_model_thinking
 
@@ -22,9 +21,15 @@ RRF_K = 60
 VERSES_COLLECTION = "bible_verses"
 PASSAGES_COLLECTION = "bible_passages"
 QUERY_PREFIX = "search_query: "
+DOCUMENT_PREFIX = "search_document: "
 
-# Default retrieval tuning (overridden by settings/env at runtime)
-HYBRID_CANDIDATES = 20
+# Schema version of the persisted RAG artifacts (Chroma collections, BM25 JSON,
+# index_meta.json marker). Bump whenever build_index.py output changes shape or
+# semantics — e.g. BM25 tokenization, HNSW distance space, embedding
+# normalization, child_ids encoding. Loaders compare this against what is on
+# disk and refuse stale artifacts loudly (log + skip/error) instead of serving
+# silently wrong results.
+INDEX_VERSION = 3
 
 # Topical questions: pin a few high-signal verses so hybrid retrieval + passage expansion
 # cannot drown the topic (e.g. marriage → unrelated "love" parables).
@@ -211,8 +216,10 @@ _COUNSELING_HINT = re.compile(
     re.IGNORECASE,
 )
 
+# Per-word {2,20}/{1,20} caps bound backtracking on adversarial long inputs
+# (defense-in-depth; no real book name exceeds 20 characters).
 _VERSE_REF_IN_QUESTION = re.compile(
-    r"\b((?:[123]\s)?[A-Za-z][A-Za-z]+(?:\s[A-Za-z]+){0,3}\s\d{1,3}:\d{1,3})\b",
+    r"\b((?:[123]\s)?[A-Za-z]{2,20}(?:\s[A-Za-z]{1,20}){0,3}\s\d{1,3}:\d{1,3})\b",
 )
 
 _COUNSELING_SYSTEM_GUARD = (
@@ -235,21 +242,6 @@ _EVAL_SUFFIX_PATTERN = re.compile(
 
 
 # ---------------------------------------------------------------------------
-# URL validation
-# ---------------------------------------------------------------------------
-
-
-def _validate_ollama_url(url: str) -> str:
-    """Validate that OLLAMA_URL is a well-formed HTTP(S) URL."""
-    parsed = urlparse(url)
-    if parsed.scheme not in ("http", "https"):
-        raise ValueError(f"OLLAMA_URL must use http or https scheme, got: {url!r}")
-    if not parsed.netloc:
-        raise ValueError(f"OLLAMA_URL has no host: {url!r}")
-    return url
-
-
-# ---------------------------------------------------------------------------
 # Text / document helpers
 # ---------------------------------------------------------------------------
 
@@ -264,8 +256,85 @@ def _clean_doc_text(doc: str, ref: str) -> str:
     return text.strip()
 
 
+_BM25_TOKEN_RE = re.compile(r"[a-z0-9']+")
+
+
+def strip_document_prefix(text: str) -> str:
+    """Drop the ``search_document: `` embedding prefix before BM25 tokenization."""
+    if text.startswith(DOCUMENT_PREFIX):
+        return text[len(DOCUMENT_PREFIX) :]
+    return text
+
+
+def tokenize_for_bm25(text: str) -> list[str]:
+    """Punctuation-aware BM25 tokenization shared by indexing and query paths.
+
+    Lowercases and splits on non-alphanumeric characters (apostrophes kept so
+    ``god's`` stays one token), so document tokens like ``3:16:`` / ``love,``
+    match query tokens ``3:16`` / ``love``. Must be applied identically when
+    building the index (rag/build_index.py, after stripping the
+    ``search_document:`` prefix) and at query time (rag/retrieval.py).
+    """
+    return _BM25_TOKEN_RE.findall(text.lower())
+
+
+# Canonical book-name aliases (lowercase key -> canonical Chroma id book name).
+# Covers Psalm(s), the Song of Solomon family, and common abbreviations incl.
+# numeric-prefix forms ("1 Cor" -> "1 Corinthians"). Applied only when a ref
+# parses as "<book> <chapter>:<verse>", so plain prose is never rewritten.
+_BOOK_ALIASES: dict[str, str] = {
+    "psalm": "Psalms",
+    "psalms": "Psalms",
+    "ps": "Psalms",
+    "song of songs": "Song of Solomon",
+    "canticles": "Song of Solomon",
+    "song of solomon": "Song of Solomon",
+    "gen": "Genesis",
+    "exod": "Exodus",
+    "lev": "Leviticus",
+    "deut": "Deuteronomy",
+    "josh": "Joshua",
+    "judg": "Judges",
+    "1 sam": "1 Samuel",
+    "2 sam": "2 Samuel",
+    "1 chr": "1 Chronicles",
+    "2 chr": "2 Chronicles",
+    "prov": "Proverbs",
+    "eccles": "Ecclesiastes",
+    "eccl": "Ecclesiastes",
+    "isa": "Isaiah",
+    "jer": "Jeremiah",
+    "lam": "Lamentations",
+    "ezek": "Ezekiel",
+    "dan": "Daniel",
+    "hos": "Hosea",
+    "matt": "Matthew",
+    "rom": "Romans",
+    "1 cor": "1 Corinthians",
+    "2 cor": "2 Corinthians",
+    "gal": "Galatians",
+    "eph": "Ephesians",
+    "phil": "Philippians",
+    "col": "Colossians",
+    "1 thess": "1 Thessalonians",
+    "2 thess": "2 Thessalonians",
+    "1 tim": "1 Timothy",
+    "2 tim": "2 Timothy",
+    "philem": "Philemon",
+    "heb": "Hebrews",
+    "jas": "James",
+    "1 pet": "1 Peter",
+    "2 pet": "2 Peter",
+    "1 john": "1 John",
+    "2 john": "2 John",
+    "3 john": "3 John",
+    "rev": "Revelation",
+}
+
+
 def _normalize_verse_id(ref: str) -> str:
-    """Map common aliases to Chroma ids (e.g. Psalm 1:1 → Psalms 1:1)."""
+    """Map common aliases to Chroma ids (e.g. Psalm 1:1 → Psalms 1:1,
+    Song of Songs 1:1 → Song of Solomon 1:1, 1 Cor 13:4 → 1 Corinthians 13:4)."""
     ref = re.sub(r"\s+", " ", (ref or "").strip())
     if not ref:
         return ref
@@ -273,8 +342,9 @@ def _normalize_verse_id(ref: str) -> str:
     if not m:
         return ref
     book, cv = m.group(1).strip(), m.group(2)
-    if book.lower() == "psalm":
-        book = "Psalms"
+    canonical = _BOOK_ALIASES.get(book.lower())
+    if canonical:
+        book = canonical
     return f"{book} {cv}"
 
 
