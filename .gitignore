@@ -77,3 +77,6 @@ docs/SERVING_GOD.md
 
 # Private planning docs (never push)
 docs/SOTA_ROADMAP.md
+
+# V2 dataset source cache (re-downloadable; provenance tracked in manifest)
+data/raw_v2/
