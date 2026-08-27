@@ -22,10 +22,19 @@ import json
 import re
 from pathlib import Path
 
+# TehShrike filenames give no internal capitalization to split on for multi-word
+# books that aren't number-prefixed (e.g. "songofsolomon.json") — the regex-based
+# splitting below can't recover word boundaries for these, so they're listed explicitly.
+_MULTIWORD_BOOK_FILENAMES = {
+    "songofsolomon": "Song of Solomon",
+}
+
 
 def filename_to_book_name(filename: str) -> str:
     """Turn e.g. '1chronicles' into '1 Chronicles', 'genesis' into 'Genesis'."""
     stem = filename.replace(".json", "").strip()
+    if stem.lower() in _MULTIWORD_BOOK_FILENAMES:
+        return _MULTIWORD_BOOK_FILENAMES[stem.lower()]
     # Insert space before capital letters: 1Chronicles -> 1 Chronicles
     spaced = re.sub(r"(\d)([A-Za-z])", r"\1 \2", stem)
     spaced = re.sub(r"([a-z])([A-Z])", r"\1 \2", spaced)

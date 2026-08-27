@@ -1,11 +1,18 @@
 # Benchmark & A/B protocol (Bible Assistant)
 
-There is **no single global standard** for Bible RAG chatbots. This project uses a **versioned internal protocol** that follows **common product ML practice**:
+There is **no single global standard** for Bible RAG chatbots, and — checked directly, not
+assumed — no reproducible, submittable external benchmark exists for this domain at all. The
+closest real thing is The Gospel Coalition's "AI Christian Benchmark": 7 hand-graded theological
+questions scored against frontier general-purpose chatbots (DeepSeek R1, GPT-4o, etc.), with no
+published rubric and no way for a third party to submit or self-score a model against it. It
+isn't a target this project (or any locally-served fine-tuned model) can be benchmarked on. This
+project's own versioned internal protocol, below, is the benchmark:
 
-1. **Fixed suite** — `prompts/evaluation_questions.json` (schema checked in `tests/test_evaluation_questions.py`).
-2. **Version tag** — `benchmarks/manifest.v1.yaml` defines `protocol_id: bible_assistant_baseline_v1`. When you change questions, judge rubric, or metric meaning, **bump the manifest** (e.g. `manifest.v2.yaml` + new `protocol_id`) so scores are comparable across time.
-3. **Two tiers** — **keyword** (fast CI / iteration) and **judge** (heavier, closer to human rubric).
-4. **Artifacts** — JSON with `ollama_model`, `benchmark_protocol_id`, and per-item results for diffing.
+1. **Fixed suite** — `prompts/evaluation_questions.json` (schema checked in `tests/test_evaluation_questions.py`). 282 questions across 8 categories, including a small `theological_reliability` category *inspired by* (not affiliated with, not scored against) TGC's question framing.
+2. **Version tag** — `benchmarks/manifest.vN.yaml` defines `protocol_id`. When you change questions, judge rubric, or metric meaning, **bump the manifest** (new `manifest.vN.yaml` + new `protocol_id`) so scores are comparable across time. Current: **v2** (`bible_assistant_baseline_v2`) — see `manifest.v2.yaml`'s `changes_from_v1` for what changed and why v1/v2 scores aren't comparable. Older manifests are kept, not edited in place.
+3. **Two tiers** — **keyword** (fast CI / iteration) and **judge** (heavier, closer to human rubric). Keyword mode reports both the original exact-substring `verse_accuracy` and a `verse_accuracy_fuzzy` metric — the exact metric penalizes valid paraphrase (e.g. "his one and only Son" vs. "his only born Son" scores 0 despite both being faithful), which is a known, previously undiagnosed weakness; report both, don't drop the old one, since some run history only has it.
+4. **Real citation verification** — `check_hallucination` (via `rag/verification.py`) now checks that a cited chapter:verse actually exists in the indexed Bible text, not just that the book name is real. A real book with a fabricated verse number (e.g. "1 Corinthians 47:99") now counts as a hallucination; it silently passed before.
+5. **Artifacts** — JSON with `ollama_model`, `benchmark_protocol_id`, and per-item results for diffing.
 
 ## Quick start
 
@@ -32,8 +39,8 @@ python scripts/compare_benchmark_runs.py docs/benchmark_runs/<file_a>.json docs/
 ## Manual `evaluate.py` (same protocol)
 
 ```powershell
-python training/evaluate.py --protocol-id bible_assistant_baseline_v1 --ollama-model bible-assistant-orpo
-python training/evaluate.py --judge --protocol-id bible_assistant_baseline_v1 --ollama-model bible-assistant-orpo --model-tag orpo-q4
+python training/evaluate.py --protocol-id bible_assistant_baseline_v2 --ollama-model bible-assistant-orpo
+python training/evaluate.py --judge --protocol-id bible_assistant_baseline_v2 --ollama-model bible-assistant-orpo --model-tag orpo-q4
 ```
 
 ## Evolving the benchmark (as you improve)

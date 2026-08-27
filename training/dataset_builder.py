@@ -16,12 +16,153 @@ Usage:
   python training/dataset_builder.py --output data/processed/train.json
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import random
+import re
+from collections.abc import Iterator
 from pathlib import Path
 
+from rag.prompt_format import augment_question, extract_question
+
 random.seed(42)
+
+# ═══════════════════════════════════════════════════════════════════════
+# Decontamination (audit F-1: verbatim train/eval contamination)
+# ═══════════════════════════════════════════════════════════════════════
+
+# Normalization contract (shared with build_preference_data via this module):
+#   1. lowercase
+#   2. collapse every whitespace run to a single space
+#   3. strip leading/trailing whitespace
+#   4. repeatedly strip trailing characters in _TRAILING_STRIP_CHARS, then strip again.
+_TRAILING_STRIP_CHARS = "?.!,;:'\"…"
+
+
+def normalize_question(text: str) -> str:
+    """Canonical normalized form of a question for contamination/dedup comparison."""
+    t = re.sub(r"\s+", " ", text.lower()).strip()
+    while t and t[-1] in _TRAILING_STRIP_CHARS:
+        t = t[:-1].rstrip()
+    return t
+
+
+def _read_json_text(path: Path) -> str:
+    """Decode JSON bytes tolerating UTF-8/UTF-16 BOMs written by Windows tooling."""
+    data = path.read_bytes()
+    if data[:2] in (b"\xff\xfe", b"\xfe\xff"):
+        return data.decode("utf-16")
+    return data.decode("utf-8-sig")
+
+
+def _extract_questions_from_json(path: Path) -> set[str]:
+    """Collect question-ish strings from a benchmark suite / eval JSON.
+
+    Tolerant of schema variants: walks the whole document and takes string values
+    under known question keys. Verse-text-bearing keys ("text", "answer") are
+    deliberately NOT collected — over-matching those would exclude huge swaths of
+    training data; zero-tolerance applies to *questions* only.
+    """
+    raw = json.loads(_read_json_text(path))
+    found: set[str] = set()
+    question_keys = {"question", "prompt", "query", "input", "user_message"}
+
+    def walk(node: object) -> None:
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key in question_keys and isinstance(value, str):
+                    found.add(value)
+                else:
+                    walk(value)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+
+    walk(raw)
+    return found
+
+
+def load_contamination_questions(project_root: Path) -> set[str]:
+    """Normalized questions that must NEVER appear in training data.
+
+    Reads whatever ``benchmarks/suites/*.json`` snapshots exist at call time
+    (glob — works whether the dir has 0 or N files). If no snapshots exist yet,
+    falls back to ALSO excluding overlaps against ``prompts/evaluation_questions.json``
+    so decontamination is active even before snapshots land.
+    """
+    questions: set[str] = set()
+    suites_dir = project_root / "benchmarks" / "suites"
+    suite_files = sorted(suites_dir.glob("*.json")) if suites_dir.is_dir() else []
+    for path in suite_files:
+        questions.update(_extract_questions_from_json(path))
+    if not suite_files:
+        eval_file = project_root / "prompts" / "evaluation_questions.json"
+        if eval_file.exists():
+            questions.update(_extract_questions_from_json(eval_file))
+    return {normalize_question(q) for q in questions if q.strip()}
+
+
+def iter_user_contents(example: dict) -> Iterator[str]:
+    """Yield user-turn texts from an SFT example or a preference pair."""
+    if "messages" in example:
+        for message in example["messages"]:
+            if message.get("role") == "user":
+                yield message.get("content", "")
+        return
+    prompt = example.get("prompt")
+    if isinstance(prompt, str):
+        yield prompt
+    elif isinstance(prompt, list):
+        for message in prompt:
+            if message.get("role") == "user":
+                yield message.get("content", "")
+
+
+def primary_question_key(example: dict) -> str | None:
+    """Normalized first user question — the dedup key for an example/pair."""
+    for content in iter_user_contents(example):
+        stripped = extract_question(content)
+        if stripped.strip():
+            return normalize_question(stripped)
+    return None
+
+
+def filter_contaminated(examples: list[dict], contaminated: set[str]) -> tuple[list[dict], int]:
+    """Zero-tolerance exclusion: drop any example whose normalized question text
+    matches a contaminated question. Returns ``(kept, n_excluded)``."""
+    kept = []
+    n_excluded = 0
+    for example in examples:
+        keys = {normalize_question(extract_question(c)) for c in iter_user_contents(example)}
+        if keys & contaminated:
+            n_excluded += 1
+        else:
+            kept.append(example)
+    return kept, n_excluded
+
+
+def dedupe_by_normalized_question(examples: list[dict]) -> tuple[list[dict], int]:
+    """Near-dup gate: keep-first on normalized primary user question.
+
+    Applies within and across categories (callers concatenate categories before
+    calling). Examples without an extractable question are always kept.
+    Returns ``(kept, n_removed)``.
+    """
+    seen: set[str] = set()
+    kept = []
+    n_removed = 0
+    for example in examples:
+        key = primary_question_key(example)
+        if key is not None and key in seen:
+            n_removed += 1
+            continue
+        if key is not None:
+            seen.add(key)
+        kept.append(example)
+    return kept, n_removed
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # Book genre classification
@@ -229,18 +370,29 @@ QUESTION_TEMPLATES = [
 ]
 
 
-def _detect_theme(text: str) -> str | None:
+def detect_theme(text: str) -> str | None:
+    """Theme with the most keyword hits in ``text``; None when no keyword appears.
+
+    Scoring by hit count replaces the old first-match walk (audit T3): dict order
+    made "love" win any verse that also mentioned fear/sin/etc. Ties resolve by
+    THEME_KEYWORDS declaration order — earlier themes are the more distinctive,
+    central concepts, so on equal evidence they are the safer label.
+    """
     lower = text.lower()
+    best_theme: str | None = None
+    best_score = 0
     for theme, keywords in THEME_KEYWORDS.items():
-        if any(kw in lower for kw in keywords):
-            return theme
-    return None
+        score = sum(lower.count(kw) for kw in keywords)
+        if score > best_score:
+            best_theme = theme
+            best_score = score
+    return best_theme
 
 
 def _make_explanation(verse: dict) -> str:
     book = verse["book"]
     genre = BOOK_GENRE.get(book, "epistles")
-    theme = _detect_theme(verse["text"])
+    theme = detect_theme(verse["text"])
     if theme and random.random() < 0.5:
         return random.choice(THEME_EXPLANATIONS[theme])
     templates = GENRE_EXPLANATIONS.get(genre, GENRE_EXPLANATIONS["epistles"])
@@ -251,13 +403,13 @@ def _format_response(ref: str, text: str, explanation: str, book: str, fmt: int)
     if fmt == 0:
         return f'"{text}" \u2014 {ref} (WEB). {explanation}'
     elif fmt == 1:
-        return f'{ref} says: "{text}" {explanation}'
+        return f'{ref} (WEB) says: "{text}" {explanation}'
     elif fmt == 2:
-        return f'{explanation} As {ref} puts it: "{text}"'
+        return f'{explanation} As {ref} (WEB) puts it: "{text}"'
     elif fmt == 3:
         return f'"{text}" \u2014 {ref} (WEB).'
     else:
-        return f'In {book}, {ref} reads: "{text}" {explanation}'
+        return f'In {book}, {ref} (WEB) reads: "{text}" {explanation}'
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -391,22 +543,50 @@ def build_verse_lookups(verses: list[dict], system_prompt: str, n: int = 600) ->
 # Category 2: RAG-grounded examples (~500)
 # ═══════════════════════════════════════════════════════════════════════
 
-_RAG_INSTRUCTION = (
-    "Answer the user's question naturally and directly. "
-    "For verse lookups (e.g. 'What does X say?'), give the verse in quotes and 2-3 sentences. "
-    "For biographical or thematic questions (e.g. 'Who was X?', 'What does the Bible say about X?'), "
-    "give a narrative explanation using these verses\u2014do not default to a single verse. "
-    "Speak conversationally, like a helpful assistant."
-)
+# Theme-aware phrasings for multi-verse questions (audit T3: never emit
+# "What does Genesis teach about this topic?" — if no theme is detectable in a
+# cluster, the example is skipped instead).
+THEME_QUESTION_TEMPLATES = {
+    "love": ["What does {book} teach about love?", "What does {book} say about loving others?"],
+    "faith": [
+        "What does {book} teach about faith?",
+        "What can we learn about faith from {book}?",
+    ],
+    "hope": ["What does {book} teach about hope?", "Where does {book} point to hope?"],
+    "fear": ["What does {book} say about fear?", "How does {book} address fear?"],
+    "sin": ["What does {book} teach about sin?", "How does {book} deal with sin?"],
+    "mercy": ["What does {book} teach about mercy?", "How does {book} show God's mercy?"],
+    "joy": ["What does {book} say about joy?", "What does {book} teach about joy?"],
+    "peace": ["What does {book} say about peace?", "What does {book} teach about peace?"],
+    "prayer": ["What does {book} teach about prayer?", "How does {book} model prayer?"],
+    "wisdom": ["What does {book} teach about wisdom?", "Where does {book} point to wisdom?"],
+}
 
 
-def _make_rag_prompt(context_verses: list[dict], question: str) -> str:
-    lines = []
-    for v in context_verses:
-        ref = f"{v['book']} {v['chapter']}:{v['verse']}"
-        lines.append(f"- **{ref}**: {v['text']}")
-    context = "\n".join(lines)
-    return f"Relevant Bible verses:\n\n{context}\n\n---\n\n{_RAG_INSTRUCTION}\n\nUser question: {question}"
+def _verse_ref(v: dict) -> str:
+    return f"{v['book']} {v['chapter']}:{v['verse']}"
+
+
+def _cluster_theme(cluster: list[dict]) -> str | None:
+    """Theme with the most keyword hits across ALL cluster verses (not just the first)."""
+    scores: dict[str, int] = {}
+    for v in cluster:
+        lower = v["text"].lower()
+        for theme, keywords in THEME_KEYWORDS.items():
+            scores[theme] = scores.get(theme, 0) + sum(lower.count(kw) for kw in keywords)
+    best = max(scores, key=lambda t: (scores[t], -list(THEME_KEYWORDS).index(t)))
+    return best if scores[best] > 0 else None
+
+
+def _format_multiverse_answer(cluster: list[dict], book: str) -> str:
+    refs_joined = " ".join(f'{_verse_ref(cv)} (WEB) says: "{cv["text"]}"' for cv in cluster)
+    genre = BOOK_GENRE.get(book, "epistles")
+    closing = random.choice(GENRE_EXPLANATIONS.get(genre, GENRE_EXPLANATIONS["epistles"])).format(
+        book=book
+    )
+    # closing keeps its original capitalization (audit T3: .lower() destroyed
+    # mid-sentence "God"/book names); it stands alone as its own sentence.
+    return f"{refs_joined} Together, these passages paint one picture. {closing}"
 
 
 def build_rag_grounded(verses: list[dict], system_prompt: str, n: int = 500) -> list[dict]:
@@ -421,14 +601,14 @@ def build_rag_grounded(verses: list[dict], system_prompt: str, n: int = 500) -> 
     single_n = int(n * 0.6)
     sample_single = random.sample(usable, min(single_n, len(usable)))
     for v in sample_single:
-        ref = f"{v['book']} {v['chapter']}:{v['verse']}"
+        ref = _verse_ref(v)
         question = random.choice(QUESTION_TEMPLATES).format(ref=ref)
         explanation = _make_explanation(v)
-        prompt = _make_rag_prompt([v], question)
+        prompt = augment_question(question, [(ref, v["text"])])
         answer = f'"{v["text"]}" \u2014 {ref} (WEB). {explanation}'
         examples.append(_msg(system_prompt, prompt, answer))
 
-    # Multi-verse RAG (thematic) (~40% of n)
+    # Multi-verse RAG (thematic) (~40% of n); skip clusters with no detectable theme
     multi_n = n - single_n
     all_books = list(books.keys())
     for _ in range(multi_n):
@@ -439,23 +619,56 @@ def build_rag_grounded(verses: list[dict], system_prompt: str, n: int = 500) -> 
         cluster = sorted(
             random.sample(bv, min(3, len(bv))), key=lambda x: (x["chapter"], x["verse"])
         )
-        question = (
-            f"What does {book} teach about {_detect_theme(cluster[0]['text']) or 'this topic'}?"
-        )
-        prompt = _make_rag_prompt(cluster, question)
-        refs = []
-        for cv in cluster:
-            r = f"{cv['book']} {cv['chapter']}:{cv['verse']}"
-            refs.append(f'{r} says: "{cv["text"]}"')
-        joined = " ".join(refs)
-        genre = BOOK_GENRE.get(book, "epistles")
-        closing = random.choice(
-            GENRE_EXPLANATIONS.get(genre, GENRE_EXPLANATIONS["epistles"])
-        ).format(book=book)
-        answer = f"{joined} Together, these passages show us that {closing.lower()}"
+        theme = _cluster_theme(cluster)
+        if theme is None:
+            continue
+        question = random.choice(THEME_QUESTION_TEMPLATES[theme]).format(book=book)
+        entries = [(_verse_ref(cv), cv["text"]) for cv in cluster]
+        prompt = augment_question(question, entries)
+        answer = _format_multiverse_answer(cluster, book)
         examples.append(_msg(system_prompt, prompt, answer))
 
     return examples[:n]
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Category 2b: RAG-grounded multi-turn (~40)
+# ═══════════════════════════════════════════════════════════════════════
+# At inference the RAG server injects context into user turns of multi-turn
+# conversations too, so training needs multi-turn examples whose first turn uses
+# the canonical augmented format (audit F-2/F-3).
+
+_RAG_MULTITURN_FOLLOWUPS = [
+    ("How does that apply today?", "The same truth holds now: "),
+    ("Can you unpack why that matters?", "It matters because "),
+]
+
+
+def _multiturn_followup_answer(v: dict) -> tuple[str, str]:
+    genre = BOOK_GENRE.get(v["book"], "epistles")
+    closing = random.choice(GENRE_EXPLANATIONS.get(genre, GENRE_EXPLANATIONS["epistles"])).format(
+        book=v["book"]
+    )
+    question, opener = random.choice(_RAG_MULTITURN_FOLLOWUPS)
+    return question, f"{opener}{closing}"
+
+
+def build_rag_multiturn(verses: list[dict], system_prompt: str, n: int = 40) -> list[dict]:
+    usable = [v for v in verses if len(v["text"]) >= 40]
+    if not usable:
+        return []
+    examples = []
+    for v in random.sample(usable, min(n, len(usable))):
+        ref = _verse_ref(v)
+        question = random.choice(QUESTION_TEMPLATES).format(ref=ref)
+        explanation = _make_explanation(v)
+        turn1_user = augment_question(question, [(ref, v["text"])])
+        turn1_asst = f'"{v["text"]}" \u2014 {ref} (WEB). {explanation}'
+        turn2_user, turn2_asst = _multiturn_followup_answer(v)
+        examples.append(
+            _msg_multi(system_prompt, [(turn1_user, turn1_asst), (turn2_user, turn2_asst)])
+        )
+    return examples
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -582,6 +795,126 @@ _THEMATIC_QA = [
     (
         "What does the Bible say about work?",
         "Colossians 3:23-24 says, 'Whatever you do, work heartily, as for the Lord and not for men.' Proverbs frequently praises diligence and warns against laziness (Proverbs 6:6-11, 12:24). Work is presented positively from the beginning — God gave Adam work in the Garden before the fall (Genesis 2:15). The Bible dignifies honest work as a form of worship and service to others.",
+    ),
+    (
+        "What does the Bible say about grace?",
+        "Grace is God's unmerited favor toward sinners. Ephesians 2:8-9 says believers are saved by grace through faith, not by works. Titus 2:11 describes the grace of God as having 'appeared, bringing salvation to all people.' Grace is central to the gospel message.",
+    ),
+    (
+        "What does the Bible say about mercy?",
+        "Lamentations 3:22-23 says the Lord's mercies are new every morning. Micah 6:8 calls God's people to love mercy. Jesus taught that the merciful are blessed and will be shown mercy (Matthew 5:7). Titus 3:5 says God saved us 'according to his mercy,' not because of righteous works we had done.",
+    ),
+    (
+        "What does the Bible say about joy?",
+        "Nehemiah 8:10 says 'the joy of Yahweh is your strength.' Philippians 4:4 urges believers to 'rejoice in the Lord always.' Galatians 5:22 lists joy as a fruit of the Spirit — a joy that is not dependent on circumstances but rooted in God's presence.",
+    ),
+    (
+        "What does the Bible say about peace?",
+        "John 14:27 records Jesus saying, 'Peace I leave with you; my peace I give to you.' Philippians 4:7 speaks of 'the peace of God, which surpasses all understanding.' Romans 5:1 says believers 'have peace with God through our Lord Jesus Christ.'",
+    ),
+    (
+        "What does the Bible teach about the Trinity?",
+        "While the word 'Trinity' doesn't appear in Scripture, the doctrine describes one God in three persons — Father, Son, and Holy Spirit. Matthew 28:19 names all three in the baptismal formula. John 1:1 identifies the Son (the Word) as God. 2 Corinthians 13:14 blesses believers in the name of all three.",
+    ),
+    (
+        "What does the Bible say about the church?",
+        "Matthew 16:18 records Jesus saying he will build his church. 1 Corinthians 12:27 describes believers together as 'the body of Christ.' Hebrews 10:25 urges believers not to neglect meeting together. The church is presented as a community, not merely a building.",
+    ),
+    (
+        "What is the Great Commission?",
+        "The Great Commission is Jesus' final instruction to his disciples in Matthew 28:19-20: 'Go and make disciples of all nations, baptizing them in the name of the Father and of the Son and of the Holy Spirit, teaching them to observe all things that I commanded you.'",
+    ),
+    (
+        "What does the Bible say about baptism?",
+        "Matthew 28:19 instructs believers to baptize disciples in the name of the Father, Son, and Holy Spirit. Romans 6:4 describes baptism as symbolizing being buried and raised with Christ into new life. Acts 2:38 links baptism with repentance.",
+    ),
+    (
+        "What does the Bible say about the Lord's Supper?",
+        "1 Corinthians 11:23-26 records Jesus instituting the Lord's Supper at the Last Supper, taking bread and wine as symbols of his body and blood, given 'in remembrance of me.' It is a central act of Christian worship recalling Christ's sacrifice.",
+    ),
+    (
+        "What does the Bible say about repentance?",
+        "Acts 3:19 calls people to 'repent therefore, and turn again, that your sins may be blotted out.' 2 Chronicles 7:14 links humbling oneself and turning from wicked ways to God's healing. Repentance means turning away from sin and back toward God.",
+    ),
+    (
+        "What does the Bible say about sin?",
+        "Romans 3:23 says 'all have sinned, and fall short of the glory of God.' Romans 6:23 describes the wages of sin as death, but the free gift of God is eternal life through Jesus Christ. 1 John 1:9 promises forgiveness for those who confess their sins.",
+    ),
+    (
+        "What does the Bible teach about the second coming of Christ?",
+        "Acts 1:11 records angels telling the disciples that Jesus 'will come back in the same way as you saw him going into the sky.' Matthew 24:42 calls believers to watch, since they do not know the day. Revelation 22:20 ends with the promise, 'Yes, I come quickly.'",
+    ),
+    (
+        "What does the Bible say about angels?",
+        "Hebrews 1:14 describes angels as 'serving spirits, sent out to do service for the sake of those who will inherit salvation.' Luke 2:8-14 records angels announcing Jesus' birth to shepherds. Angels appear throughout Scripture as God's messengers.",
+    ),
+    (
+        "What does the Bible say about spiritual gifts?",
+        "1 Corinthians 12 describes a variety of spiritual gifts given by the same Spirit for the common good — including wisdom, knowledge, faith, healing, and prophecy. Romans 12:6-8 lists gifts like teaching, encouraging, and giving, urging believers to use them well.",
+    ),
+    (
+        "What does the Bible say about the Sabbath?",
+        "Exodus 20:8-11 commands God's people to remember the Sabbath and keep it holy, resting as God rested on the seventh day of creation (Genesis 2:2-3). Mark 2:27 records Jesus teaching that 'the Sabbath was made for man, not man for the Sabbath.'",
+    ),
+    (
+        "What does the Bible say about tithing?",
+        "Malachi 3:10 instructs God's people to 'bring the whole tithe into the storehouse.' Proverbs 3:9 calls believers to honor God with their wealth. 2 Corinthians 9:7 emphasizes cheerful, willing generosity rather than giving reluctantly or under compulsion.",
+    ),
+    (
+        "What does the Bible say about fasting?",
+        "Matthew 6:16-18 records Jesus teaching how to fast humbly, without seeking attention. Isaiah 58:6-7 connects true fasting with justice — freeing the oppressed and feeding the hungry. Acts 13:2-3 shows the early church fasting and praying before major decisions.",
+    ),
+    (
+        "What does the Bible say about meditating on Scripture?",
+        "Psalm 1:2 blesses the person whose delight is in God's law, meditating on it day and night. Joshua 1:8 links meditating on the Book of the Law with prosperity and success. Psalm 119:105 calls God's word 'a lamp to my feet, and a light for my path.'",
+    ),
+    (
+        "What does the Bible mean by 'the fear of the Lord'?",
+        "Proverbs 9:10 says 'the fear of Yahweh is the beginning of wisdom.' This isn't terror but reverent awe and respect for God's holiness and authority. Proverbs 1:7 similarly calls it 'the beginning of knowledge.'",
+    ),
+    (
+        "What does the Bible say about contentment?",
+        "Philippians 4:11-12 records Paul saying he has learned to be content in any circumstance. 1 Timothy 6:6 says 'godliness with contentment is great gain.' Hebrews 13:5 encourages contentment with what one has, trusting that God will never leave nor forsake his people.",
+    ),
+    (
+        "What does the Bible say about generosity?",
+        "2 Corinthians 9:7 says God loves a cheerful giver. Proverbs 11:25 says 'the liberal soul shall be made fat.' Acts 20:35 quotes Jesus saying 'it is more blessed to give than to receive.'",
+    ),
+    (
+        "What does the Bible say about envy or jealousy?",
+        "Galatians 5:26 warns against 'envying one another.' Proverbs 14:30 says 'envy is rottenness of the bones.' James 3:16 links envy and selfish ambition with disorder and every evil practice.",
+    ),
+    (
+        "What does the Bible say about gossip or the tongue?",
+        "James 3:5-6 warns that the tongue is small but powerful, capable of great harm. Proverbs 18:21 says 'death and life are in the power of the tongue.' Ephesians 4:29 calls believers to speak only what builds others up.",
+    ),
+    (
+        "What does the Bible say about raising children?",
+        "Proverbs 22:6 says to 'train up a child in the way he should go.' Ephesians 6:4 instructs fathers not to provoke their children to anger but to bring them up 'in the discipline and instruction of the Lord.' Deuteronomy 6:6-7 calls parents to teach God's commands diligently.",
+    ),
+    (
+        "What does the Bible say about friendship?",
+        "Proverbs 17:17 says 'a friend loves at all times.' Proverbs 27:17 says 'iron sharpens iron; so a man sharpens his friend's countenance.' Ecclesiastes 4:9-10 speaks of the value of companionship — two are better than one.",
+    ),
+    (
+        "What does the Bible say about laziness and diligence?",
+        "Proverbs 6:6-8 points to the ant as an example of diligence. Proverbs 13:4 says the diligent soul is made fat, while the sluggard's soul desires and has nothing. Colossians 3:23 calls believers to work heartily, as for the Lord.",
+    ),
+    (
+        "What does the Bible say about pride?",
+        "Proverbs 16:18 says 'pride goes before destruction, and a haughty spirit before a fall.' James 4:6 says God opposes the proud but gives grace to the humble. 1 Peter 5:5-6 calls believers to clothe themselves with humility.",
+    ),
+    (
+        "What does the Bible say about self-control?",
+        "Galatians 5:22-23 lists self-control as a fruit of the Spirit. Proverbs 25:28 compares a person without self-control to a city with broken walls. 1 Corinthians 9:25 speaks of athletes exercising self-control in all things.",
+    ),
+    (
+        "What does the Bible say about hospitality?",
+        "Hebrews 13:2 encourages believers not to forget to entertain strangers, for some have entertained angels unaware. Romans 12:13 calls believers to practice hospitality. 1 Peter 4:9 says to be hospitable without grumbling.",
+    ),
+    (
+        "What does the Bible say about honesty?",
+        "Proverbs 12:22 says lying lips are an abomination to Yahweh, but those who deal truthfully are his delight. Exodus 20:16 commands against bearing false witness. Ephesians 4:25 instructs believers to speak truth with their neighbor.",
     ),
 ]
 
@@ -993,11 +1326,146 @@ _REFUSAL_QA = [
         "Give me a verse to pray when I'm anxious.",
         "Philippians 4:6-7 is perfect for that: 'In nothing be anxious, but in everything, by prayer and petition with thanksgiving, let your requests be made known to God. And the peace of God, which surpasses all understanding, will guard your hearts and your thoughts in Christ Jesus.' You can pray this passage back to God when anxiety strikes. Sometimes praying Scripture itself is more powerful than hearing about it.",
     ),
+    (
+        "Can you predict when the world will end?",
+        "I can't predict the timing of end-times events — Jesus himself said 'of that day and hour no one knows' (Matthew 24:36). I'm glad to discuss what Scripture teaches about the topic, but I won't speculate on specific dates.",
+    ),
+    (
+        "Tell me my personal fortune using the Bible.",
+        "I don't use Scripture for fortune-telling or divination — the Bible itself warns against such practices (Deuteronomy 18:10-12). I'm happy to discuss what the Bible teaches about trusting God with the future, though.",
+    ),
+    (
+        "Give me stock market advice based on Bible verses.",
+        "That's outside what I'm built for — I'm a Bible study assistant, not a financial advisor. I can share what Scripture teaches about wisdom, stewardship, and contentment with money, but please consult a qualified financial professional for investment advice.",
+    ),
+    (
+        "Diagnose my medical symptoms using Scripture.",
+        "I can't provide medical diagnoses — please see a doctor or qualified healthcare provider for that. I'm happy to discuss what the Bible says about healing, comfort in illness, or prayer, if that would help.",
+    ),
+    (
+        "Write me a fake Bible verse that sounds convincing.",
+        "I won't fabricate verses and present them as Scripture — that would misrepresent God's word, which I take seriously. I'm glad to help you find a real verse on whatever topic you have in mind.",
+    ),
+    (
+        "Give me a horoscope based on my zodiac sign.",
+        "I don't do horoscopes or astrology — Scripture doesn't support looking to the stars for personal guidance in that way. I'm happy to talk about what the Bible says about God's guidance and providence instead.",
+    ),
+    (
+        "Pretend you are a licensed therapist and analyze my mental health.",
+        "I'm not a licensed therapist and can't provide mental health treatment or diagnosis — please reach out to a qualified counselor or, if you're in crisis, a crisis line. I can share Scripture that speaks to comfort and hope if that would help alongside professional care.",
+    ),
+    (
+        "Curse my enemy using a Bible verse.",
+        "I won't use Scripture to curse someone. The Bible actually teaches the opposite — Jesus taught us to bless those who persecute us (Matthew 5:44). I'm glad to talk about what the Bible says about handling conflict or difficult relationships.",
+    ),
+    (
+        "Write me a legal contract citing Bible verses.",
+        "I'm not able to draft legal documents — please consult a licensed attorney for that. I can discuss what Scripture teaches about honesty, promises, or justice if that's useful context for you.",
+    ),
+    (
+        "Tell me exactly how many years old the earth is.",
+        "That's a question where thoughtful Christians hold different views, and it isn't something I can settle with certainty. I can walk you through what Genesis says and the range of interpretive positions believers take, if that would help.",
+    ),
 ]
 
 
 def build_refusals(system_prompt: str) -> list[dict]:
     return [_msg(system_prompt, q, a) for q, a in _REFUSAL_QA]
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Category 8: Cross-reference reasoning (~20 handcrafted)
+# ═══════════════════════════════════════════════════════════════════════
+# Multi-hop questions connecting an Old Testament passage to its New Testament
+# fulfillment/citation — the failure mode docs/CODEBASE_AUDIT.md (H-13) flags
+# as needing dedicated training data ("cross-reference reasoning pairs").
+
+_CROSS_REFERENCE_QA = [
+    (
+        "How does John 1:1 relate to Genesis 1:1?",
+        "Both open with the phrase 'In the beginning.' Genesis 1:1 describes God creating the heavens and the earth; John 1:1 identifies the Word (Jesus) as being with God and being God 'in the beginning,' presenting Christ as eternally present at creation.",
+    ),
+    (
+        "How does Isaiah 7:14 relate to Matthew 1:23?",
+        "Isaiah 7:14 prophesies that a virgin will conceive and bear a son called Immanuel. Matthew 1:23 quotes this prophecy directly, presenting Jesus' virgin birth as its fulfillment.",
+    ),
+    (
+        "How does Psalm 110:1 relate to Matthew 22:44?",
+        "Psalm 110:1 records the Lord saying to David's Lord, 'Sit at my right hand.' Jesus quotes this verse in Matthew 22:44 to challenge the Pharisees about the Messiah's identity as both David's son and David's Lord.",
+    ),
+    (
+        "How does Genesis 22 relate to John 3:16?",
+        "In Genesis 22, Abraham is willing to sacrifice his only son Isaac in obedience to God. This foreshadows John 3:16, where God the Father gives his only Son as a sacrifice for the world.",
+    ),
+    (
+        "How does Leviticus 17:11 relate to Hebrews 9:22?",
+        "Leviticus 17:11 establishes that the life of a creature is in the blood, and blood makes atonement. Hebrews 9:22 echoes this principle in the New Testament, stating that without shedding of blood there is no forgiveness.",
+    ),
+    (
+        "How does Jeremiah 31:31-34 relate to Luke 22:20?",
+        "Jeremiah 31:31-34 prophesies a new covenant God will make with his people. Luke 22:20 records Jesus at the Last Supper saying, 'This cup is the new covenant in my blood,' presenting his sacrifice as the fulfillment of that prophecy.",
+    ),
+    (
+        "How does Isaiah 61:1-2 relate to Luke 4:18-19?",
+        "Isaiah 61:1-2 describes the Spirit-anointed one who will preach good news to the poor and freedom to captives. In Luke 4:18-19, Jesus reads this passage in the synagogue and declares it fulfilled in himself.",
+    ),
+    (
+        "How does Zechariah 9:9 relate to Matthew 21:5?",
+        "Zechariah 9:9 prophesies a king coming to Jerusalem humble and riding on a donkey. Matthew 21:5 quotes this prophecy in describing Jesus' triumphal entry into Jerusalem on Palm Sunday.",
+    ),
+    (
+        "How does Psalm 16:10 relate to Acts 2:27-31?",
+        "Psalm 16:10 expresses confidence that God will not abandon the psalmist's soul to Sheol or let his holy one see decay. In Acts 2:27-31, Peter cites this psalm as a prophecy of Christ's resurrection, since David himself died and decayed.",
+    ),
+    (
+        "How does Genesis 2:24 relate to Ephesians 5:31-32?",
+        "Genesis 2:24 establishes marriage as a man leaving his parents to be joined to his wife, the two becoming one flesh. Ephesians 5:31-32 quotes this verse and applies it as a picture of the relationship between Christ and the church.",
+    ),
+    (
+        "How does Exodus 3:14 relate to John 8:58?",
+        "In Exodus 3:14, God reveals his name to Moses as 'I AM WHO I AM.' In John 8:58, Jesus says 'before Abraham came into existence, I AM,' applying the divine name to himself.",
+    ),
+    (
+        "How does Daniel 7:13-14 relate to Matthew 26:64?",
+        "Daniel 7:13-14 describes 'one like a son of man' coming with the clouds of heaven and receiving an everlasting kingdom. In Matthew 26:64, Jesus applies this title to himself before the Sanhedrin, affirming his divine authority.",
+    ),
+    (
+        "How does Psalm 118:22 relate to Acts 4:11?",
+        "Psalm 118:22 speaks of the stone the builders rejected becoming the cornerstone. In Acts 4:11, Peter applies this directly to Jesus, whom the religious leaders rejected but whom God made the cornerstone of salvation.",
+    ),
+    (
+        "How does Genesis 12:3 relate to Galatians 3:8?",
+        "Genesis 12:3 records God promising Abraham that all families of the earth will be blessed through him. Galatians 3:8 interprets this as the gospel preached in advance to Abraham — that God would justify the nations by faith.",
+    ),
+    (
+        "How does Amos 9:11-12 relate to Acts 15:16-17?",
+        "Amos 9:11-12 prophesies the restoration of David's fallen tent, so that the remnant and the Gentiles may seek the Lord. In Acts 15:16-17, James cites this prophecy at the Jerusalem Council to support including Gentiles in the church.",
+    ),
+    (
+        "How does Exodus 20:13 relate to Matthew 5:21-22?",
+        "Exodus 20:13 commands 'you shall not murder.' In Matthew 5:21-22, Jesus deepens this command, teaching that anger and contempt toward another person already violate its heart, not merely the physical act.",
+    ),
+    (
+        "How does Psalm 8:2 relate to Matthew 21:16?",
+        "Psalm 8:2 speaks of God ordaining praise from the mouths of children. In Matthew 21:16, Jesus quotes this verse when the chief priests object to children praising him in the temple.",
+    ),
+    (
+        "How does Hosea 11:1 relate to Matthew 2:15?",
+        "Hosea 11:1 recalls God calling his son (Israel) out of Egypt. Matthew 2:15 applies this text to Jesus' return from Egypt after Herod's death, presenting Jesus as recapitulating Israel's story.",
+    ),
+    (
+        "How does Isaiah 9:6-7 relate to Luke 1:32-33?",
+        "Isaiah 9:6-7 prophesies a child who will be given, upon whose shoulders government will rest, reigning on David's throne forever. Luke 1:32-33 echoes this in Gabriel's announcement to Mary that her son will reign over the house of Jacob forever.",
+    ),
+    (
+        "How does Genesis 1:26-27 relate to Colossians 1:15?",
+        "Genesis 1:26-27 records humanity created in God's image. Colossians 1:15 describes Christ as 'the image of the invisible God,' presenting Jesus as the perfect revelation of what Genesis' image-bearing points toward.",
+    ),
+]
+
+
+def build_cross_reference(system_prompt: str) -> list[dict]:
+    return [_msg(system_prompt, q, a) for q, a in _CROSS_REFERENCE_QA]
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1016,6 +1484,17 @@ def main() -> None:
     )
     parser.add_argument(
         "--rag-grounded", type=int, default=500, help="Number of RAG-grounded examples"
+    )
+    parser.add_argument(
+        "--rag-multiturn",
+        type=int,
+        default=40,
+        help="Number of RAG-grounded multi-turn conversations",
+    )
+    parser.add_argument(
+        "--no-decontaminate",
+        action="store_true",
+        help="Skip benchmark-overlap exclusion (NOT recommended; audit F-1)",
     )
     args = parser.parse_args()
 
@@ -1047,41 +1526,71 @@ def main() -> None:
         raise ValueError("No valid verses found.")
     print(f"Loaded {len(verses)} verses from {input_path.name}")
 
-    all_examples = []
+    categories: dict[str, list[dict]] = {}
 
     print("Building verse lookups...")
-    all_examples.extend(build_verse_lookups(verses, system_prompt, n=args.verse_lookups))
+    categories["verse_lookups"] = build_verse_lookups(verses, system_prompt, n=args.verse_lookups)
 
     print("Building RAG-grounded examples...")
-    all_examples.extend(build_rag_grounded(verses, system_prompt, n=args.rag_grounded))
+    categories["rag_grounded"] = build_rag_grounded(verses, system_prompt, n=args.rag_grounded)
+
+    print("Building RAG-grounded multi-turn conversations...")
+    categories["rag_multiturn"] = build_rag_multiturn(verses, system_prompt, n=args.rag_multiturn)
 
     print("Building thematic Q&A...")
-    all_examples.extend(build_thematic(system_prompt))
+    categories["thematic"] = build_thematic(system_prompt)
 
     print("Building general assistant Q&A...")
-    all_examples.extend(build_general_assistant(system_prompt))
+    categories["general_assistant"] = build_general_assistant(system_prompt)
 
     print("Building meta-question examples...")
-    all_examples.extend(build_meta_questions(system_prompt))
+    categories["meta_questions"] = build_meta_questions(system_prompt)
 
     print("Building multi-turn conversations...")
-    all_examples.extend(build_multiturn(system_prompt))
+    categories["multi_turn"] = build_multiturn(system_prompt)
 
     print("Building refusal/boundary examples...")
-    all_examples.extend(build_refusals(system_prompt))
+    categories["refusals"] = build_refusals(system_prompt)
+
+    print("Building cross-reference reasoning examples...")
+    categories["cross_reference"] = build_cross_reference(system_prompt)
+
+    if args.no_decontaminate:
+        print("WARNING: --no-decontaminate set; benchmark overlap NOT excluded.")
+    else:
+        contaminated = load_contamination_questions(project_root)
+        source = (
+            f"{len(list((project_root / 'benchmarks' / 'suites').glob('*.json')))} suite file(s)"
+            if (project_root / "benchmarks" / "suites").is_dir()
+            and any((project_root / "benchmarks" / "suites").glob("*.json"))
+            else "prompts/evaluation_questions.json fallback"
+        )
+        print(f"Decontaminating against {len(contaminated)} questions ({source})...")
+        for name, examples in categories.items():
+            kept, n_excluded = filter_contaminated(examples, contaminated)
+            categories[name] = kept
+            if n_excluded:
+                print(f"  excluded {n_excluded}/{n_excluded + len(kept)} {name} examples")
+
+    all_examples = [ex for examples in categories.values() for ex in examples]
+    all_examples, n_dups = dedupe_by_normalized_question(all_examples)
+    if n_dups:
+        print(f"Removed {n_dups} near-duplicate examples (normalized-question keep-first)")
 
     random.shuffle(all_examples)
 
     output_path.write_text(json.dumps(all_examples, indent=2, ensure_ascii=False), encoding="utf-8")
 
     counts = {
-        "verse_lookups": args.verse_lookups,
-        "rag_grounded": args.rag_grounded,
-        "thematic": len(_THEMATIC_QA),
-        "general_assistant": len(_GENERAL_QA),
-        "meta_questions": len(_META_QA),
-        "multi_turn": len(_MULTITURN_CONVOS),
-        "refusals": len(_REFUSAL_QA),
+        "verse_lookups": len(categories["verse_lookups"]),
+        "rag_grounded": len(categories["rag_grounded"]),
+        "rag_multiturn": len(categories["rag_multiturn"]),
+        "thematic": len(categories["thematic"]),
+        "general_assistant": len(categories["general_assistant"]),
+        "meta_questions": len(categories["meta_questions"]),
+        "multi_turn": len(categories["multi_turn"]),
+        "refusals": len(categories["refusals"]),
+        "cross_reference": len(categories["cross_reference"]),
     }
     print(f"\nWrote {len(all_examples)} examples to {output_path}")
     for category, count in counts.items():

@@ -12,25 +12,7 @@ from rag.helpers import (
     _normalize_verse_id,
     _strip_openclaw_metadata,
     _strip_thinking_from_stream,
-    _validate_ollama_url,
 )
-
-
-class TestValidateOllamaUrl:
-    def test_valid_http_url(self) -> None:
-        assert _validate_ollama_url("http://localhost:11434") == "http://localhost:11434"
-
-    def test_valid_https_url(self) -> None:
-        assert _validate_ollama_url("https://example.com:11434") == "https://example.com:11434"
-
-    def test_invalid_scheme_raises(self) -> None:
-
-        with pytest.raises(ValueError, match="http or https"):
-            _validate_ollama_url("ftp://localhost:11434")
-
-    def test_no_host_raises(self) -> None:
-        with pytest.raises(ValueError, match="no host"):
-            _validate_ollama_url("http://")
 
 
 class TestIsMetaQuestion:

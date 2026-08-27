@@ -4,7 +4,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![Qwen3.5-4B](https://img.shields.io/badge/Qwen3.5--4B-ORPO-orange?style=flat-square)](https://huggingface.co/Qwen)
 [![W&B](https://img.shields.io/badge/W%26B-34_runs-yellow?style=flat-square&logo=weightsandbiases)](https://wandb.ai/)
-[![Tests](https://img.shields.io/badge/tests-183_passing-brightgreen?style=flat-square)]()
+[![Tests](https://img.shields.io/badge/tests-412_passing-brightgreen?style=flat-square)]()
 [![Ruff](https://img.shields.io/badge/code%20style-ruff-black?style=flat-square&logo=ruff)](https://docs.astral.sh/ruff/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 
@@ -14,7 +14,7 @@ A locally-hosted Bible Q&A assistant fine-tuned on Qwen3.5-4B with hybrid RAG re
 
 ## Why
 
-Most Bible apps offer keyword search. This project builds a real AI that *understands* Scripture — fine-tuned on theology, grounded in retrieved passages, and guardrailed against hallucination. It combines a custom ORPO-trained Qwen3.5-4B model with hybrid RAG (BM25 + dense retrieval + cross-encoder reranking) and constitutional AI safety checks. Voice input and output make it accessible to anyone. Built as a production system, not a demo — 183 tests, 34 W&B training runs, full CI/CD, Docker deployment.
+Most Bible apps offer keyword search. This project builds a real AI that *understands* Scripture — fine-tuned on theology, grounded in retrieved passages, and guardrailed against hallucination. It combines a custom ORPO-trained Qwen3.5-4B model with hybrid RAG (BM25 + dense retrieval + cross-encoder reranking) and constitutional AI safety checks. Voice input and output make it accessible to anyone. Built as a production system, not a demo — 412 tests, 34 W&B training runs, full CI/CD, Docker deployment.
 
 ---
 
@@ -26,7 +26,7 @@ Most Bible apps offer keyword search. This project builds a real AI that *unders
 | **Retrieval-Augmented Generation** | Hybrid retrieval: ChromaDB dense search + BM25 sparse search + Reciprocal Rank Fusion + cross-encoder reranking (bge-reranker-v2-m3) |
 | **Evaluation & Benchmarking** | 54-question eval suite across 6 categories; keyword-overlap + LLM-as-judge scoring; versioned benchmark protocol |
 | **Model Quantization & Deployment** | GGUF export (F16 + Q4_K_M); Ollama serving; Jetson Orin Nano deployment guide |
-| **MLOps & CI/CD** | GitHub Actions: lint (Ruff), unit tests (pytest, 183 tests, 55% coverage), security scan (pip-audit CVE + bandit SAST), Docker build validation across Python 3.10–3.12; W&B experiment tracking (34 runs) |
+| **MLOps & CI/CD** | GitHub Actions: lint (Ruff), unit tests (pytest, 412 tests, ≥60% coverage), security scan (pip-audit CVE + bandit SAST), Docker build validation across Python 3.10–3.12; W&B experiment tracking (34 runs) |
 | **Production Hardening** | Optional API key auth, per-IP rate limiting (slowapi), `X-Request-ID` request correlation, structured JSON logging, Pydantic-validated settings, 1 MB request body guard |
 | **Voice Pipeline** | Faster-Whisper STT (GPU/CPU fallback) + Kokoro TTS; Gradio 6 web UI |
 | **Constitutional AI** | Behavioral guardrails grounded in biblical principles; counseling-pattern detection with safety referrals |
@@ -133,9 +133,9 @@ bible-ai-assistant/
 ├── data/                 # Raw Bible JSON + processed training data
 ├── ui/                   # Gradio 6 web interface (text + voice)
 ├── voice/                # STT (Faster-Whisper) + TTS (Kokoro)
-├── scripts/              # Benchmarking, leaderboard, testing
-├── tests/                # 183 pytest tests across 8 test modules (55% line coverage)
-├── prompts/              # System prompt + 54-question eval suite
+├── scripts/              # Benchmarking, leaderboard, testing, retrieval metrics, qrels
+├── tests/                # 412 pytest tests across 15 modules (≥60% line coverage)
+├── prompts/              # System prompt + 282-question eval suite
 ├── deployment/           # PC, Jetson, VPS deployment configs + Dockerfiles
 ├── benchmarks/           # Versioned evaluation protocol (manifest.v1.yaml)
 ├── docs/                 # Guides, architecture, training results, model card
@@ -189,10 +189,20 @@ All runtime settings are read from environment variables (or a `.env` file). Cop
 | `RAG_HOST` | `127.0.0.1` | RAG server bind address |
 | `RAG_PORT` | `8081` | RAG server port |
 | `RAG_TOP_K` | `5` | Retrieved verses per query |
+| `HYBRID_CANDIDATES` | `20` | Candidate passages for hybrid retrieval |
+| `CONTEXT_MAX_CHARS` | `3500` | Max chars for RAG context block injected into user turns |
+| `MAX_QUERY_CHARS` | `2000` | Hard cap on incoming query length |
+| `MAX_TOKENS_CEILING` | `4096` | Ceiling applied to client max_tokens before forwarding to Ollama |
+| `CHROMA_QUERY_TIMEOUT_SECONDS` | `10.0` | Soft timeout for dense ChromaDB queries |
+| `CITATION_VERIFICATION_ENABLED` | `true` | Enable citation verification against indexed text |
+| `CITATION_VERIFICATION_MODE` | `log` | `log` (record issues) or `annotate` (append warning markers) |
 | `API_KEY` | _(empty)_ | Optional API key — auth disabled when blank |
 | `RATE_LIMIT` | `60/minute` | Per-IP rate limit (slowapi format) |
 | `LOG_LEVEL` | `INFO` | `DEBUG` / `INFO` / `WARNING` / `ERROR` |
 | `LOG_JSON` | `false` | Set `true` for structured JSON logs in production |
+| `APP_ENV` | `production` | `development` or `production` |
+| `CORS_ORIGINS` | _(empty)_ | Allowed CORS origins (e.g. `["http://localhost:7860"]`) |
+| `CHROMA_DB_PATH` | _(empty)_ | Override ChromaDB index location (default: `rag/chroma_db/`) |
 
 ## Testing
 
@@ -205,20 +215,27 @@ pytest tests/
 pytest tests/ --cov=rag --cov=training --cov-report=term-missing
 ```
 
-The test suite comprises **183 tests** across 8 modules:
+The test suite comprises **412 tests** across 15 modules:
 
 | Module | Tests | What it covers |
 |--------|-------|----------------|
-| `test_rag_helpers.py` | 32 | String helpers, verse normalization, query classification, thinking-block stripping |
-| `test_rag_pure_functions.py` | 31 | URL validation, metadata stripping, SSE stream processing |
-| `test_hypothesis.py` | 28 | Property-based tests (Hypothesis) on 5 pure helpers — idempotency, type invariants, length bounds |
-| `test_evaluate_keyword.py` | 23 | Keyword scoring pipeline: citation detection, hallucination check, result persistence |
-| `test_training_utils.py` | 41 | Score extraction/clamping, LoRA key remapping, preference pair structure, argparse error paths |
-| `test_rag_api.py` | 10 | FastAPI endpoints: health check, 413/415/422 guards, API key auth, request correlation, Prometheus metrics, RAG bypass, counseling guardrail |
-| `test_benchmark_manifest.py` | 4 | Benchmark manifest validation |
-| `test_evaluation_questions.py` | 8 | Evaluation question set integrity |
+| `test_rag_helpers.py` | 54 | String helpers, verse normalization, query classification, thinking-block stripping, citation aliases |
+| `test_rag_pure_functions.py` | 40 | URL validation, metadata stripping, SSE stream processing |
+| `test_evaluate_keyword.py` | 54 | Keyword scoring pipeline: citation detection, hallucination check, fuzzy matching, result persistence |
+| `test_hypothesis.py` | 28 | Property-based tests (Hypothesis) on pure helpers — idempotency, type invariants, length bounds |
+| `test_training_utils.py` | 90 | Score extraction/clamping, LoRA key remapping, preference pair structure, dataset decontamination, prompt masking |
+| `test_rag_api.py` | 23 | FastAPI endpoints: health, auth, rate limiting, request correlation, model allowlist, max_tokens clamp, counseling guard |
+| `test_stats.py` | 33 | Wilson CIs, McNemar test, paired bootstrap, normalize_question contract |
+| `test_benchmark_manifest.py` | 22 | Benchmark manifest validation, sha256 pinning, version gating |
+| `test_dataset_builder.py` | 32 | Dataset generation, theme classification, decontamination filtering |
+| `test_verification.py` | 20 | Citation verification, verse ref extraction, connective stripping, misquote detection |
+| `test_qrels.py` | 10 | Retrieval evaluation: binary metrics (recall/MRR/nDCG), qrels building |
+| `test_prompt_format.py` | 10 | Shared prompt format contract (augment/extract round-trip) |
+| `test_preference_data.py` | 20 | ORPO preference pair structure, conversational format, hard negatives |
+| `test_retrieval.py` | 11 | BM25 tokenizer parity, embedding normalization, index version detection |
+| `test_evaluation_questions.py` | 8 | Evaluation question set integrity, train-eval overlap detection |
 
-**Line coverage: 55%** (CI fails the build if it drops below 60%). The uncovered portion is the ML training pipeline and ChromaDB retrieval code, which require a GPU and a live database — those are covered by integration tests run separately.
+**Line coverage: ≥60%** (enforced by `pyproject.toml` fail_under gate; single source of truth). The uncovered portion is the ML training pipeline and ChromaDB retrieval code, which require a GPU and a live database — those are covered by integration tests run separately.
 
 ## CI/CD
 
@@ -227,7 +244,7 @@ Every push and pull request runs four parallel jobs:
 | Job | What it checks |
 |-----|----------------|
 | **Lint** | `ruff format --check` + `ruff check` across all source directories |
-| **Test** | `pytest` with coverage enforcement (≥50%) on Python 3.10, 3.11, and 3.12 |
+| **Test** | `pytest` with coverage enforcement (≥60% via `pyproject.toml`) on Python 3.10, 3.11, and 3.12 |
 | **Security** | `pip-audit` CVE scan on all dependencies; `bandit` SAST on `rag/`, `training/`, `scripts/` |
 | **Docker** | Builds `Dockerfile.rag` and `Dockerfile.ui` with Buildx cache — no push, validates the image builds cleanly |
 
