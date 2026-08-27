@@ -5,15 +5,21 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 MODEL_NAME = "Qwen/Qwen3.5-4B"
+# Pinned commit SHA (H-5 supply-chain hardening — see rag/settings.py for rationale).
+# Verified against the HF Hub API directly on 2026-08-24 — re-verify before bumping.
+MODEL_REVISION = "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
 PROMPT = "<|im_start|>system\nYou are a Bible AI assistant.<|im_end|>\n<|im_start|>user\nWhat does John 3:16 say?<|im_end|>\n<|im_start|>assistant\n"
 
 
 def main():
     print("Loading base model and tokenizer...")
     # trust_remote_code required by Qwen3.5 for custom architecture modules
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
+    tokenizer = AutoTokenizer.from_pretrained(
+        MODEL_NAME, revision=MODEL_REVISION, trust_remote_code=True
+    )
     model = AutoModelForCausalLM.from_pretrained(
         MODEL_NAME,
+        revision=MODEL_REVISION,
         torch_dtype=torch.bfloat16,
         device_map="auto",
         trust_remote_code=True,

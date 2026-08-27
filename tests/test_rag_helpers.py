@@ -2,6 +2,7 @@
 
 # Import pure helper functions from the extracted helpers module (no ChromaDB/embedder)
 from rag.helpers import (
+    INDEX_VERSION,
     _extract_verse_ref_from_lookup,
     _is_counseling_request,
     _is_verse_lookup,
@@ -9,8 +10,83 @@ from rag.helpers import (
     _strip_repetition_and_meta,
     _strip_thinking,
     _topical_anchor_refs,
+    strip_document_prefix,
+    tokenize_for_bm25,
 )
 from rag.response_cleanup import strip_model_thinking
+
+
+class TestTokenizeForBm25:
+    """Shared BM25 tokenizer must match on both index and query sides (R1)."""
+
+    def test_lowercases_and_strips_punctuation(self) -> None:
+        assert tokenize_for_bm25("For God so loved the world.") == [
+            "for",
+            "god",
+            "so",
+            "loved",
+            "the",
+            "world",
+        ]
+
+    def test_keeps_apostrophes(self) -> None:
+        assert tokenize_for_bm25("God's love") == ["god's", "love"]
+
+    def test_verse_reference_splits_on_colon(self) -> None:
+        # Old .split() tokenizer produced "3:16:" vs query "3:16" mismatch.
+        assert tokenize_for_bm25("John 3:16") == ["john", "3", "16"]
+
+    def test_document_prefix_not_a_token_after_strip(self) -> None:
+        doc = strip_document_prefix("search_document: John 3:16 For God so loved")
+        assert tokenize_for_bm25(doc) == ["john", "3", "16", "for", "god", "so", "loved"]
+
+    def test_empty_and_noise(self) -> None:
+        assert tokenize_for_bm25("") == []
+        assert tokenize_for_bm25("!!! ... ---") == []
+
+
+class TestStripDocumentPrefix:
+    def test_strips_known_prefix(self) -> None:
+        assert strip_document_prefix("search_document: hello") == "hello"
+
+    def test_passthrough_without_prefix(self) -> None:
+        assert strip_document_prefix("hello world") == "hello world"
+
+
+class TestIndexVersionMarker:
+    def test_marker_is_positive_int(self) -> None:
+        assert isinstance(INDEX_VERSION, int)
+        assert INDEX_VERSION >= 1
+
+
+class TestBookAliases:
+    """Alias normalization regressions (R4)."""
+
+    def test_psalm_family(self) -> None:
+        assert _normalize_verse_id("Psalm 23:1") == "Psalms 23:1"
+        assert _normalize_verse_id("psalms 1:1") == "Psalms 1:1"
+        assert _normalize_verse_id("Ps 119:105") == "Psalms 119:105"
+
+    def test_song_of_solomon_family(self) -> None:
+        assert _normalize_verse_id("Song of Songs 1:1") == "Song of Solomon 1:1"
+        assert _normalize_verse_id("Canticles 8:6") == "Song of Solomon 8:6"
+        assert _normalize_verse_id("Song of Solomon 2:16") == "Song of Solomon 2:16"
+
+    def test_numeric_prefix_abbreviations(self) -> None:
+        assert _normalize_verse_id("1 Cor 13:4") == "1 Corinthians 13:4"
+        assert _normalize_verse_id("2 Sam 7:14") == "2 Samuel 7:14"
+        assert _normalize_verse_id("Rev 21:4") == "Revelation 21:4"
+
+    def test_canonical_names_are_identity(self) -> None:
+        for ref in ("Genesis 1:1", "Matthew 5:3", "Romans 8:28", "1 John 1:9"):
+            assert _normalize_verse_id(ref) == ref
+
+    def test_case_insensitive_book(self) -> None:
+        assert _normalize_verse_id("GEN 1:1") == "Genesis 1:1"
+
+    def test_non_refs_unchanged(self) -> None:
+        assert _normalize_verse_id("hello world") == "hello world"
+        assert _normalize_verse_id("") == ""
 
 
 class TestIsVerseLookup:
