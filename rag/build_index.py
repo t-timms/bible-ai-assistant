@@ -8,7 +8,6 @@ Creates three artifacts in rag/chroma_db/:
   3. bm25_index.pkl           -- pickled BM25Okapi index for hybrid search
 """
 
-import contextlib
 import json
 import logging
 from collections import defaultdict
@@ -35,6 +34,18 @@ logger = logging.getLogger(__name__)
 BATCH_SIZE = 500
 VERSES_COLLECTION = "bible_verses"
 PASSAGES_COLLECTION = "bible_passages"
+
+
+def _drop_collection(client: "chromadb.ClientAPI", name: str) -> None:
+    """Delete a collection if it exists. A fresh DB has none — and chromadb
+    signals that differently by version (ValueError pre-0.5, NotFoundError
+    after), so swallow any 'not there' failure rather than pinning a version."""
+    try:
+        client.delete_collection(name)
+    except Exception as e:  # noqa: BLE001 - absent collection is the expected case
+        logger.debug("delete_collection(%s) skipped: %s", name, e)
+
+
 DOCUMENT_PREFIX = "search_document: "
 PASSAGE_WINDOW = 5
 PASSAGE_STRIDE = 3
@@ -86,8 +97,7 @@ def _build_verse_index(
     verses: list[dict], model: SentenceTransformer, client: chromadb.ClientAPI
 ) -> tuple[list[str], list[str]]:
     """Build individual verse collection. Returns (ids, documents) for BM25."""
-    with contextlib.suppress(ValueError):
-        client.delete_collection(VERSES_COLLECTION)
+    _drop_collection(client, VERSES_COLLECTION)
 
     collection = client.create_collection(
         name=VERSES_COLLECTION,
@@ -144,8 +154,7 @@ def _build_passage_index(
     except ImportError:
         pass
 
-    with contextlib.suppress(ValueError):
-        client.delete_collection(PASSAGES_COLLECTION)
+    _drop_collection(client, PASSAGES_COLLECTION)
 
     collection = client.create_collection(
         name=PASSAGES_COLLECTION,
