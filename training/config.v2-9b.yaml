@@ -41,7 +41,7 @@ lora:
 
 training:
   output_dir: "checkpoints_v2_9b"
-  eval_split: 0.03             # frozen suite snapshots carry the real eval; small internal split only
+  eval_split: 0.008           # ~490 held-out examples; keep eval cheap on a 9B
   num_train_epochs: 2          # large corpus -> fewer epochs; watch eval_loss and stop on plateau
   per_device_train_batch_size: 1
   gradient_accumulation_steps: 16   # effective batch 16
