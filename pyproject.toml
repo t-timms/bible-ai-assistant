@@ -131,6 +131,7 @@ ignore = ["E501"]  # Line length handled by formatter
 "training/dataset_builder.py" = ["SIM116"]  # _format_response: explicit branches read clearer than a dict of lambdas
 "training/train_unsloth.py" = ["I001"]  # Imports inside try/except for dependency checking
 "training/train_orpo.py" = ["I001"]  # Imports inside try/except for dependency checking
+"training/train_grpo.py" = ["I001"]  # Lazy torch/trl/unsloth imports on the training path only
 "ui/app.py" = ["I001", "SIM115"]  # Lazy imports; NamedTemporaryFile(delete=False) for Gradio file paths
 "tests/test_evaluate_keyword.py" = ["E402"]  # sys.path before training.evaluate
 "tests/test_training_utils.py" = ["E402"]   # sys.path before training.* imports
@@ -148,6 +149,7 @@ omit = [
     # Require torch/unsloth/CUDA — not testable without the full ML stack
     "training/train_unsloth.py",
     "training/train_orpo.py",
+    "training/train_grpo.py",
     "training/dataset_builder.py",
     "training/convert_web_tehshrike.py",
     # Require a running ChromaDB instance

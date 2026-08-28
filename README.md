@@ -250,7 +250,8 @@ Every push and pull request runs a staged pipeline (`lint` → `type-check` + `s
 | [MODEL_CARD.md](docs/MODEL_CARD.md) | Model card: training, evaluation, limitations, bias |
 | [architecture.md](docs/architecture.md) | System design, phase deployment, lessons learned |
 | [MODEL_COMPARISON.md](docs/MODEL_COMPARISON.md) | SFT vs. ORPO evaluation and analysis |
-| [BENCHMARK_PROTOCOL.md](docs/BENCHMARK_PROTOCOL.md) | Versioned evaluation methodology |
+| [BENCHMARK_PROTOCOL.md](docs/BENCHMARK_PROTOCOL.md) | Versioned evaluation methodology (protocol v3) |
+| [V2_EXECUTION_PLAN.md](docs/V2_EXECUTION_PLAN.md) | Ordered plan for the v2 model rebuild (SFT → ORPO → GRPO) |
 | [CONSTITUTION.md](CONSTITUTION.md) | Biblical behavioral guardrails |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Development workflow, branch conventions, PR process |
 | [SECURITY.md](SECURITY.md) | Vulnerability reporting and responsible disclosure |

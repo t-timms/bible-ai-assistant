@@ -8,8 +8,8 @@ published rubric and no way for a third party to submit or self-score a model ag
 isn't a target this project (or any locally-served fine-tuned model) can be benchmarked on. This
 project's own versioned internal protocol, below, is the benchmark:
 
-1. **Fixed suite** — `prompts/evaluation_questions.json` (schema checked in `tests/test_evaluation_questions.py`). 282 questions across 8 categories, including a small `theological_reliability` category *inspired by* (not affiliated with, not scored against) TGC's question framing.
-2. **Version tag** — `benchmarks/manifest.vN.yaml` defines `protocol_id`. When you change questions, judge rubric, or metric meaning, **bump the manifest** (new `manifest.vN.yaml` + new `protocol_id`) so scores are comparable across time. Current: **v2** (`bible_assistant_baseline_v2`) — see `manifest.v2.yaml`'s `changes_from_v1` for what changed and why v1/v2 scores aren't comparable. Older manifests are kept, not edited in place.
+1. **Frozen suite** — `benchmarks/suites/evaluation_questions.v2.json` (sha256-pinned in the manifest; `run_benchmark.py` fails fast on mismatch). 282 questions across 8 categories, including a small `theological_reliability` category *inspired by* (not affiliated with, not scored against) TGC's question framing. The mutable `prompts/evaluation_questions.json` is the editing surface and is **no longer referenced by any manifest** — historical results measured against it are not byte-reproducible.
+2. **Version tag** — `benchmarks/manifest.vN.yaml` defines `protocol_id`. When you change questions, judge rubric, or metric meaning, **bump the manifest** (new `manifest.vN.yaml` + new `protocol_id`) so scores are comparable across time. Current: **v3** (`bible_assistant_baseline_v3`) — see `manifest.v3.yaml`'s `changes_from_v2` (frozen sha-pinned suites, pinned metric constants, a disclosed ~100/282 train/eval contamination in the pre-v3 expanded dataset, recorded decoding params). v1/v2/v3 scores are **not** comparable. Older manifests are kept, not edited in place.
 3. **Two tiers** — **keyword** (fast CI / iteration) and **judge** (heavier, closer to human rubric). Keyword mode reports both the original exact-substring `verse_accuracy` and a `verse_accuracy_fuzzy` metric — the exact metric penalizes valid paraphrase (e.g. "his one and only Son" vs. "his only born Son" scores 0 despite both being faithful), which is a known, previously undiagnosed weakness; report both, don't drop the old one, since some run history only has it.
 4. **Real citation verification** — `check_hallucination` (via `rag/verification.py`) now checks that a cited chapter:verse actually exists in the indexed Bible text, not just that the book name is real. A real book with a fabricated verse number (e.g. "1 Corinthians 47:99") now counts as a hallucination; it silently passed before.
 5. **Artifacts** — JSON with `ollama_model`, `benchmark_protocol_id`, and per-item results for diffing.
@@ -39,15 +39,15 @@ python scripts/compare_benchmark_runs.py docs/benchmark_runs/<file_a>.json docs/
 ## Manual `evaluate.py` (same protocol)
 
 ```powershell
-python training/evaluate.py --protocol-id bible_assistant_baseline_v2 --ollama-model bible-assistant-orpo
-python training/evaluate.py --judge --protocol-id bible_assistant_baseline_v2 --ollama-model bible-assistant-orpo --model-tag orpo-q4
+python training/evaluate.py --protocol-id bible_assistant_baseline_v3 --ollama-model bible-assistant-orpo
+python training/evaluate.py --judge --protocol-id bible_assistant_baseline_v3 --ollama-model bible-assistant-orpo --model-tag orpo-q4
 ```
 
 ## Evolving the benchmark (as you improve)
 
 | Change | Action |
 |--------|--------|
-| Add/edit questions | Edit `evaluation_questions.json`; consider **new** `protocol_id` if scores are not comparable |
+| Add/edit questions | Edit `prompts/evaluation_questions.json`, then re-snapshot to `benchmarks/suites/evaluation_questions.vN.json` and pin its sha256 in a **new** `manifest.vN.yaml` with a new `protocol_id` |
 | Change judge prompt | New `protocol_id`; document in manifest |
 | Change RAG retrieval | Document in run notes; major pipeline changes → new protocol or disclaimer |
 | New metric | Extend `evaluate.py` + manifest; version bump |
@@ -73,7 +73,7 @@ python scripts/compare_benchmark_runs.py docs/benchmark_runs/20260320_orpo-q4_ju
 
 | Path | Role |
 |------|------|
-| `benchmarks/manifest.v1.yaml` | Protocol metadata and checklist |
+| `benchmarks/manifest.v3.yaml` | Current protocol metadata, sha-pinned suites, checklist (v1/v2 kept for history) |
 | `scripts/run_benchmark.py` | Writes timestamped JSON under `docs/benchmark_runs/` |
 | `scripts/compare_benchmark_runs.py` | Side-by-side A/B summary |
 | `training/evaluate.py` | Core runner (`--ollama-model`, `--protocol-id`) |

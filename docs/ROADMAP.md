@@ -6,11 +6,14 @@ Full-canon model-layer replacement; the RAG/eval/CI stack below stays as-is.
 Status & schedule live in `docs/PROJECT_STATUS_AND_GOALS.md` → "V2 Rebuild".
 
 - [x] Dataset engine: 8 categories, ~62k post-dedupe examples, sha-pinned sources (`cec12ce`)
-- [x] V2 config: 14B QLoRA + GRPO verifiable-reward scaffold
-- [ ] SFT launch (8B first, then 14B comparison)
-- [ ] GRPO wiring: programmatic reward via `rag/verification.py` logic
-- [ ] Constrained decoding: verse-reference trie (structural hallucination immunity)
-- [ ] External benchmark adapters (biblebench.org, YouVersion, CommonEval, recall suites)
+- [x] V2 config **files**: `config.v2-8b.yaml` (near-term) + `config.v2.yaml` (14B stretch) + GRPO reward block
+- [x] Config wiring: `train_unsloth.py --config/--data`; `_load_config_yaml` reads `data.train_file`
+- [x] GRPO scaffold: `training/train_grpo.py` — verifiable reward (citation-exists + text-match + format) reusing `rag/verification.py`; `--dry-run` verified. Needs a GPU `--max-steps 2` smoke before any real run.
+- [ ] `data/processed/train_v2.json` build + `check_train_eval_overlap.py` pass
+- [ ] SFT launch (8B first via `config.v2-8b.yaml`; 14B only if 8B clears the v1 baseline)
+- [ ] ORPO on the 8B SFT; then GRPO smoke → full GRPO
+- [ ] Constrained decoding: verse-reference trie, applied to the citation span only (mind the "alignment tax" — arXiv 2604.06066)
+- [ ] External-benchmark adapters — **now available** (2026-08-28 recheck): [FMG-Bench](https://github.com/FideAI/fmg-bench) (120 scenarios, has code), [FaithBench](https://faithbench.com/) (300+ cases, held-out). Use as honest external calibration, not win targets — both test theological *reasoning*/tradition-awareness, a harder and different task than RAG verse-citation.
 
 ---
 
