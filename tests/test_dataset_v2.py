@@ -186,7 +186,12 @@ class TestManifestIntegrity:
         manifest = v2.finalize(examples, dest)
         data = json.loads(dest.read_text(encoding="utf-8"))
         man = json.loads(dest.with_suffix(".manifest.json").read_text(encoding="utf-8"))
-        assert len(data["examples"]) == 2
-        assert data["protocol_id"] == "bible_assistant_v2_train"
+        # train_v2.json is a flat array of chat examples (v1-compatible shape).
+        assert isinstance(data, list)
+        assert len(data) == 2
+        assert all("messages" in ex and "category" in ex for ex in data)
+        # Provenance lives entirely in the sidecar manifest.
+        assert man["protocol_id"] == "bible_assistant_v2_train"
         assert man["total"] == 2
+        assert "seed" in man and "counts_dropped_contamination_or_dupes" in man
         assert manifest == man
