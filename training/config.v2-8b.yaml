@@ -1,0 +1,52 @@
+# Bible AI Assistant - V2 Training Config (8B)
+# Realistic near-term target: Qwen3.5-8B bf16 LoRA on a single 16 GB RTX 5070 Ti.
+# Run this BEFORE the 14B recipe in config.v2.yaml (PROJECT_STATUS_AND_GOALS.md:
+# "8B first; 14B only if 8B clears the v1 baseline"). Select with:
+#   python training/train_unsloth.py --config training/config.v2-8b.yaml --run-name qwen3.5-8b-bible-v2-sft
+#
+# Sources for the choices below (docs/V2_EXECUTION_PLAN.md § Research):
+#  - Unsloth Qwen3.5 fine-tune guide: batch_size=1 + gradient_checkpointing="unsloth"
+#    keeps an 8B QLoRA run inside 16 GB; bf16 required on Blackwell.
+#  - r=32 / alpha=64 is the 2026 default once the SFT set is >10k examples.
+#  - Catastrophic-forgetting guard: keep >=20-25% general/reasoning/refusal data in the
+#    mix (build_dataset_v2.py inherits the v1 general/meta/refusal pools) so Qwen3's
+#    reasoning survives the verse-recall-heavy corpus. Verify the ratio in the
+#    train_v2.manifest.json before launching.
+
+model:
+  name: "Qwen/Qwen3.5-8B"
+  load_in_4bit: false          # bf16 LoRA — Unsloth does not recommend 4-bit for Qwen3.5
+  max_seq_length: 2048         # raise to 3072 in a separate run only if VRAM headroom shows
+
+lora:
+  r: 32                        # 62k-example corpus -> more capacity than v1's r=16
+  alpha: 64                    # alpha = 2*r
+  dropout: 0.05                # 50k+ examples dilute overfit risk
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+  bias: "none"
+
+training:
+  output_dir: "checkpoints_v2_8b"
+  eval_split: 0.03             # frozen suite snapshots carry the real eval; small internal split only
+  num_train_epochs: 2          # large corpus -> fewer epochs; watch eval_loss and stop on plateau
+  per_device_train_batch_size: 1
+  gradient_accumulation_steps: 16   # effective batch 16
+  learning_rate: 1.0e-4        # lower than v1's 2e-4 for the larger base
+  lr_scheduler_type: "cosine"
+  warmup_ratio: 0.03
+  max_eval_steps: 50
+  logging_steps: 25
+  bf16: true                   # REQUIRED on Blackwell (RTX 5070 Ti). Never fp16.
+  report_to: "wandb"
+  random_state: 20260828
+
+data:
+  train_file: "data/processed/train_v2.json"
+  eval_file: null
