@@ -19,7 +19,7 @@ this is the ordered, audited path to a model that clears its own bar.
 | Gap | Status now |
 |-----|-----------|
 | No runnable environment (no durable clone, conda env, corpus, or index) | Being stood up: WSL `~/bible-ai-assistant`, conda `bible-orpo` (torch 2.11+cu128, transformers 5.5, trl 0.24, unsloth 2026.8.22 — `sm_120` confirmed in torch arch list). |
-| `config.v2.yaml` read by no code | **Fixed** — `train_unsloth.py --config/--data`; `_load_config_yaml` now takes a path and reads `data.train_file`. New `config.v2-8b.yaml`. |
+| `config.v2.yaml` read by no code | **Fixed** — `train_unsloth.py --config/--data`; `_load_config_yaml` now takes a path and reads `data.train_file`. New `config.v2-9b.yaml`. |
 | GRPO (Stage 3) had zero implementation | **Scaffolded** — `training/train_grpo.py` (Unsloth GRPO + verifiable reward from `rag/verification.py`). `--dry-run` verified (good→1.00, bad→0.075). Needs a GPU `--max-steps 2` smoke. |
 | `train_v2.json` never built | Track A step 2 below (no GPU). |
 | `BENCHMARK_PROTOCOL.md` stale (said "v2", mutable suite) | **Fixed** — now v3, frozen sha-pinned suites. |
@@ -45,8 +45,8 @@ Yes, with three adjustments. Sources in the PR description; key points:
    2026 refrain.
 4. **GRPO variants** — DAPO (more stable), GSPO (Qwen-team, sequence-level), DUPO (faster).
    Baseline: GRPO via Unsloth; DAPO documented as the fallback if GRPO is unstable.
-5. **FP8 GRPO** now runs on consumer GPUs; Blackwell sm_120 has native FP8. 8B QLoRA +
-   FP8 GRPO on the 5070 Ti is realistic. **8B-first** stays right; 14B QLoRA fits 16 GB
+5. **FP8 GRPO** now runs on consumer GPUs; Blackwell sm_120 has native FP8. 9B QLoRA +
+   FP8 GRPO on the 5070 Ti is realistic. **9B-first** stays right; 27B QLoRA is very tight on 16 GB
    per Unsloth (batch=1 + `gradient_checkpointing="unsloth"`) but is a stretch.
 6. **Constrained decoding** (OUTLINES / grammar-FSM) is the standard "verse-reference
    trie" tool — apply it **narrowly** (citation span only); there's a documented
@@ -62,22 +62,22 @@ Yes, with three adjustments. Sources in the PR description; key points:
 | A2 | Fetch `data/raw/` corpus + build ChromaDB index | `build-index` (force CPU while GPU is busy) | none |
 | A3 | Build the SFT set | `python training/build_dataset_v2.py` → `data/processed/train_v2.json` + manifest | none |
 | A4 | Contamination check | `python scripts/check_train_eval_overlap.py` (needs `data/raw/`) | none |
-| A5 | Config wiring (done) + `config.v2-8b.yaml` (done) | — | none |
+| A5 | Config wiring (done) + `config.v2-9b.yaml` (done) | — | none |
 | A6 | `train_grpo.py` scaffold (done) | `--dry-run` passes | none |
 | A7 | Doc truth-up (done) | `BENCHMARK_PROTOCOL.md`, this file, `ROADMAP.md` Block 0 | none |
 | A8 | Install Ollama (WSL) + prepare eval stack | RAG server + Ollama + index | eval only |
 | A9 | **v1 baseline under protocol v3** | `python scripts/run_benchmark.py --ollama-model bible-assistant-orpo` (+`--judge`), Q4 + F16 | light (inference) |
-| A10 | Overnight runner | `scripts/overnight_v2_sft.sh` — smoke-gate → full 8B SFT → merge → GGUF | queued |
+| A10 | Overnight runner | `scripts/overnight_v2.sh` — smoke-gate → full 9B SFT → merge → GGUF | queued |
 
 ## Track B — GPU sessions (gated: gaming / other jobs)
 
 | # | Task | Gate to proceed |
 |---|------|-----------------|
-| B1 | 8B SFT (`--config training/config.v2-8b.yaml`) → merge → GGUF Q4+F16 → Ollama → eval v3 | clears the v1 baseline on verse accuracy **and** hallucination |
-| B2 | ORPO on the 8B SFT (regenerate 2,080 pref pairs) → eval v3 A/B | ORPO improves judge scores without hurting verse accuracy |
-| B3 | GRPO smoke (`--max-steps 2`) → full GRPO on 8B-ORPO → eval v3 | reward curve rises; no KL blowup; eval improves |
+| B1 | 9B SFT (`--config training/config.v2-9b.yaml`) → merge → GGUF Q4+F16 → Ollama → eval v3 | clears the v1 baseline on verse accuracy **and** hallucination |
+| B2 | ORPO on the 9B SFT (regenerate 2,080 pref pairs) → eval v3 A/B | ORPO improves judge scores without hurting verse accuracy |
+| B3 | GRPO smoke (`--max-steps 2`) → full GRPO on 9B-ORPO → eval v3 | reward curve rises; no KL blowup; eval improves |
 | B4 | Constrained-citation decoding (OUTLINES, citation span only) → eval v3 | hallucination ↓ with < 2 pt helpfulness cost |
-| B5 | 14B repeat of B1–B3 | only if 8B clears convincingly |
+| B5 | 27B repeat of B1-B3 | only if 9B clears convincingly |
 | B6 | Publish | HF model card + GGUF, `scripts/leaderboard.py` table, FMG-Bench + FaithBench entries, README/MODEL_CARD updated with **measured** v3 numbers |
 
 ## Non-negotiables

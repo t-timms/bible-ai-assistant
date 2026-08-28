@@ -1,16 +1,14 @@
-# Bible AI Assistant - V2 Training Config
-# Full-canon rebuild: Qwen3.5-14B QLoRA + verifiable-reward GRPO scaffold.
-#
-# NOTE (from v1 learnings, kept): Unsloth does not recommend 4-bit loading for
-# Qwen3.5; the commented 4-bit block below is the documented fallback if 16GB
-# VRAM cannot hold bf16 LoRA at seq length 2048 for the 14B — try bf16 first,
-# then shorten sequences, only fall back to 4-bit as last resort.
+# Bible AI Assistant - V2 Training Config (STRETCH — 27B)
+# Full-canon rebuild at the top of the Qwen3.5 dense line (0.8/2/4/9/27B — there
+# is no 8B or 14B). Run training/config.v2-9b.yaml FIRST; only attempt 27B if 9B
+# clears the v1 baseline convincingly. 27B QLoRA on 16 GB is very tight: 4-bit is
+# mandatory, and even then expect to shorten seq length and/or offload.
 
 model:
-  name: "Qwen/Qwen3.5-14B"
-  load_in_4bit: false          # flip true ONLY after OOM test above
+  name: "Qwen/Qwen3.5-27B"
+  load_in_4bit: true           # 27B has no bf16-LoRA path on 16 GB
   max_seq_length: 2048
-  # v2 dataset has longer passages; raise to 3072 in a separate run if VRAM allows
+  # 27B @ 4-bit + 2048 seq is on the edge — drop to 1536/1024 if it OOMs
 
 lora:
   r: 32                        # doubled vs v1: more capacity for canon-scale memorization
@@ -30,7 +28,7 @@ training:
   output_dir: "checkpoints_v2"
   eval_split: 0.05             # eval data now drawn from frozen suite snapshots instead
   num_train_epochs: 2          # large corpus -> fewer epochs to avoid overfitting
-  per_device_train_batch_size: 1   # 14B needs the tighter footprint
+  per_device_train_batch_size: 1   # 27B needs the tighter footprint
   gradient_accumulation_steps: 16  # effective batch 16 preserved
   learning_rate: 1.0e-4        # lower for larger base
   lr_scheduler_type: "cosine"

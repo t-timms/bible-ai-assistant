@@ -10,7 +10,7 @@ project is graded on:
                 + w_fmt  * format_compliance (prompt_format contract)
 
 Weights come from the ``grpo:`` block of the training config
-(``training/config.v2-8b.yaml`` / ``training/config.v2.yaml``).
+(``training/config.v2-9b.yaml`` / ``training/config.v2.yaml``).
 
 Environment: conda ``bible-orpo`` (transformers >= 5.1, native Qwen3.5) + Unsloth,
 which ships GRPO/DAPO support on top of TRL's GRPOTrainer. Blackwell: bf16 (or fp8
@@ -18,9 +18,9 @@ where available) — never fp16.
 
 Usage:
     python training/train_grpo.py \
-        --policy-path models/qwen3.5-8b-bible-v2-orpo \
-        --config training/config.v2-8b.yaml \
-        --run-name qwen3.5-8b-bible-v2-grpo
+        --policy-path models/qwen3.5-9b-bible-v2-orpo \
+        --config training/config.v2-9b.yaml \
+        --run-name qwen3.5-9b-bible-v2-grpo
     python training/train_grpo.py --policy-path ... --dry-run   # reward wiring only, no GPU
 
 STATUS: scaffold. The reward functions and config plumbing are complete and unit-
@@ -217,14 +217,14 @@ def main() -> None:
     ap.add_argument(
         "--policy-path", required=True, help="SFT or SFT+ORPO adapter dir to start from"
     )
-    ap.add_argument("--config", default="training/config.v2-8b.yaml")
+    ap.add_argument("--config", default="training/config.v2-9b.yaml")
     ap.add_argument(
         "--data", default=None, help="Override prompt dataset (default: config data.train_file)"
     )
     ap.add_argument(
         "--corpus", default="data/raw/bible_web.json", help="Verse-text corpus for the reward"
     )
-    ap.add_argument("--run-name", default="qwen3.5-8b-bible-v2-grpo")
+    ap.add_argument("--run-name", default="qwen3.5-9b-bible-v2-grpo")
     ap.add_argument(
         "--max-steps", type=int, default=-1, help="-1 = full run; use 2 for a smoke test"
     )

@@ -1,24 +1,27 @@
-# Bible AI Assistant - V2 Training Config (8B)
-# Realistic near-term target: Qwen3.5-8B QLoRA (4-bit) on a single 16 GB RTX 5070 Ti.
-# Run this BEFORE the 14B recipe in config.v2.yaml (PROJECT_STATUS_AND_GOALS.md:
-# "8B first; 14B only if 8B clears the v1 baseline"). Select with:
-#   python training/train_unsloth.py --config training/config.v2-8b.yaml --run-name qwen3.5-8b-bible-v2-sft
+# Bible AI Assistant - V2 Training Config (9B)
+# Realistic near-term target: Qwen3.5-9B QLoRA (4-bit) on a single 16 GB RTX 5070 Ti.
+# (The Qwen3.5 dense line is 0.8 / 2 / 4 / 9 / 27B — there is no 8B or 14B.)
+# Run this BEFORE the 27B recipe in config.v2.yaml (PROJECT_STATUS_AND_GOALS.md:
+# "9B first; larger only if 9B clears the v1 baseline"). Select with:
+#   python training/train_unsloth.py --config training/config.v2-9b.yaml --run-name qwen3.5-9b-bible-v2-sft
 #
 # Sources for the choices below (docs/V2_EXECUTION_PLAN.md § Research):
 #  - Unsloth Qwen3.5 fine-tune guide: batch_size=1 + gradient_checkpointing="unsloth"
-#    keeps an 8B QLoRA run inside 16 GB; bf16 required on Blackwell.
+#    keeps a 9B QLoRA run well inside 16 GB; bf16 compute required on Blackwell.
 #  - r=32 / alpha=64 is the 2026 default once the SFT set is >10k examples.
 #  - Catastrophic-forgetting guard: keep >=20-25% general/reasoning/refusal data in the
 #    mix (build_dataset_v2.py inherits the v1 general/meta/refusal pools) so Qwen3's
-#    reasoning survives the verse-recall-heavy corpus. Verify the ratio in the
-#    train_v2.manifest.json before launching.
+#    reasoning survives the verse-recall-heavy corpus. train_v2.manifest.json currently
+#    shows ~0.1% general -> the overnight PROBE exists to measure the damage before a
+#    full run is booked.
 
 model:
-  name: "Qwen/Qwen3.5-8B"
-  # QLoRA (4-bit). An 8B in bf16 LoRA does not fit 16 GB with any real batch;
-  # Unsloth's "Qwen3-14B on 16 GB" story is 4-bit. The "avoid 4-bit for Qwen3.5"
-  # caveat was about the 4B (quant noise -> garbage) — re-check output quality on
-  # the 8B probe; if it degrades, drop to a smaller r or shorter seq at bf16.
+  name: "Qwen/Qwen3.5-9B"
+  # QLoRA (4-bit). A 9B in bf16 LoRA does not fit 16 GB with any real batch;
+  # Unsloth's "large model on a 16 GB card" path is 4-bit QLoRA. The "avoid
+  # 4-bit for Qwen3.5" caveat was about the 4B (quant noise -> garbage) —
+  # re-check output quality on the 9B probe; if it degrades, drop r or shorten
+  # seq at bf16.
   load_in_4bit: true
   max_seq_length: 2048         # raise to 3072 in a separate run only if VRAM headroom shows
 
@@ -37,7 +40,7 @@ lora:
   bias: "none"
 
 training:
-  output_dir: "checkpoints_v2_8b"
+  output_dir: "checkpoints_v2_9b"
   eval_split: 0.03             # frozen suite snapshots carry the real eval; small internal split only
   num_train_epochs: 2          # large corpus -> fewer epochs; watch eval_loss and stop on plateau
   per_device_train_batch_size: 1

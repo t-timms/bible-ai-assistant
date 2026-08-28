@@ -4,8 +4,8 @@
 # It does NOT launch a full multi-day SFT. It runs, in order:
 #   1. preflight (no GPU)            — data/config/disk sanity, abort on any failure
 #   2. wait for the GPU to go idle   — so it can be launched while the box is gaming
-#   3. 8B SFT smoke (--max-steps 2)  — proves the exact invocation loads + steps
-#   4. 8B SFT PROBE (--max-steps N)  — a short run whose only job is to be evaluated
+#   3. 9B SFT smoke (--max-steps 2)  — proves the exact invocation loads + steps
+#   4. 9B SFT PROBE (--max-steps N)  — a short run whose only job is to be evaluated
 #                                      for reasoning retention before a full run is booked
 #   5. merge probe adapter -> GGUF Q4 — ready for `ollama create` + eval in the morning
 #
@@ -19,14 +19,14 @@ set -uo pipefail
 REPO="$HOME/bible-ai-assistant"
 cd "$REPO"
 TS="$(date +%Y%m%d-%H%M%S)"
-mkdir -p logs checkpoints_v2_8b models
+mkdir -p logs checkpoints_v2_9b models
 LOG="$REPO/logs/overnight_${TS}.log"
 exec > >(tee -a "$LOG") 2>&1
 echo "=== overnight_v2 @ $(date -Is) — log $LOG ==="
 
-CONFIG="training/config.v2-8b.yaml"
-RUN_SMOKE="qwen3.5-8b-bible-v2-smoke"
-RUN_PROBE="qwen3.5-8b-bible-v2-probe"
+CONFIG="training/config.v2-9b.yaml"
+RUN_SMOKE="qwen3.5-9b-bible-v2-smoke"
+RUN_PROBE="qwen3.5-9b-bible-v2-probe"
 PROBE_STEPS="${PROBE_STEPS:-600}"        # ~0.15 epoch of 61k @ effective-batch 16
 GPU_IDLE_UTIL="${GPU_IDLE_UTIL:-15}"     # %
 GPU_IDLE_MEM_MIB="${GPU_IDLE_MEM_MIB:-2000}"
@@ -48,10 +48,10 @@ d = json.load(open(tv))
 assert isinstance(d, list) and len(d) > 50_000, f"train_v2.json wrong shape/size: {type(d).__name__} {len(d) if hasattr(d,'__len__') else '?'}"
 assert all(k in d[0] for k in ("messages", "category")), "train_v2.json rows missing messages/category"
 free_gb = shutil.disk_usage(root).free / 2**30
-assert free_gb > 60, f"only {free_gb:.0f} GB free — need headroom for an 8B checkpoint + GGUF"
+assert free_gb > 60, f"only {free_gb:.0f} GB free — need headroom for a 9B checkpoint + GGUF"
 import yaml
-cfg = yaml.safe_load((root / "training/config.v2-8b.yaml").read_text())
-assert cfg["model"]["name"] == "Qwen/Qwen3.5-8B", cfg["model"]["name"]
+cfg = yaml.safe_load((root / "training/config.v2-9b.yaml").read_text())
+assert cfg["model"]["name"] == "Qwen/Qwen3.5-9B", cfg["model"]["name"]
 print(f"  train_v2.json: {len(d)} rows | free: {free_gb:.0f} GB | base: {cfg['model']['name']}  OK")
 PY
 [ $? -eq 0 ] || die "preflight failed"
@@ -74,20 +74,20 @@ export WANDB_MODE="${WANDB_MODE:-offline}"   # no interactive login overnight
 export HF_HUB_ENABLE_HF_TRANSFER=1
 
 # ---------------------------------------------------------------- 3. SFT smoke
-echo "--- 8B SFT smoke (--max-steps 2) @ $(date -Is) ---"
+echo "--- 9B SFT smoke (--max-steps 2) @ $(date -Is) ---"
 PYTHONPATH=. python training/train_unsloth.py \
   --config "$CONFIG" --run-name "$RUN_SMOKE" --no-wandb --max-steps 2 \
   2>&1 | tee logs/smoke_${TS}.log | tail -40
 SMOKE_RC=$?
 grep -qiE "traceback|CUDA out of memory|could not|no module named" logs/smoke_${TS}.log && die "smoke run reported errors — see logs/smoke_${TS}.log"
 [ $SMOKE_RC -eq 0 ] || die "smoke run rc=$SMOKE_RC"
-echo "  smoke OK — the 8B invocation loads, tokenizes and steps"
+echo "  smoke OK — the 9B invocation loads, tokenizes and steps"
 
 # ---------------------------------------------------------------- 4. SFT probe
 # Bounded on purpose: the v2 corpus is 99.9% verse-recall (see the mix warning in
 # V2_EXECUTION_PLAN.md). This probe exists to be EVALUATED for reasoning retention
 # before a full multi-hour SFT is booked. It is NOT the final model.
-echo "--- 8B SFT probe (--max-steps $PROBE_STEPS) @ $(date -Is) ---"
+echo "--- 9B SFT probe (--max-steps $PROBE_STEPS) @ $(date -Is) ---"
 PYTHONPATH=. python training/train_unsloth.py \
   --config "$CONFIG" --run-name "$RUN_PROBE" --max-steps "$PROBE_STEPS" \
   2>&1 | tee logs/probe_${TS}.log | tail -60
@@ -96,7 +96,7 @@ echo "  probe rc=$PROBE_RC"
 [ $PROBE_RC -eq 0 ] || die "probe run failed — see logs/probe_${TS}.log"
 
 ADAPTER="models/${RUN_PROBE}"
-[ -d "$ADAPTER" ] || ADAPTER="checkpoints_v2_8b"
+[ -d "$ADAPTER" ] || ADAPTER="checkpoints_v2_9b"
 echo "--- merge adapter ($ADAPTER) -> full model @ $(date -Is) ---"
 PYTHONPATH=. python training/merge_adapters.py --lora-path "$ADAPTER" 2>&1 | tail -20 || die "merge failed"
 
