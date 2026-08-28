@@ -28,8 +28,8 @@ CONFIG="training/config.v2-9b.yaml"
 RUN_SMOKE="qwen3.5-9b-bible-v2-smoke"
 RUN_PROBE="qwen3.5-9b-bible-v2-probe"
 PROBE_STEPS="${PROBE_STEPS:-600}"        # ~0.15 epoch of 61k @ effective-batch 16
-GPU_IDLE_UTIL="${GPU_IDLE_UTIL:-15}"     # %
-GPU_IDLE_MEM_MIB="${GPU_IDLE_MEM_MIB:-2000}"
+GPU_IDLE_UTIL="${GPU_IDLE_UTIL:-20}"     # %
+GPU_IDLE_MEM_MIB="${GPU_IDLE_MEM_MIB:-4000}"
 GPU_WAIT_MAX_MIN="${GPU_WAIT_MAX_MIN:-720}"
 
 source ~/miniforge3/etc/profile.d/conda.sh
