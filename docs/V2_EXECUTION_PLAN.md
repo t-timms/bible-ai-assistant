@@ -86,3 +86,38 @@ Yes, with three adjustments. Sources in the PR description; key points:
 - Every reported number states its `protocol_id`; v1/v2/v3 are not comparable.
 - Measured vs. estimated is always explicit. No number ships without an artifact behind it.
 - GPU work is gated around gaming / other GPU jobs — no contention.
+
+
+---
+
+## Where this stands (updated 2026-08-28)
+
+**Environment** — a durable local setup exists and is not in git (rebuild if lost):
+- WSL clone `~/bible-ai-assistant`; conda env `bible-orpo` (torch 2.11+cu128 sm_120, trl 0.24,
+  unsloth 2026.8.22, transformers 5.5); venv `~/bible-ai-assistant/.venv-rag` (`.[rag,dev]`).
+- `data/raw/bible_web.json` (31,103 verses) — `python training/convert_web_tehshrike.py ~/world-english-bible`.
+- `data/processed/train_v2.json` (61,556 examples, contamination-clean) — `python training/build_dataset_v2.py`.
+- ChromaDB index `rag/chroma_db/` (verses 31,103 / passages 10,771 / bm25) — `CUDA_VISIBLE_DEVICES="" build-index` (~1 h on CPU).
+- Ollama 0.33.1 in WSL (`127.0.0.1:11434`), no model registered yet.
+
+**Base model** — the Qwen3.5 dense line is **0.8 / 2 / 4 / 9 / 27B** (no 8B or 14B).
+Near-term recipe: `training/config.v2-9b.yaml` (`Qwen/Qwen3.5-9B`, QLoRA 4-bit — 9B has no
+bf16-LoRA path on 16 GB). `config.v2.yaml` is the 27B stretch.
+
+**`train_unsloth.py`** has been made compatible with the pinned trl 0.24 / unsloth 2026.8 stack
+(`max_length` not `max_seq_length`; `processing_class` not `tokenizer`; unwrap the Qwen3VLProcessor;
+import SFTConfig/SFTTrainer *after* the model loads; explicit `eos_token="<|im_end|>"`).
+It now takes `--config` / `--data` / `--max-steps`.
+
+**The 9B probe ran and is verified working** — ~25 s/opt-step, VRAM ~12–15.5 / 16 GB (fits),
+loss `0.22 → ~0.04` by step ~60. It was cancelled at step ~165/250 to free the GPU; partial
+LoRA checkpoints are on disk at `checkpoints_v2_9b/checkpoint-{41,82,123,164}` (gitignored).
+`train_unsloth.py` has no `--resume-from`, so the resume is a fresh 250-step run.
+
+**Resume**: `tmux new-session -d -s v2 'scripts/overnight_v2.sh'` (GPU-gated; ~2.5 h incl.
+merge + GGUF F16). Then the pending item is **A9 — the protocol-v3 baseline of the shipped v1
+model** (merge `Ttimms/bible-ai-qwen3.5-4b-lora` → GGUF → `ollama create` → `run_benchmark.py`),
+which is still the honest scoreboard's unmeasured zero point. Compare probe vs. baseline to
+decide whether `train_v2.json` needs a general/reasoning-data blend before a full SFT
+(current mix is 99.9 % verse-recall / 0.1 % general — early probe loss suggests trivial
+memorisation, so reasoning retention is the open risk).
