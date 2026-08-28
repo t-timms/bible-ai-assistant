@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 # Training config defaults — must match training/config.yaml.
 # YAML values override these at runtime via _load_config_yaml(); a different
-# config file can be selected with --config (e.g. training/config.v2-8b.yaml).
+# config file can be selected with --config (e.g. training/config.v2-9b.yaml).
 MODEL_NAME = "Qwen/Qwen3.5-4B"
 # Pinned commit SHA for reproducible loads (H-5 supply-chain hardening — see
 # rag/settings.py for the same rationale). Passed to FastLanguageModel.from_pretrained
@@ -190,7 +190,7 @@ def _load_config_yaml(project_root: Path, cfg_path: Path | None = None) -> None:
     """Override module constants from a training config YAML.
 
     Defaults to ``training/config.yaml`` (v1 4B recipe); pass ``cfg_path`` to
-    select another, e.g. ``training/config.v2-8b.yaml``. A relative path is
+    select another, e.g. ``training/config.v2-9b.yaml``. A relative path is
     resolved against ``project_root``. Missing file or PyYAML: silently keep the
     module defaults so a bad path can't abort a run before it prints its config.
     """
@@ -209,13 +209,34 @@ def _load_config_yaml(project_root: Path, cfg_path: Path | None = None) -> None:
         cfg = yaml.safe_load(f)
     if not cfg:
         return
-    global MODEL_NAME, LOAD_IN_4BIT, MAX_SEQ_LENGTH, LORA_R, LORA_ALPHA, LORA_DROPOUT
+    global \
+        MODEL_NAME, \
+        MODEL_REVISION, \
+        LOAD_IN_4BIT, \
+        MAX_SEQ_LENGTH, \
+        LORA_R, \
+        LORA_ALPHA, \
+        LORA_DROPOUT
     global LORA_TARGET_MODULES, OUTPUT_DIR, NUM_EPOCHS, BATCH_SIZE, GRADIENT_ACCUMULATION
     global LEARNING_RATE, LR_SCHEDULER_TYPE, WARMUP_RATIO, MAX_EVAL_STEPS, LOGGING_STEPS
     global BF16, EVAL_SPLIT, RANDOM_STATE, TRAIN_FILE
     if "model" in cfg:
         m = cfg["model"]
-        MODEL_NAME = m.get("name", MODEL_NAME)
+        new_name = m.get("name", MODEL_NAME)
+        if new_name != MODEL_NAME:
+            # The module-level MODEL_REVISION SHA is pinned to the *default* repo.
+            # A config that names a different base must carry its own `revision:`
+            # or run unpinned — never inherit another repo's commit hash.
+            MODEL_REVISION = m.get("revision")
+            if not MODEL_REVISION:
+                logger.warning(
+                    "Config sets model.name=%s with no model.revision — running UNPINNED. "
+                    "Pin a verified SHA in the config before trusting the run for repro.",
+                    new_name,
+                )
+        elif "revision" in m:
+            MODEL_REVISION = m["revision"]
+        MODEL_NAME = new_name
         LOAD_IN_4BIT = m.get("load_in_4bit", LOAD_IN_4BIT)
         MAX_SEQ_LENGTH = m.get("max_seq_length", MAX_SEQ_LENGTH)
     if "lora" in cfg:
@@ -261,7 +282,7 @@ def main() -> None:
         type=str,
         default=None,
         help="Training config YAML (default: training/config.yaml; "
-        "e.g. training/config.v2-8b.yaml for the v2 8B recipe)",
+        "e.g. training/config.v2-9b.yaml for the v2 9B recipe)",
     )
     parser.add_argument(
         "--data",

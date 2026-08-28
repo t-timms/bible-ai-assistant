@@ -17,7 +17,7 @@ The validated RAG/eval/CI stack stays; the model layer is rebuilt at full-canon 
   unique-trigram chapter-context recognition — plus inherited general/meta/refusal pools.
   Every prompt uses the production `prompt_format` context wrapper; provenance (source sha256s,
   seed, drop counts) recorded in `data/processed/train_v2.manifest.json`.
-- **V2 config `training/config.v2.yaml`**: Qwen3.5-14B QLoRA + GRPO scaffold whose rewards are
+- **V2 config `training/config.v2.yaml`**: Qwen3.5-27B QLoRA + GRPO scaffold whose rewards are
   fully programmatic (citation-exists / exact-text-match / format-compliance).
 - 17 offline tests for the engine; repo suite 429 passing.
 
@@ -25,7 +25,7 @@ The validated RAG/eval/CI stack stays; the model layer is rebuilt at full-canon 
 | Phase | Work | Duration |
 |---|---|---|
 | 0 | External-benchmark adapters + base-model ablation | 1 evening |
-| 1 | SFT: 8B 4-bit (~1–1.5 d) first; 14B (~2–3 d) only if 8B clears | overnight runs |
+| 1 | SFT: 9B 4-bit (~1–1.5 d) first; 27B (~2–3 d) only if 9B clears | overnight runs |
 | 2 | GRPO verifiable rewards + constrained decoding (ref trie) | ~1–2 d |
 | 3 | Rubric-class benchmarks (honest scoreboard) | after 1–2 |
 | 4 | Publish suite + leaderboard entries | after 2 |

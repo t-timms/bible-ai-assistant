@@ -88,3 +88,10 @@ AGENTS.md
 .aider*
 .windsurfrules
 .github/copilot-instructions.md
+
+# Local venvs / build dirs (developer-specific, never committed)
+.venv-rag/
+.venv*/
+checkpoints_v2*/
+logs/
+models/
