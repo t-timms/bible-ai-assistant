@@ -4,10 +4,10 @@
 # It does NOT launch a full multi-day SFT. It runs, in order:
 #   1. preflight (no GPU)            — data/config/disk sanity, abort on any failure
 #   2. wait for the GPU to go idle   — so it can be launched while the box is gaming
-#   3. 9B SFT smoke (--max-steps 2)  — proves the exact invocation loads + steps
-#   4. 9B SFT PROBE (--max-steps N)  — a short run whose only job is to be evaluated
+#   3. 9B SFT PROBE (--max-steps N)  — a short run whose only job is to be evaluated
 #                                      for reasoning retention before a full run is booked
-#   5. merge probe adapter -> GGUF Q4 — ready for `ollama create` + eval in the morning
+#                                      (self-validating: a broken run dies in <2 min)
+#   4. merge probe adapter -> GGUF Q4 — ready for `ollama create` + eval in the morning
 #
 # Launch (survives the terminal closing; .wslconfig already has vmIdleTimeout=-1):
 #   tmux new-session -d -s v2 '~/bible-ai-assistant/scripts/overnight_v2.sh'
@@ -25,7 +25,6 @@ exec > >(tee -a "$LOG") 2>&1
 echo "=== overnight_v2 @ $(date -Is) — log $LOG ==="
 
 CONFIG="training/config.v2-9b.yaml"
-RUN_SMOKE="qwen3.5-9b-bible-v2-smoke"
 RUN_PROBE="qwen3.5-9b-bible-v2-probe"
 PROBE_STEPS="${PROBE_STEPS:-250}"        # ~250 opt steps ~= 4k examples; enough to see reasoning drift
 GPU_IDLE_UTIL="${GPU_IDLE_UTIL:-20}"     # %
@@ -73,27 +72,23 @@ done
 export WANDB_MODE="${WANDB_MODE:-offline}"   # no interactive login overnight
 export HF_HUB_ENABLE_HF_TRANSFER=1
 
-# ---------------------------------------------------------------- 3. SFT smoke
-echo "--- 9B SFT smoke (--max-steps 2) @ $(date -Is) ---"
-PYTHONPATH=. python training/train_unsloth.py \
-  --config "$CONFIG" --run-name "$RUN_SMOKE" --no-wandb --max-steps 2 \
-  2>&1 | tee logs/smoke_${TS}.log | tail -40
-SMOKE_RC=$?
-grep -qiE "traceback|CUDA out of memory|could not|no module named" logs/smoke_${TS}.log && die "smoke run reported errors — see logs/smoke_${TS}.log"
-[ $SMOKE_RC -eq 0 ] || die "smoke run rc=$SMOKE_RC"
-echo "  smoke OK — the 9B invocation loads, tokenizes and steps"
-
-# ---------------------------------------------------------------- 4. SFT probe
-# Bounded on purpose: the v2 corpus is 99.9% verse-recall (see the mix warning in
-# V2_EXECUTION_PLAN.md). This probe exists to be EVALUATED for reasoning retention
+# ---------------------------------------------------------------- 3. SFT probe
+# No separate 2-step smoke: construction bugs are fixed, and --max-steps 2 wastes
+# ~20 min on two full eval passes at 9B. The probe self-validates — a broken
+# invocation dies in the first ~2 min, before step 1 completes.
+#
+# Bounded on purpose: the v2 corpus is 99.9% verse-recall (mix warning in
+# V2_EXECUTION_PLAN.md). This probe is to be EVALUATED for reasoning retention
 # before a full multi-hour SFT is booked. It is NOT the final model.
 echo "--- 9B SFT probe (--max-steps $PROBE_STEPS) @ $(date -Is) ---"
 PYTHONPATH=. python training/train_unsloth.py \
-  --config "$CONFIG" --run-name "$RUN_PROBE" --max-steps "$PROBE_STEPS" \
-  2>&1 | tee logs/probe_${TS}.log | tail -60
+  --config "$CONFIG" --run-name "$RUN_PROBE" --no-wandb --max-steps "$PROBE_STEPS" \
+  2>&1 | tee "logs/probe_${TS}.log"
 PROBE_RC=$?
 echo "  probe rc=$PROBE_RC"
-[ $PROBE_RC -eq 0 ] || die "probe run failed — see logs/probe_${TS}.log"
+grep -qiE "traceback|CUDA out of memory|no module named|is not a valid model" "logs/probe_${TS}.log" \
+  && die "probe reported errors — see logs/probe_${TS}.log"
+[ $PROBE_RC -eq 0 ] || die "probe run failed rc=$PROBE_RC — see logs/probe_${TS}.log"
 
 ADAPTER="models/${RUN_PROBE}"
 [ -d "$ADAPTER" ] || ADAPTER="checkpoints_v2_9b"
