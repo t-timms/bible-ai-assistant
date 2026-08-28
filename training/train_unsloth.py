@@ -335,8 +335,14 @@ def main() -> None:
         import torch
         import wandb
         from datasets import load_dataset
-        from trl import SFTConfig, SFTTrainer
         from unsloth import FastLanguageModel
+
+        # NOTE: SFTConfig / SFTTrainer are imported *after* FastLanguageModel
+        # loads the model (below) — Unsloth recompiles the TRL trainer classes at
+        # load time, and a config built from the pre-recompile class fails the
+        # `isinstance(args, SFTConfig)` check in SFTTrainer.__init__, which then
+        # silently rebuilds the config and drops non-TrainingArguments fields
+        # (eos_token). Import late so both sides use the recompiled class.
     except ImportError as e:
         raise ImportError(
             "Install training deps: pip install unsloth trl datasets wandb. "
@@ -501,6 +507,8 @@ def main() -> None:
 
     # Training args — bf16 required for Blackwell
     # skip_prepare_dataset: we already tokenized above; avoids Unsloth tokenization map (Windows spawn issue)
+    from trl import SFTConfig, SFTTrainer  # late import — see note at top of main()
+
     training_args = SFTConfig(
         output_dir=str(project_root / OUTPUT_DIR),
         num_train_epochs=NUM_EPOCHS,
@@ -518,13 +526,26 @@ def main() -> None:
         metric_for_best_model="eval_loss",
         report_to="none" if args.no_wandb else "wandb",
         bf16=BF16,
-        max_seq_length=MAX_SEQ_LENGTH,
+        # TRL renamed SFTConfig.max_seq_length -> max_length (gone in >=0.20).
+        max_length=MAX_SEQ_LENGTH,
+        # TRL >=0.20 needs an explicit eos_token when processing_class is a
+        # multimodal wrapper (Qwen3.5 loads as Qwen3VLProcessor). Unsloth also
+        # leaves tokenizer.eos_token as its own "<EOS_TOKEN>" template
+        # placeholder mid-run, so read neither — Qwen2/2.5/3/3.5 all end turns
+        # with the ChatML token below.
+        eos_token="<|im_end|>",
         dataset_kwargs={"skip_prepare_dataset": True},
     )
+    # Belt-and-suspenders: Unsloth's model load can leave a "<EOS_TOKEN>"
+    # placeholder on the config; force a real ChatML terminator post-hoc.
+    training_args.eos_token = "<|im_end|>"
 
+    # Pass the plain tokenizer, not Qwen3.5's Qwen3VLProcessor wrapper, so TRL
+    # takes the non-VLM path (processing_class renamed from `tokenizer` in TRL).
+    _proc = getattr(tokenizer, "tokenizer", tokenizer)
     trainer = SFTTrainer(
         model=model,
-        tokenizer=tokenizer,
+        processing_class=_proc,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         args=training_args,
