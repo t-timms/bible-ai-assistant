@@ -27,7 +27,7 @@ echo "=== overnight_v2 @ $(date -Is) — log $LOG ==="
 CONFIG="training/config.v2-9b.yaml"
 RUN_SMOKE="qwen3.5-9b-bible-v2-smoke"
 RUN_PROBE="qwen3.5-9b-bible-v2-probe"
-PROBE_STEPS="${PROBE_STEPS:-600}"        # ~0.15 epoch of 61k @ effective-batch 16
+PROBE_STEPS="${PROBE_STEPS:-250}"        # ~250 opt steps ~= 4k examples; enough to see reasoning drift
 GPU_IDLE_UTIL="${GPU_IDLE_UTIL:-20}"     # %
 GPU_IDLE_MEM_MIB="${GPU_IDLE_MEM_MIB:-4000}"
 GPU_WAIT_MAX_MIN="${GPU_WAIT_MAX_MIN:-720}"
