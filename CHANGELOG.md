@@ -52,6 +52,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Dockerfile.rag healthcheck** — switched from curl (not in python-slim) to stdlib probe; added timeout
 - **Stale lockfile** — `uv.lock` regenerated with CVE-fixed gradio; `uv lock --check` in CI prevents future drift
 
+### Documentation
+
+- **SOTA audit pass (2026-08-28)** — reconciled every self-reported number with a
+  from-scratch CI-toolchain run. Fixed: test count `412 → 430` and `15 → 16` modules
+  (README, CONTRIBUTING); eval-suite size (`54` historical vs `282` current / 8 categories)
+  disambiguated with an explicit "not re-run under protocol v2" note; CI section rewritten
+  as the real staged pipeline incl. the undocumented `Type Check` job; broken `pip install
+  -e ".[dev]"` test command → `".[rag,dev]"`; broken `ollama pull bible-assistant-orpo`
+  Quick Start step → local build path; `github.com/your-org/...` placeholders ×3,
+  non-existent `docs/evaluation_results.json` / `training/{sft,orpo}_train.py` references,
+  and the `TODO`/`2025` citation block fixed; HF badge repointed to the real adapter;
+  `MODEL_COMPARISON.md` RAM `64 → 96 GB`. Full findings + the open non-doc gaps in
+  `docs/CODEBASE_AUDIT.md` § "SOTA Audit — 2026-08-28".
+
 ---
 
 ## [0.9.0] - 2026-05-07

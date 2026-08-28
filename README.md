@@ -2,9 +2,9 @@
 
 [![CI](https://github.com/t-timms/bible-ai-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/t-timms/bible-ai-assistant/actions/workflows/ci.yml)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
-[![Qwen3.5-4B](https://img.shields.io/badge/Qwen3.5--4B-ORPO-orange?style=flat-square)](https://huggingface.co/Qwen)
+[![Qwen3.5-4B](https://img.shields.io/badge/Qwen3.5--4B-ORPO-orange?style=flat-square)](https://huggingface.co/Ttimms/bible-ai-qwen3.5-4b-lora)
 [![W&B](https://img.shields.io/badge/W%26B-34_runs-yellow?style=flat-square&logo=weightsandbiases)](https://wandb.ai/)
-[![Tests](https://img.shields.io/badge/tests-412_passing-brightgreen?style=flat-square)]()
+[![Tests](https://img.shields.io/badge/tests-430_passing-brightgreen?style=flat-square)]()
 [![Ruff](https://img.shields.io/badge/code%20style-ruff-black?style=flat-square&logo=ruff)](https://docs.astral.sh/ruff/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 
@@ -14,7 +14,7 @@ A locally-hosted Bible Q&A assistant fine-tuned on Qwen3.5-4B with hybrid RAG re
 
 ## Why
 
-Most Bible apps offer keyword search. This project builds a real AI that *understands* Scripture — fine-tuned on theology, grounded in retrieved passages, and guardrailed against hallucination. It combines a custom ORPO-trained Qwen3.5-4B model with hybrid RAG (BM25 + dense retrieval + cross-encoder reranking) and constitutional AI safety checks. Voice input and output make it accessible to anyone. Built as a production system, not a demo — 412 tests, 34 W&B training runs, full CI/CD, Docker deployment.
+Most Bible apps offer keyword search. This project builds a real AI that *understands* Scripture — fine-tuned on theology, grounded in retrieved passages, and guardrailed against hallucination. It combines a custom ORPO-trained Qwen3.5-4B model with hybrid RAG (BM25 + dense retrieval + cross-encoder reranking) and constitutional AI safety checks. Voice input and output make it accessible to anyone. Built as a production system, not a demo — 430 tests, 34 W&B training runs, full CI/CD, Docker deployment.
 
 ---
 
@@ -24,9 +24,9 @@ Most Bible apps offer keyword search. This project builds a real AI that *unders
 |------|---------|
 | **LLM Fine-Tuning** | bf16 LoRA (Unsloth/PEFT/TRL) on Qwen3.5-4B; SFT on ~1,800 diverse examples + ORPO alignment on 500 preference pairs |
 | **Retrieval-Augmented Generation** | Hybrid retrieval: ChromaDB dense search + BM25 sparse search + Reciprocal Rank Fusion + cross-encoder reranking (bge-reranker-v2-m3) |
-| **Evaluation & Benchmarking** | 54-question eval suite across 6 categories; keyword-overlap + LLM-as-judge scoring; versioned benchmark protocol |
-| **Model Quantization & Deployment** | GGUF export (F16 + Q4_K_M); Ollama serving; Jetson Orin Nano deployment guide |
-| **MLOps & CI/CD** | GitHub Actions: lint (Ruff), unit tests (pytest, 412 tests, ≥60% coverage), security scan (pip-audit CVE + bandit SAST), Docker build validation across Python 3.10–3.12; W&B experiment tracking (34 runs) |
+| **Evaluation & Benchmarking** | 282-question eval suite across 8 categories (v1 snapshot preserved for reproducibility); keyword-overlap + LLM-as-judge scoring; sha256-pinned versioned benchmark protocol |
+| **Model Quantization & Deployment** | GGUF export (F16 + Q4_K_M); local Ollama serving; Jetson Orin Nano deployment guide |
+| **MLOps & CI/CD** | GitHub Actions: lint (Ruff), type-check (mypy), unit tests (pytest, 430 tests, 67% coverage / 60% gate) across Python 3.10–3.12, security scan (pip-audit CVE + bandit SAST), Docker build validation; W&B experiment tracking (34 runs) |
 | **Production Hardening** | Optional API key auth, per-IP rate limiting (slowapi), `X-Request-ID` request correlation, structured JSON logging, Pydantic-validated settings, 1 MB request body guard |
 | **Voice Pipeline** | Faster-Whisper STT (GPU/CPU fallback) + Kokoro TTS; Gradio 6 web UI |
 | **Constitutional AI** | Behavioral guardrails grounded in biblical principles; counseling-pattern detection with safety referrals |
@@ -108,7 +108,7 @@ See [docs/MODEL_COMPARISON.md](docs/MODEL_COMPARISON.md) for full evaluation res
 
 ## Evaluation Results
 
-Benchmarked on a 54-question evaluation suite across 6 categories using keyword-overlap scoring:
+Measured with the **v1** keyword-overlap protocol (`benchmarks/manifest.v1.yaml`, 54 scored questions). These figures predate benchmark protocol v2 (282-question suite with citations verified against the indexed text) and have **not yet been re-run** under it — treat as historical, and see [docs/MODEL_COMPARISON.md](docs/MODEL_COMPARISON.md) for the methodology caveats:
 
 | Model | Size | Verse Accuracy | Citation Rate | Hallucination Rate |
 |-------|------|----------------|---------------|--------------------|
@@ -134,12 +134,12 @@ bible-ai-assistant/
 ├── ui/                   # Gradio 6 web interface (text + voice)
 ├── voice/                # STT (Faster-Whisper) + TTS (Kokoro)
 ├── scripts/              # Benchmarking, leaderboard, testing, retrieval metrics, qrels
-├── tests/                # 412 pytest tests across 15 modules (≥60% line coverage)
-├── prompts/              # System prompt + 282-question eval suite
+├── tests/                # 430 pytest tests across 16 modules (67% line coverage, 60% gate)
+├── prompts/              # System prompt + 282-question eval suite (8 categories)
 ├── deployment/           # PC, Jetson, VPS deployment configs + Dockerfiles
-├── benchmarks/           # Versioned evaluation protocol (manifest.v1.yaml)
+├── benchmarks/           # Versioned evaluation protocol (manifest.v1–v3.yaml, sha256-pinned suites)
 ├── docs/                 # Guides, architecture, training results, model card
-├── .github/workflows/    # CI: lint · test · security scan · Docker build
+├── .github/workflows/    # CI: lint · type-check · security · test · Docker build
 ├── .pre-commit-config.yaml
 ├── pyproject.toml        # Project metadata, extras, tool config (ruff, bandit, pytest, coverage)
 ├── uv.lock               # Pinned dependency lockfile (207 packages)
@@ -155,8 +155,12 @@ Requires: [Docker Desktop](https://www.docker.com/products/docker-desktop/), [Ol
 git clone https://github.com/t-timms/bible-ai-assistant.git
 cd bible-ai-assistant
 
-# 2. Pull the model
-ollama pull bible-assistant-orpo
+# 2. Build the model into Ollama (the GGUF is not on a public registry).
+#    Get the adapter from huggingface.co/Ttimms/bible-ai-qwen3.5-4b-lora, then
+#    merge + export a GGUF into models/ (see docs/WALKTHROUGH.md steps 8-11):
+#    python training/merge_adapters.py && python training/export_gguf.py
+python deployment/pc/generate_modelfile.py            # writes deployment/pc/Modelfile
+ollama create bible-assistant-orpo -f deployment/pc/Modelfile
 
 # 3. Install the package (all components)
 conda activate bible-ai-assistant
@@ -207,46 +211,36 @@ All runtime settings are read from environment variables (or a `.env` file). Cop
 ## Testing
 
 ```bash
-# Run all tests
-pip install -e ".[dev]"
-pytest tests/
+# Run all tests (the RAG server deps are needed to import the app under test)
+pip install -e ".[rag,dev]"
+PYTHONPATH=. pytest tests/
 
 # Run with coverage report
-pytest tests/ --cov=rag --cov=training --cov-report=term-missing
+PYTHONPATH=. pytest tests/ --cov=rag --cov=training --cov-report=term-missing
 ```
 
-The test suite comprises **412 tests** across 15 modules:
+The test suite comprises **430 tests** across 16 modules, grouped by area:
 
-| Module | Tests | What it covers |
-|--------|-------|----------------|
-| `test_rag_helpers.py` | 54 | String helpers, verse normalization, query classification, thinking-block stripping, citation aliases |
-| `test_rag_pure_functions.py` | 40 | URL validation, metadata stripping, SSE stream processing |
-| `test_evaluate_keyword.py` | 54 | Keyword scoring pipeline: citation detection, hallucination check, fuzzy matching, result persistence |
-| `test_hypothesis.py` | 28 | Property-based tests (Hypothesis) on pure helpers — idempotency, type invariants, length bounds |
-| `test_training_utils.py` | 90 | Score extraction/clamping, LoRA key remapping, preference pair structure, dataset decontamination, prompt masking |
-| `test_rag_api.py` | 23 | FastAPI endpoints: health, auth, rate limiting, request correlation, model allowlist, max_tokens clamp, counseling guard |
-| `test_stats.py` | 33 | Wilson CIs, McNemar test, paired bootstrap, normalize_question contract |
-| `test_benchmark_manifest.py` | 22 | Benchmark manifest validation, sha256 pinning, version gating |
-| `test_dataset_builder.py` | 32 | Dataset generation, theme classification, decontamination filtering |
-| `test_verification.py` | 20 | Citation verification, verse ref extraction, connective stripping, misquote detection |
-| `test_qrels.py` | 10 | Retrieval evaluation: binary metrics (recall/MRR/nDCG), qrels building |
-| `test_prompt_format.py` | 10 | Shared prompt format contract (augment/extract round-trip) |
-| `test_preference_data.py` | 20 | ORPO preference pair structure, conversational format, hard negatives |
-| `test_retrieval.py` | 11 | BM25 tokenizer parity, embedding normalization, index version detection |
-| `test_evaluation_questions.py` | 8 | Evaluation question set integrity, train-eval overlap detection |
+| Area | Modules | Focus |
+|------|---------|-------|
+| RAG helpers & API | `test_rag_helpers`, `test_rag_pure_functions`, `test_rag_api`, `test_retrieval`, `test_prompt_format`, `test_verification` | verse normalization, query classification, thinking-block stripping, URL/metadata guards, SSE processing, FastAPI endpoints (auth, rate limiting, request correlation, model allowlist, counseling guard), BM25 parity, citation verification |
+| Training & data | `test_training_utils`, `test_dataset_builder`, `test_dataset_v2`, `test_preference_data` | score extraction/clamping, LoRA key remapping, prompt masking, dataset generation + decontamination, ORPO preference-pair structure and hard negatives |
+| Evaluation & benchmarks | `test_evaluate_keyword`, `test_evaluation_questions`, `test_benchmark_manifest`, `test_qrels`, `test_stats` | keyword scoring pipeline, eval-set integrity + train/eval overlap, manifest validation + sha256 pinning, retrieval metrics (recall/MRR/nDCG), Wilson CIs / McNemar / bootstrap |
+| Property-based | `test_hypothesis` | Hypothesis invariants on pure helpers — idempotency, type/length bounds |
 
-**Line coverage: ≥60%** (enforced by `pyproject.toml` fail_under gate; single source of truth). The uncovered portion is the ML training pipeline and ChromaDB retrieval code, which require a GPU and a live database — those are covered by integration tests run separately.
+**Line coverage: 67%** (`pyproject.toml` `fail_under = 60` is the enforced gate). The uncovered portion is the ML training pipeline and ChromaDB retrieval code, which require a GPU and a live database — those are covered by integration tests run separately.
 
 ## CI/CD
 
-Every push and pull request runs four parallel jobs:
+Every push and pull request runs a staged pipeline (`lint` → `type-check` + `security` → `test` → `docker`):
 
 | Job | What it checks |
 |-----|----------------|
-| **Lint** | `ruff format --check` + `ruff check` across all source directories |
-| **Test** | `pytest` with coverage enforcement (≥60% via `pyproject.toml`) on Python 3.10, 3.11, and 3.12 |
-| **Security** | `pip-audit` CVE scan on all dependencies; `bandit` SAST on `rag/`, `training/`, `scripts/` |
-| **Docker** | Builds `Dockerfile.rag` and `Dockerfile.ui` with Buildx cache — no push, validates the image builds cleanly |
+| **Lint** | `ruff format --check` + `ruff check` on `training/ rag/ scripts/ ui/ voice/ tests/ deployment/`; `uv lock --check` for lockfile freshness |
+| **Type Check** | `mypy --ignore-missing-imports rag/ training/` |
+| **Security** | `pip-audit` CVE scan on the active environment (documented `--ignore-vuln` set); `bandit` SAST on `rag/ training/ scripts/ ui/ voice/` |
+| **Test** | `pytest tests/` with coverage enforcement (`fail_under = 60` via `pyproject.toml`) on Python 3.10, 3.11, and 3.12 |
+| **Docker Build** | Builds `Dockerfile.rag` and `Dockerfile.ui` with Buildx cache — no push, validates the images build cleanly |
 
 ## Documentation
 
