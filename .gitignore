@@ -69,9 +69,6 @@ docs/_personal/
 docs/interview_notes/
 study/
 
-# Development artifacts at repo root
-CURSOR_CHECKLIST.md
-
 # Personal devotional content mixed into technical docs
 docs/SERVING_GOD.md
 
@@ -80,3 +77,14 @@ docs/SOTA_ROADMAP.md
 
 # V2 dataset source cache (re-downloadable; provenance tracked in manifest)
 data/raw_v2/
+
+# Local editor / assistant config (developer-specific, not part of the project)
+CLAUDE.md
+AGENTS.md
+.cursor/
+.cursorrules
+.cursorrules.txt
+.cursorignore
+.aider*
+.windsurfrules
+.github/copilot-instructions.md
