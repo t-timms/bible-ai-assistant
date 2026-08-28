@@ -1,5 +1,5 @@
 # Bible AI Assistant - V2 Training Config (8B)
-# Realistic near-term target: Qwen3.5-8B bf16 LoRA on a single 16 GB RTX 5070 Ti.
+# Realistic near-term target: Qwen3.5-8B QLoRA (4-bit) on a single 16 GB RTX 5070 Ti.
 # Run this BEFORE the 14B recipe in config.v2.yaml (PROJECT_STATUS_AND_GOALS.md:
 # "8B first; 14B only if 8B clears the v1 baseline"). Select with:
 #   python training/train_unsloth.py --config training/config.v2-8b.yaml --run-name qwen3.5-8b-bible-v2-sft
@@ -15,7 +15,11 @@
 
 model:
   name: "Qwen/Qwen3.5-8B"
-  load_in_4bit: false          # bf16 LoRA — Unsloth does not recommend 4-bit for Qwen3.5
+  # QLoRA (4-bit). An 8B in bf16 LoRA does not fit 16 GB with any real batch;
+  # Unsloth's "Qwen3-14B on 16 GB" story is 4-bit. The "avoid 4-bit for Qwen3.5"
+  # caveat was about the 4B (quant noise -> garbage) — re-check output quality on
+  # the 8B probe; if it degrades, drop to a smaller r or shorter seq at bf16.
+  load_in_4bit: true
   max_seq_length: 2048         # raise to 3072 in a separate run only if VRAM headroom shows
 
 lora:
