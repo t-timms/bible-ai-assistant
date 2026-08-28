@@ -650,20 +650,20 @@ def finalize(examples: dict, output_path: Path) -> dict:
     random.shuffle(flat)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "protocol_id": "bible_assistant_v2_train",
-        "generated_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "seed": random.getstate()[1][0],
-        "counts_dropped_contamination_or_dupes": dropped_by_cat,
-        "examples": flat,
-    }
-    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
+    # Flat JSON array of chat examples — same shape as the v1 dataset_builder.py
+    # output, so `datasets.load_dataset("json", ...)` in train_unsloth.py /
+    # train_grpo.py consumes it directly. All provenance lives in the sidecar
+    # manifest below (nothing is lost by not wrapping the array).
+    output_path.write_text(json.dumps(flat, ensure_ascii=False, indent=1), encoding="utf-8")
 
     counter = Counter(ex["category"] for ex in flat)
     manifest = {
         "protocol_id": "bible_assistant_v2_train",
+        "generated_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "seed": random.getstate()[1][0],
         "total": len(flat),
         "per_category": dict(counter),
+        "counts_dropped_contamination_or_dupes": dropped_by_cat,
         "sources": dict(_loaded_sources),
         "cross_references": {"sha256": _xref_sha, "license": "CC-BY openbible.info"},
         "note": "Eval-only suites excluded via dataset_builder decontamination.",
