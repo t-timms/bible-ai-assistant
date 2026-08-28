@@ -14,7 +14,7 @@ Status & schedule live in `docs/PROJECT_STATUS_AND_GOALS.md` → "V2 Rebuild".
 
 ---
 
-**Purpose:** Reference for coding agents. Completed blocks are marked ✅. Each block is a self-contained PR.
+**Purpose:** Reference for contributors. Completed blocks are marked ✅. Each block is a self-contained PR.
 
 ---
 

@@ -560,3 +560,67 @@ New findings in this audit not covered by the previous one:
 ---
 
 *This document supersedes the previous `CODEBASE_AUDIT.md` (2026-03-23). Re-audit recommended after P0/P1 fixes are applied.*
+
+---
+
+# SOTA Audit — 2026-08-28
+
+**Scope:** full re-read of `rag/`, `training/`, `scripts/`, CI, docs; plus a from-scratch
+run of the CI toolchain (CI-parity: `pip install -e ".[rag,dev]"`, Python 3.12).
+**Question asked:** is the repo state-of-the-art in every dimension?
+
+## Verified green (measured, not asserted)
+
+| Check | Command | Result |
+|-------|---------|--------|
+| Format | `ruff format --check` (CI dirs) | 61 files, clean |
+| Lint | `ruff check` (CI dirs) | All checks passed |
+| Types | `mypy --ignore-missing-imports rag/ training/` | Success, 0 issues in 20 files |
+| Tests | `pytest tests/` | 429 passed, 1 skipped (430 collected, 16 modules) |
+| Coverage | `--cov=rag --cov=training` | 66.98% (gate `fail_under = 60`) |
+
+The engineering substrate is in good shape: no lint/type/test debt, coverage comfortably
+over the gate, security job carries a fully-documented CVE-ignore rationale, RAG server has
+real production hardening (streamed body-size cap, request-ID validation, model allowlist,
+system-message injection guard, rate-limit-before-auth, exception-guarded citation
+verification). Benchmark tooling is rigorous and self-aware (sha256-pinned suites, Wilson
+CIs / McNemar / bootstrap, train/eval decontamination, explicit small-n caveats).
+
+## Findings fixed in this pass (docs only — no code change)
+
+- **Test count drift** — `412` → **430** (badge, prose, repo-structure comment, Testing section); "15 modules" → 16 (added `test_dataset_v2.py`); coverage stated as `≥60%` → `67% (60% gate)`.
+- **Eval-suite size** — README/CONTRIBUTING/MODEL_CARD said `54` / `6 categories`; the live suite `prompts/evaluation_questions.json` is **282 questions / 8 categories**. Historical result tables relabelled as the frozen **v1** suite (`evaluation_questions.v1.json`, 57 q / 7 cats, 54 scored) with an explicit "not re-run under protocol v2" note.
+- **CI description** — "four parallel jobs" → the real staged pipeline (`lint → type-check + security → test ×3 → docker`); the `Type Check` (mypy) job was undocumented.
+- **Broken Testing command** — `pip install -e ".[dev]"` then `pytest tests/` fails at import (`ModuleNotFoundError: slowapi`). Corrected to `".[rag,dev]"` + `PYTHONPATH=.`, matching CI.
+- **Broken Quick Start** — `ollama pull bible-assistant-orpo` 404s (name not on any registry). Replaced with the local build path (`export_gguf.py` + `ollama create -f Modelfile`).
+- **Dead links / placeholders** — `github.com/your-org/...` ×3 → `t-timms`; MODEL_CARD referenced non-existent `docs/evaluation_results.json`, `training/sft_train.py`, `training/orpo_train.py` → real paths; citation block `author = {TODO}` / `year = {2025}` filled; HF badge pointed at `huggingface.co/Qwen` → the actual adapter `Ttimms/bible-ai-qwen3.5-4b-lora`.
+- **MODEL_COMPARISON hardware** — `64 GB RAM` → `96 GB`.
+- **Leftover agent-tooling reference** — `docs/ROADMAP.md` "Reference for coding agents" → "for contributors".
+
+## Open gaps — NOT fixable in a docs PR (the real "not yet SOTA" list)
+
+1. **Model quality is below the project's own bar.** Last measured (v1 protocol): verse
+   accuracy 5.6–9.3%, hallucination 20–26%. `docs/evaluation_results.md` pass criteria:
+   ≥85% verse accuracy, **zero** fabricated verses. The model has **not** been re-scored
+   under protocol v2 (verified citations, fuzzy metric, n=282).
+2. **Phase-2 retraining never ran.** The expanded data (SFT 7.3k, preference pairs 2.08k)
+   and the v2 plan (`config.v2.yaml`: Qwen3.5-14B QLoRA + programmatic-reward GRPO) exist
+   only as config + dataset engine. `data/processed/train_v2.json` is not built/committed;
+   there is no v2 checkpoint, no v2 eval run. The config itself flags OOM risk for 14B on
+   16 GB.
+3. **No third-party-runnable artifact.** No GGUF on a public registry; the Ollama name in
+   the docs is unregistered; the HF adapter is a v1 4B LoRA with 0 downloads. A visitor
+   cannot complete the Quick Start.
+4. **`evaluation_questions.v1.json` is UTF-16LE + CRLF** (every other JSON in the repo is
+   UTF-8). Left as-is deliberately: it is sha256-pinned in `benchmarks/manifest.v3.yaml`
+   and `run_benchmark.py` fails fast on mismatch — re-encoding must be a deliberate re-pin.
+
+## Verdict
+
+For a solo portfolio project the **engineering** is near state-of-the-art: clean toolchain,
+genuine production hardening, unusually rigorous evaluation methodology. It is **not**
+"SOTA in every way" — the model underperforms its own targets, has not been retrained or
+re-evaluated under the current protocol, and ships no artifact a third party can run.
+Closing gaps 1–3 requires the deferred GPU work; this pass corrects every claim the repo
+makes about itself so the docs match reality in the meantime.
+

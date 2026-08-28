@@ -73,7 +73,7 @@ The 500 preference pairs specifically address these failure modes observed in th
 
 ## Evaluation Results (Keyword Benchmark)
 
-54 questions across 6 categories, scored with keyword-overlap and citation regex.
+54 scored questions from the v1 suite (`evaluation_questions.v1.json`, 57 questions across 7 categories), keyword-overlap and citation regex.
 
 ### SFT-Only (F16) — Benchmark Attempt
 
@@ -209,6 +209,6 @@ The Q4_K_M quantization reduces model size by 70% with negligible quality loss f
 
 - **W&B tracking:** 34 logged runs (March 14-19, 2026)
 - **Benchmark protocol:** `benchmarks/manifest.v1.yaml` (protocol ID: `bible_assistant_baseline_v1`)
-- **Evaluation suite:** `prompts/evaluation_questions.json` (54 questions, 6 categories)
-- **Hardware:** RTX 5070 Ti, 64 GB RAM, Windows 11
+- **Evaluation suite:** `benchmarks/suites/evaluation_questions.v1.json` (57 questions / 7 categories; 54 scored). The mutable `prompts/evaluation_questions.json` is now the 282-question v2 suite.
+- **Hardware:** RTX 5070 Ti (16 GB), 96 GB RAM, Windows 11
 - **Training time:** ~18 min SFT + ~20 min ORPO

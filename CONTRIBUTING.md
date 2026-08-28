@@ -40,7 +40,7 @@ Before setting up the project, make sure you have the following installed and av
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-org/bible-ai-assistant.git
+git clone https://github.com/t-timms/bible-ai-assistant.git
 cd bible-ai-assistant
 ```
 
@@ -286,12 +286,12 @@ bible-ai-assistant/
 ├── ui/                     # Gradio 6 web interface (text + voice)
 │   └── app.py
 ├── voice/                  # STT (Faster-Whisper) + TTS (Kokoro)
-├── tests/                  # All tests (183 tests, 55% coverage)
+├── tests/                  # All tests (430 tests, 67% coverage)
 ├── deployment/             # PC, Jetson, and VPS Dockerfiles + configs
 ├── docs/                   # Guides, architecture, model card, training results
 ├── scripts/                # Benchmarking, leaderboard, utility scripts
 ├── benchmarks/             # Versioned evaluation protocol
-├── prompts/                # System prompt + 54-question eval suite
+├── prompts/                # System prompt + 282-question eval suite
 └── pyproject.toml          # Project metadata, extras, tool config (ruff, bandit, pytest)
 ```
 
@@ -327,7 +327,7 @@ Do not commit Bible JSON files, ChromaDB collections, or any third-party transla
 
 ## Reporting Bugs
 
-Open a [GitHub Issue](https://github.com/your-org/bible-ai-assistant/issues) and include:
+Open a [GitHub Issue](https://github.com/t-timms/bible-ai-assistant/issues) and include:
 
 - **Steps to reproduce** — the exact commands or actions that trigger the bug
 - **Expected behavior** — what should have happened

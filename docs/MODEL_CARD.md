@@ -112,7 +112,7 @@ ORPO was selected over DPO because it does not require a reference model, reduci
 
 ## Evaluation
 
-The model was evaluated on a curated set of **54 questions** spanning five categories:
+The model was evaluated on the **v1** curated set of **54 questions** spanning five categories (the current suite is 282 questions across 8 categories under benchmark protocol v2 — see [BENCHMARK_PROTOCOL.md](BENCHMARK_PROTOCOL.md); the model has not yet been re-scored under it):
 
 | Category | Count | Description |
 |----------|-------|-------------|
@@ -128,7 +128,7 @@ Evaluation was performed with RAG context enabled (using the WEB ChromaDB collec
 - **Relevance** — does the response address the question using the retrieved context?
 - **Hallucination rate** — fraction of responses containing at least one fabricated verse reference
 
-Full evaluation results are stored in `docs/evaluation_results.json`. A narrative summary is in `docs/evaluation_results.md`.
+Full evaluation results are stored in `docs/eval_sft_orpo_keyword.json`. A narrative summary is in `docs/evaluation_results.md`.
 
 ---
 
@@ -186,12 +186,12 @@ Users should apply critical judgment to model outputs, especially on contested t
 TODO — fill in when the project is published or archived.
 
 ```bibtex
-@misc{bible-assistant-2025,
+@misc{bible-assistant-2026,
   title        = {Bible Assistant: A RAG-Grounded Bible Q\&A Model Fine-tuned on Qwen3.5-4B},
-  author       = {TODO},
-  year         = {2025},
+  author       = {Tremayne Timms},
+  year         = {2026},
   howpublished = {GitHub},
-  url          = {https://github.com/your-org/bible-ai-assistant}
+  url          = {https://github.com/t-timms/bible-ai-assistant}
 }
 ```
 
@@ -201,7 +201,7 @@ TODO — fill in when the project is published or archived.
 
 - `docs/MODEL_COMPARISON.md` — Detailed F16 vs Q4_K_M benchmark breakdown by category
 - `docs/evaluation_results.md` — Narrative evaluation summary
-- `docs/evaluation_results.json` — Machine-readable evaluation data
-- `scripts/build_preference_data.py` — Preference pair generation script
-- `training/sft_train.py` — Stage 1 SFT training script
-- `training/orpo_train.py` — Stage 2 ORPO training script
+- `docs/eval_sft_orpo_keyword.json` — Machine-readable evaluation data
+- `training/build_preference_data.py` — Preference pair generation script
+- `training/train_unsloth.py` — Stage 1 SFT training script
+- `training/train_orpo.py` — Stage 2 ORPO training script
