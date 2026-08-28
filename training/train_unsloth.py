@@ -270,6 +270,13 @@ def main() -> None:
         help="Override the SFT dataset path (default: from config data.train_file)",
     )
     parser.add_argument(
+        "--max-steps",
+        type=int,
+        default=-1,
+        help="Cap optimizer steps (overrides epochs). -1 = full run; 2 = smoke; "
+        "~600 = a bounded probe on the v2 set. eval/save cadence scales with it.",
+    )
+    parser.add_argument(
         "--no-wandb",
         action="store_true",
         help="Disable W&B logging (use if W&B service fails on Windows)",
@@ -455,7 +462,8 @@ def main() -> None:
 
     # Derived cadence (audit T5): absolute save/eval steps drifted off-peak on
     # short runs and left load_best_model_at_end nothing to select from.
-    total_steps_estimate = estimate_total_steps(
+    capped = args.max_steps if args.max_steps and args.max_steps > 0 else None
+    total_steps_estimate = capped or estimate_total_steps(
         len(train_dataset), NUM_EPOCHS, BATCH_SIZE, GRADIENT_ACCUMULATION
     )
     eval_steps = suggest_eval_steps(total_steps_estimate, MAX_EVAL_STEPS)
@@ -475,6 +483,7 @@ def main() -> None:
     training_args = SFTConfig(
         output_dir=str(project_root / OUTPUT_DIR),
         num_train_epochs=NUM_EPOCHS,
+        max_steps=capped or -1,  # -1 = ignore; >0 overrides num_train_epochs
         per_device_train_batch_size=BATCH_SIZE,
         gradient_accumulation_steps=GRADIENT_ACCUMULATION,
         learning_rate=LEARNING_RATE,
