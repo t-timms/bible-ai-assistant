@@ -44,7 +44,9 @@ def _content_str(c) -> str:
 
 
 def _generate(messages: list[dict], max_tokens: int) -> tuple[str, int, int]:
-    msgs = [{"role": m.get("role", "user"), "content": _content_str(m.get("content"))} for m in messages]
+    msgs = [
+        {"role": m.get("role", "user"), "content": _content_str(m.get("content"))} for m in messages
+    ]
     try:
         text = tok.apply_chat_template(
             msgs, add_generation_prompt=True, tokenize=False, enable_thinking=False
