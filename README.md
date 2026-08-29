@@ -88,7 +88,7 @@ controlled A/B vs. the prior shipped model:
 |---|---|---|
 | verse-lookup exact accuracy | 58 % | **76.5 %** |
 | citation rate | 88 % | **98.9 %** |
-| hallucination rate | 2.0 % | 2.3 % |
+| hallucination rate | 1.5 % | 2.3 % |
 | overall fuzzy mean | 0.48 | 0.40 |
 
 v2-4b is markedly better at verbatim recall from retrieved context and at safe

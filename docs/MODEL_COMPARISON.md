@@ -14,7 +14,7 @@ llama.cpp cannot load yet) and vLLM's UVA path is broken under WSL2. Greedy deco
 | verse_lookup — fuzzy pass @0.85 | 39% | 45% | +6 pp |
 | overall verse acc (exact) | 22% | 29.3% | +7.3 pp |
 | overall citation rate | 88% | **98.9%** | +11 pp |
-| overall hallucination rate | 2.0% | 2.3% | ~flat |
+| overall hallucination rate | 1.5% | 2.3% | +0.8 pp (CIs overlap) |
 | **overall fuzzy mean** | **0.483** | 0.396 | **−0.087** |
 
 Per-category fuzzy mean (closeness to the expected natural answer):
