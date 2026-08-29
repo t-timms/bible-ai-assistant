@@ -106,12 +106,25 @@ def build_verse_lookup(corpus_path: Path):
     else:  # pragma: no cover - defensive
         raise ValueError(f"Unrecognised corpus shape in {corpus_path}")
 
+    # Book-name spellings that differ between the training data ("Psalm",
+    # "Song of Songs") and data/raw/bible_web.json ("Psalms", "Song of Solomon").
+    # Without this the reward silently under-credits correct citations to those books.
+    _ALIASES = {
+        "psalm": "psalms",
+        "psalms": "psalm",
+        "song of songs": "song of solomon",
+        "song of solomon": "song of songs",
+    }
+
     def lookup(ref: str) -> str | None:
         m = _REF_KEY.match(ref)
         if not m:
             return table.get(ref.strip().lower())
-        book, ch, vs = m.group(1), m.group(2), m.group(3)
-        return table.get(f"{book.strip().lower()} {int(ch)}:{int(vs)}")
+        book, ch, vs = m.group(1).strip().lower(), int(m.group(2)), int(m.group(3))
+        hit = table.get(f"{book} {ch}:{vs}")
+        if hit is None and book in _ALIASES:
+            hit = table.get(f"{_ALIASES[book]} {ch}:{vs}")
+        return hit
 
     return lookup
 
