@@ -1,4 +1,11 @@
-# Model Card: Bible Assistant (Qwen3.5-4B Fine-tune)
+# Model Card: Bible AI Assistant — v2-4b (Qwen3.5-4B SFT)
+
+> **Status: interim checkpoint (2026-08-29).** This is the SFT-only stage of a
+> larger pipeline. It is a real improvement over the shipped v1 model on the core
+> retrieval-grounded task, but it has a known regression on open-ended thematic
+> answers (see *Evaluation* and *Limitations*). A v3 with teacher-distilled
+> answers and a GRPO faithfulness stage is planned. Published now for
+> transparency and reproducibility, not as a finished release.
 
 ---
 
@@ -6,188 +13,183 @@
 
 | Field | Value |
 |-------|-------|
-| **Model name** | Bible Assistant |
-| **Base model** | Qwen3.5-4B |
-| **Fine-tuning method** | SFT + ORPO |
+| **Model name** | Bible AI Assistant v2-4b |
+| **Base model** | [Qwen/Qwen3.5-4B](https://huggingface.co/Qwen/Qwen3.5-4B) (rev `851bf6e8`) — hybrid Gated-DeltaNet + attention, 32 layers, ~4.2 B params |
+| **Fine-tuning** | Supervised fine-tuning only (LoRA, bf16), 1 epoch on 55,570 examples |
+| **Preference / RL stage** | none yet (planned for v3) |
 | **Primary language** | English |
 | **License (code)** | MIT |
-| **License (weights)** | Qwen License (inherits from base model) |
-| **Task** | Conversational Bible Q&A with RAG grounding |
+| **License (weights)** | Apache-2.0 (inherits from the Qwen3.5 base) |
+| **Task** | Retrieval-grounded conversational Bible Q&A |
+| **Serving** | `transformers`; vLLM (with a one-line registry entry); **GGUF via current llama.cpp** (`convert_hf_to_gguf.py --no-mtp`, verified with `llama-server`). Ollama 0.33.x's *bundled* llama.cpp is still too old for the `qwen35` arch — works once it updates, or run llama.cpp directly. |
 
 ---
 
 ## Model Description
 
-Bible Assistant is a conversational AI fine-tuned on top of Qwen3.5-4B for the task of answering questions about the Bible. It is designed to operate as part of a Retrieval-Augmented Generation (RAG) pipeline that retrieves relevant Bible passages from a local vector store and passes them as context to the model at inference time.
+A conversational model fine-tuned on Qwen3.5-4B for answering Bible questions as
+part of a Retrieval-Augmented Generation (RAG) pipeline: a local hybrid retriever
+(dense + BM25 + reranker + pinned references) fetches relevant passages and passes
+them to the model as context; the model answers from that context.
 
-The model was trained in two stages:
+**What v2-4b adds over the v1 shipped model:**
 
-1. **Stage 1 — Supervised Fine-Tuning (SFT):** The base model was fine-tuned on curated Bible Q&A pairs to teach it the expected response style: citing real verses, using the provided RAG context rather than relying on parametric memory, and following a conservative system prompt that keeps the assistant focused on scripture.
+- Verbatim verse recall from provided context: **58 % → 76.5 %** (protocol v3).
+- Citation rate: **88 % → 98.9 %** — it almost always cites a real reference.
+- Hallucination stays near-zero (**2.3 %**).
+- New behaviours from the v2 dataset: pastoral-triage / crisis escalation
+  (points to a pastor or a crisis line rather than counselling), calibrated
+  abstention on non-biblical sayings ("*'God helps those who help themselves' is
+  not a Bible verse*"), multi-passage character syntheses, and cross-reference
+  reasoning.
 
-2. **Stage 2 — ORPO Alignment:** Preference pairs were generated using `build_preference_data.py` to cover known failure modes (hallucinated citations, instruction leaks, repetition, verbose filler, and treating the Bible as an answer to every question). ORPO (Odds Ratio Preference Optimization) was applied to push the model away from rejected responses without requiring a separate reward model.
-
-The result is a small, locally-runnable model that is meaningfully better than a vanilla Qwen3.5-4B prompt at grounded Bible Q&A — especially in refusing to fabricate verse references.
-
----
-
-## Intended Use
-
-### Appropriate Uses
-
-- **Personal Bible study** — looking up verses, exploring themes, understanding context
-- **Sermon preparation** — finding supporting passages for a given topic
-- **Devotional Q&A** — reflective questions about the meaning and application of scripture
-- **Educational exploration** — learning about Biblical history, geography, and narrative structure
-
-### Not Intended For
-
-- **Medical or legal advice** — the model is not trained for these domains and should never be used as a substitute for professional guidance
-- **Counseling or pastoral care** — the model is not a licensed counselor and cannot replace human pastoral support
-- **Authoritative theological decisions** — model outputs are not a substitute for study with qualified theologians or clergy
-- **Production deployment at scale** — this is a personal-use, research-grade model; it has not been red-teamed for adversarial misuse at scale
+**What regressed** (see *Evaluation*): open-ended thematic questions ("What is
+the context of Psalm 23?", "Who is Jesus?") get a templated verse list instead of
+an explanation. One epoch of SFT on a template-heavy dataset taught the answer
+*format* rather than the *skill*.
 
 ---
 
 ## Training Data
 
-### Bible Text
+The v2 dataset engine (`training/build_dataset_v2.py`) produced **56,022 examples**
+(55,570 after a length filter), fully provenance-tracked in the sidecar manifest
+(per-source SHA + license). It is **decontaminated** against every question in the
+frozen v3 evaluation suite (`scripts/check_train_eval_overlap.py` — zero overlap).
 
-The World English Bible (WEB) is the primary text source. The WEB is a public domain translation completed in 2000, based on the American Standard Version (1901) and updated for modern English. It includes:
+| Bucket | Count | Source / license |
+|---|---|---|
+| 8 scripture-citation categories (verse/passage recall, reverse lookup, near-miss guard, cross-reference chains, topical collections, chapter context, translation-specific) | 35,604 | 6 public-domain translations (KJV/ASV/WEB/DARBY/YLT/BBE), TSK cross-references (CC-BY, openbible.info) |
+| `grounded_exegesis` — verse + commentary in context → grounded interpretation | 7,000 | Matthew Henry's Commentary on the Whole Bible (CC0 / public domain) |
+| `general_blend` — general instruction / reasoning replay (catastrophic-forgetting guard) | 12,996 | [HuggingFaceTB/smoltalk2](https://huggingface.co/datasets/HuggingFaceTB/smoltalk2) (Apache-2.0), `<think>` traces stripped |
+| `pastoral_triage` — escalation, tradition-aware framing, calibrated abstention | 352 | hand-authored (aligned to FMG-Bench's rubric dimensions, not its held-out scenarios) |
+| inherited v1 general / meta / refusal pools | 70 | project |
 
-- Old Testament (39 books, Protestant canon)
-- New Testament (27 books)
-- No Deuterocanonical / Apocryphal books
-
-The WEB was chosen because it is:
-- Fully public domain worldwide (no copyright restrictions)
-- Modern and readable
-- Widely used in open-source Bible projects
-
-### Preference Data
-
-Synthetic preference pairs were generated by `scripts/build_preference_data.py`. Each pair consists of a chosen (acceptable) response and a rejected (problematic) response for the same prompt. Failure modes covered:
-
-| Failure Mode | Description |
-|---|---|
-| Hallucinated citations | Model invents a verse reference that does not exist |
-| Instruction leak | Model repeats or exposes the system prompt verbatim |
-| Repetition | Model echoes the question back without adding content |
-| Verbose filler | Model pads the response with generic spiritual platitudes |
-| Bible-for-everything | Model forces a Bible answer onto a non-theological question |
-
-No proprietary, personal, or commercially licensed data was used in training.
+No proprietary, personal, or commercially licensed data was used.
 
 ---
 
 ## Training Procedure
 
-### Stage 1: Supervised Fine-Tuning (SFT)
-
 | Parameter | Value |
 |-----------|-------|
-| Base model | Qwen3.5-4B |
-| Method | LoRA (Low-Rank Adaptation) |
-| Precision | bf16 |
-| Epochs | 3 |
-| Sequence length | 2048 tokens |
-| Learning rate schedule | Cosine decay |
-| Hardware | NVIDIA RTX 5070 Ti (16GB VRAM) |
-
-LoRA adapters were merged back into the base model weights after SFT before proceeding to Stage 2.
-
-### Stage 2: ORPO Alignment
-
-| Parameter | Value |
-|-----------|-------|
-| Base model | Qwen3.5-4B (post-SFT merge) |
-| Method | ORPO + LoRA |
-| Precision | bf16 |
+| Method | LoRA (r=32, α=64, dropout 0.05), bf16 — fully unquantized |
+| Target modules | q/k/v/o/gate/up/down proj |
 | Epochs | 1 |
-| Sequence length | 2048 tokens |
-| Hardware | NVIDIA RTX 5070 Ti (16GB VRAM) |
+| Effective batch | 16 (per-device 2 × grad-accum 8) |
+| Sequence length | 1280 (fixed pad; data token p99 ≈ 1560) |
+| LR / schedule | 2e-4, cosine, 3 % warmup |
+| Loss masking | completion-only (mask through the assistant-start marker) |
+| Hardware | 1 × RTX 5070 Ti (16 GB), ~10.4 h |
+| Final eval loss | 0.2515 → **0.2138** (monotonic over all 70 evals, no overfit) |
 
-ORPO was selected over DPO because it does not require a reference model, reducing memory overhead and simplifying the training loop for a single-GPU setup.
+Config: `training/config.v2-4b.yaml`. Script: `training/train_unsloth.py`.
 
 ---
 
 ## Evaluation
 
-The model was evaluated on the **v1** curated set of **54 questions** spanning five categories (the current suite is 282 questions across 8 categories under benchmark protocol v2 — see [BENCHMARK_PROTOCOL.md](BENCHMARK_PROTOCOL.md); the model has not yet been re-scored under it):
+**Protocol v3** (`bible_assistant_baseline_v3`, 282 questions, sha-pinned suite),
+keyword/verification metrics, greedy decode, seed 42. Served via a local
+transformers `/v1/chat/completions` wrapper behind the RAG server.
 
-| Category | Count | Description |
-|----------|-------|-------------|
-| Verse lookup | 12 | "What does John 3:16 say?" |
-| Theology | 14 | "What does the Bible say about forgiveness?" |
-| Topical | 10 | "What does scripture say about anxiety?" |
-| Application | 10 | "How should a Christian respond to anger?" |
-| History | 8 | "Who were the Pharisees?" |
+| Category | N | Verse acc (exact) | Fuzzy mean | Hallucination | Citation |
+|---|---|---|---|---|---|
+| verse_lookup | 102 | **76.5 %** | 0.65 | 2.9 % | 100 % |
+| cross_reference | 30 | 0 %\* | 0.40 | 3.3 % | 100 % |
+| context | 30 | 0 %\* | 0.23 | 0 % | 93 % |
+| character | 35 | 0 %\* | 0.20 | 2.9 % | 97 % |
+| topical | 58 | 0 %\* | 0.20 | 1.7 % | 100 % |
+| theological_reliability | 8 | 0 %\* | 0.15 | 0 % | 100 % |
+| **Overall** | 266 | **29.3 %** | **0.40** | **2.3 %** | **98.9 %** |
 
-Evaluation was performed with RAG context enabled (using the WEB ChromaDB collection). Responses were scored on:
+\* Protocol v3 `verse_accuracy` scores "quoted *the one expected verse* verbatim."
+Character / topical / context / theological questions have no single canonical
+verse answer, so a good synthesised answer scores 0 on this metric. The fuzzy
+column and a judge pass score them fairly; the judge run is pending.
 
-- **Citation accuracy** — does the cited verse exist and say what the model claims?
-- **Relevance** — does the response address the question using the retrieved context?
-- **Hallucination rate** — fraction of responses containing at least one fabricated verse reference
+**Head-to-head vs. v1** (same protocol, same day): v2 is **+18.5 pp** on
+verse-lookup exact and **+11 pp** on citation rate, but **−0.087** on overall
+fuzzy mean — the lightly-tuned v1's thematic answers are closer to the expected
+natural answers than v2's templated ones. Full breakdown and diagnosis in
+[`docs/MODEL_COMPARISON.md`](MODEL_COMPARISON.md). Raw JSONs under
+`docs/benchmark_runs/`.
 
-Full evaluation results are stored in `docs/eval_sft_orpo_keyword.json`. A narrative summary is in `docs/evaluation_results.md`.
+External benchmarks (FMG-Bench, FaithBench) are planned as honest calibration for
+v3, not as win targets — they test theological reasoning, a harder and different
+task than RAG verse-citation.
 
 ---
 
-## Benchmark Results
+## Intended Use
 
-The model was benchmarked in two quantization formats to assess the tradeoff between quality and deployment size.
+**Appropriate:** personal Bible study, verse lookup, sermon-prep passage finding,
+devotional Q&A, educational exploration of biblical narrative and history — always
+with the RAG pipeline running.
 
-| Format | VRAM Usage | Avg Response Time | Citation Accuracy | Hallucination Rate |
-|--------|-----------|------------------|------------------|--------------------|
-| F16 (full precision) | ~8 GB | ~4.2 s / response | 91% | 6% |
-| Q4_K_M (4-bit quantized) | ~2.8 GB | ~1.8 s / response | 84% | 14% |
-
-**Quantization note:** The Q4_K_M format shows a measurable increase in hallucination rate compared to F16. This is a known quantization artefact — lower-bit formats reduce the model's ability to retain precise factual associations. For use cases where citation accuracy is critical, F16 or Q8_0 is recommended. See `docs/MODEL_COMPARISON.md` for a detailed breakdown by question category.
+**Not intended for:** medical / legal / financial advice; counselling or pastoral
+care (the model is trained to *redirect* these to a pastor or crisis line, not to
+handle them); authoritative theological decisions; unsupervised or at-scale
+deployment. It has not been adversarially red-teamed.
 
 ---
 
 ## Limitations
 
-- **Citation hallucination outside training distribution:** The model may confabulate verse references for topics, books, or phrasings that were underrepresented in the training data. RAG grounding significantly reduces but does not eliminate this risk. Always verify cited verses against a Bible text before relying on them.
-
-- **RAG dependency:** Reliable verse-level accuracy requires the RAG pipeline (ChromaDB + WEB index) to be running. Without retrieval context, the model falls back to parametric memory, which is less reliable for exact citation.
-
-- **No replacement for theological expertise:** The model reflects the training data and cannot substitute for study with qualified theologians, commentaries, or clergy — especially for doctrinal questions where translation or interpretation matters.
-
-- **English only:** The model was fine-tuned on English text. It may produce responses in other languages but has not been evaluated for cross-lingual quality.
-
-- **Sequence length cap:** Inputs longer than 2048 tokens will be truncated. This can affect performance on questions requiring very long context passages.
+- **Thematic-answer regression.** Open-ended "explain / who is / what is the
+  context of" questions currently get a templated verse list rather than a
+  synthesised answer. This is a dataset issue (template-heavy answers), targeted
+  for v3.
+- **RAG dependency.** Reliable verse accuracy requires the retriever + index
+  running. Without context the model falls back to parametric memory, which is
+  less reliable for exact citation. Always verify cited verses against a Bible.
+- **Ollama not yet.** GGUF quants exist (F16/Q8_0/Q6_K/Q5_K_M/Q4_K_M) and work in
+  current `llama.cpp` / recent LM Studio, but Ollama 0.33.x's bundled llama.cpp is
+  too old for the `qwen35` arch — use once Ollama updates, or run llama.cpp
+  directly. Conversion requires `--no-mtp` (the base config's
+  `mtp_num_hidden_layers: 1` otherwise makes the converter expect an MTP head this
+  fine-tune doesn't carry).
+- **Sequence length.** Trained at 1280 tokens; longer inputs are truncated.
+- **English only.**
+- **Not a finished release.** SFT-only; the preference and RL stages that the
+  pipeline is designed around have not run.
 
 ---
 
 ## Bias and Fairness
 
-- **Translation bias:** The model was trained on the World English Bible (WEB), which reflects the Protestant canon. It does not include Deuterocanonical books (Tobit, Judith, 1–2 Maccabees, Wisdom, Sirach, Baruch, and additions to Daniel and Esther) recognized by Catholic and Orthodox traditions. Questions about these books may receive incomplete or inaccurate answers.
+- **Canon / translation.** Training scripture is the Protestant canon across six
+  public-domain English translations; no Deuterocanonical books. Matthew Henry's
+  commentary reflects an 18th-century Reformed Protestant perspective.
+- **Interpretive lean.** The `pastoral_triage` and `grounded_exegesis` data
+  deliberately model *tradition-aware* framing ("faithful Christians differ on
+  …") for disputed questions, but the underlying sources still lean evangelical /
+  Reformed Protestant.
+- **Base-model bias.** Inherits any biases in Qwen3.5-4B; not audited for a Bible
+  study context.
+- **Hand-authored data.** The `pastoral_triage` pairs reflect the developer's
+  judgment about safe escalation and neutral framing.
 
-- **Interpretive bias:** The WEB and the Q&A pairs used in training reflect broadly evangelical Protestant perspectives. The model may favor certain interpretive traditions over others (e.g., Reformed vs. Arminian readings of passages about election, or dispensationalist vs. covenant theology).
-
-- **Base model bias:** The model inherits any biases present in Qwen3.5-4B, including biases related to political, social, or cultural topics. These have not been fully audited for a Bible study context.
-
-- **Synthetic data bias:** Preference pairs were generated programmatically. The rejection criteria (what counts as a "bad" response) reflect the judgment of the developer and may not represent all theological traditions equally.
-
-Users should apply critical judgment to model outputs, especially on contested theological questions.
+Apply critical judgment to outputs, especially on contested theological questions.
 
 ---
 
 ## License
 
-- **Code** (training scripts, RAG server, UI, and all files in this repository except model weights): [MIT License](../LICENSE)
-- **Model weights:** Inherit the [Qwen License](https://huggingface.co/Qwen/Qwen2.5-7B/blob/main/LICENSE). Review that license before redistributing or using the weights in a commercial product.
-- **World English Bible text:** Public domain worldwide. No restrictions on use.
+- **Code:** [MIT](../LICENSE).
+- **Weights:** Apache-2.0, inherited from Qwen3.5-4B. Review before commercial use.
+- **Bible translations:** public domain worldwide.
+- **Matthew Henry's Commentary:** CC0 / public domain.
+- **smoltalk2:** Apache-2.0 for its new subsets; inherited subsets keep upstream
+  licenses (see the smoltalk2 dataset card).
 
 ---
 
 ## Citation
 
-TODO — fill in when the project is published or archived.
-
 ```bibtex
-@misc{bible-assistant-2026,
-  title        = {Bible Assistant: A RAG-Grounded Bible Q\&A Model Fine-tuned on Qwen3.5-4B},
+@misc{bible-ai-assistant-2026,
+  title        = {Bible AI Assistant: A RAG-Grounded Bible Q\&A Model Fine-tuned on Qwen3.5-4B},
   author       = {Tremayne Timms},
   year         = {2026},
   howpublished = {GitHub},
@@ -199,9 +201,9 @@ TODO — fill in when the project is published or archived.
 
 ## Additional Resources
 
-- `docs/MODEL_COMPARISON.md` — Detailed F16 vs Q4_K_M benchmark breakdown by category
-- `docs/evaluation_results.md` — Narrative evaluation summary
-- `docs/eval_sft_orpo_keyword.json` — Machine-readable evaluation data
-- `training/build_preference_data.py` — Preference pair generation script
-- `training/train_unsloth.py` — Stage 1 SFT training script
-- `training/train_orpo.py` — Stage 2 ORPO training script
+- [`docs/MODEL_COMPARISON.md`](MODEL_COMPARISON.md) — v2-4b vs. v1, protocol v3, full breakdown
+- [`docs/V2_EXECUTION_PLAN.md`](V2_EXECUTION_PLAN.md) — the pipeline and the v3 plan
+- [`docs/BENCHMARK_PROTOCOL.md`](BENCHMARK_PROTOCOL.md) — protocol v3 definition
+- `docs/benchmark_runs/` — machine-readable eval results
+- `training/build_dataset_v2.py` — the v2 dataset engine
+- `training/config.v2-4b.yaml`, `training/train_unsloth.py` — SFT config + script

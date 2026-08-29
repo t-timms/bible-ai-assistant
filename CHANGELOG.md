@@ -7,12 +7,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [Unreleased]
 
 ### Added
-- **V2 dataset engine** — `training/build_dataset_v2.py`: 61,556 post-dedupe examples across
-  8 categories (multi-translation verbatim recall, reverse lookup, off-by-one near-miss guards,
-  passage spans, TSK cross-reference chains, anchored topical sets, unique-trigram chapter
-  context); sha-pinned public-domain sources (6 translations) with manifest sidecar; 17 offline tests
-- **V2 training config** — `training/config.v2.yaml`: Qwen3.5-14B QLoRA recipe + GRPO scaffold
-  with fully programmatic verifiable rewards
+- **v2-4b model + protocol-v3 evaluation (2026-08-29)** — Qwen3.5-4B bf16 LoRA SFT, 1 epoch on
+  55,570 examples (`training/config.v2-4b.yaml`), eval_loss 0.25→0.21. First measurement under
+  benchmark protocol v3: verse-lookup exact accuracy **58% → 76.5%** vs. the v1 model, citation
+  rate **88% → 98.9%**, hallucination flat at 2.3%; overall fuzzy mean regressed 0.48 → 0.40
+  because the dataset's templated *answers* made open-ended thematic responses worse. Full A/B
+  in `docs/MODEL_COMPARISON.md`; raw results in `docs/benchmark_runs/2026-08-29_*`; card
+  rewritten in `docs/MODEL_CARD.md`. Known: no GGUF/Ollama yet (Qwen3.5-4B hybrid arch
+  unsupported by llama.cpp); served for eval via `scripts/_tf_openai_server.py`.
+- **v2 dataset "full upgrade"** — capped the 8 scripture-citation categories (~61k → ~35.6k),
+  added `grounded_exegesis` (Matthew Henry's Commentary, CC0, via
+  `training/fetch_mhc_commentary.py`), `pastoral_triage` (escalation / tradition-aware /
+  calibrated abstention), and `general_blend` (HuggingFaceTB/smoltalk2, Apache-2.0, `<think>`
+  stripped, ~24% of the mix as a catastrophic-forgetting guard); probabilistic real-user
+  framing prefixes on every generator; per-source SHA + license in the manifest. 56,022
+  examples, 0 eval-suite overlap. `training/train_unsloth.py`: completion-mask length filter +
+  fixed-padding revert (dynamic padding fragmented the CUDA allocator near the 16 GB ceiling).
+- **V2 dataset engine** — `training/build_dataset_v2.py`: originally 61,556 post-dedupe examples
+  across 8 categories (multi-translation verbatim recall, reverse lookup, off-by-one near-miss
+  guards, passage spans, TSK cross-reference chains, anchored topical sets, unique-trigram
+  chapter context); sha-pinned public-domain sources (6 translations) with manifest sidecar; 17 offline tests
+- **V2 training configs** — `training/config.v2-4b.yaml` (4B bf16 LoRA, near-term target),
+  `training/config.v2-9b.yaml` (9B QLoRA), `training/config.v2.yaml` (27B QLoRA stretch);
+  GRPO scaffold with fully programmatic verifiable rewards
 
 
 - **Shared prompt format contract** — `rag/prompt_format.py` with `augment_question` / `extract_question` as the single source of truth for SFT/inference/evaluation prompt assembly; byte-exact smoke tests (`tests/test_prompt_format.py`)

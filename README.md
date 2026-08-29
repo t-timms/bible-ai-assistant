@@ -2,13 +2,14 @@
 
 [![CI](https://github.com/t-timms/bible-ai-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/t-timms/bible-ai-assistant/actions/workflows/ci.yml)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
-[![Qwen3.5-4B](https://img.shields.io/badge/Qwen3.5--4B-ORPO-orange?style=flat-square)](https://huggingface.co/Ttimms/bible-ai-qwen3.5-4b-lora)
+[![Model](https://img.shields.io/badge/HF-Bible--Assistant--Qwen3.5--4B--v2-orange?style=flat-square&logo=huggingface)](https://huggingface.co/Ttimms/Bible-Assistant-Qwen3.5-4B-v2)
+[![GGUF](https://img.shields.io/badge/HF-v2--GGUF-orange?style=flat-square&logo=huggingface)](https://huggingface.co/Ttimms/Bible-Assistant-Qwen3.5-4B-v2-GGUF)
 [![W&B](https://img.shields.io/badge/W%26B-34_runs-yellow?style=flat-square&logo=weightsandbiases)](https://wandb.ai/)
 [![Tests](https://img.shields.io/badge/tests-430_passing-brightgreen?style=flat-square)]()
 [![Ruff](https://img.shields.io/badge/code%20style-ruff-black?style=flat-square&logo=ruff)](https://docs.astral.sh/ruff/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 
-A locally-hosted Bible Q&A assistant fine-tuned on Qwen3.5-4B with hybrid RAG retrieval, ORPO preference alignment, and optional voice interaction. Built end-to-end: dataset curation, training, evaluation, deployment.
+A locally-hosted Bible Q&A assistant fine-tuned on Qwen3.5-4B with hybrid RAG retrieval, a versioned verse-verified benchmark, and optional voice interaction. Built end-to-end: dataset curation, training, evaluation, deployment.
 
 ![Bible AI Assistant Demo](docs/demo/demo_screenshot.png)
 
@@ -22,10 +23,10 @@ Most Bible apps offer keyword search. This project builds a real AI that *unders
 
 | Area | Details |
 |------|---------|
-| **LLM Fine-Tuning** | bf16 LoRA (Unsloth/PEFT/TRL) on Qwen3.5-4B; SFT on ~1,800 diverse examples + ORPO alignment on 500 preference pairs |
+| **LLM Fine-Tuning** | bf16 LoRA (Unsloth/PEFT/TRL) on Qwen3.5-4B; v2 SFT on a 56k-example, provenance-tracked, eval-decontaminated dataset with a general-data blend as a catastrophic-forgetting guard; ORPO (v1) and a verifiable-reward GRPO stage (scaffolded) |
 | **Retrieval-Augmented Generation** | Hybrid retrieval: ChromaDB dense search + BM25 sparse search + Reciprocal Rank Fusion + cross-encoder reranking (bge-reranker-v2-m3) |
-| **Evaluation & Benchmarking** | 282-question eval suite across 8 categories (v1 snapshot preserved for reproducibility); keyword-overlap + LLM-as-judge scoring; sha256-pinned versioned benchmark protocol |
-| **Model Quantization & Deployment** | GGUF export (F16 + Q4_K_M); local Ollama serving; Jetson Orin Nano deployment guide |
+| **Evaluation & Benchmarking** | 282-question suite across 8 categories, chapter:verse verified against the indexed text; sha256-pinned versioned protocol (v1–v3); controlled A/B between model versions with Wilson CIs |
+| **Model Quantization & Deployment** | GGUF export (F16 + Q8_0/Q6_K/Q5_K_M/Q4_K_M) for the Qwen3.5 hybrid arch via current llama.cpp; local serving; Jetson Orin Nano deployment guide |
 | **MLOps & CI/CD** | GitHub Actions: lint (Ruff), type-check (mypy), unit tests (pytest, 430 tests, 67% coverage / 60% gate) across Python 3.10–3.12, security scan (pip-audit CVE + bandit SAST), Docker build validation; W&B experiment tracking (34 runs) |
 | **Production Hardening** | Optional API key auth, per-IP rate limiting (slowapi), `X-Request-ID` request correlation, structured JSON logging, Pydantic-validated settings, 1 MB request body guard |
 | **Voice Pipeline** | Faster-Whisper STT (GPU/CPU fallback) + Kokoro TTS; Gradio 6 web UI |
@@ -52,7 +53,7 @@ graph TD
     end
 
     subgraph LLM ["Ollama (port 11434)"]
-        Model["bible-assistant-orpo (Qwen3.5-4B SFT+ORPO, GGUF)"]
+        Model["Bible-Assistant-Qwen3.5-4B-v2 (Qwen3.5-4B SFT · safetensors / GGUF)"]
     end
 
     TTS["Kokoro TTS (optional)"]
@@ -73,50 +74,70 @@ graph TD
     TTS --> User
 ```
 
+## Current model — v2-4b (2026-08-29)
+
+Active model: **[`Ttimms/Bible-Assistant-Qwen3.5-4B-v2`](https://huggingface.co/Ttimms/Bible-Assistant-Qwen3.5-4B-v2)**
+— Qwen3.5-4B, bf16 LoRA SFT (1 epoch on the 56k-example v2 dataset). GGUF quants:
+**[`…-v2-GGUF`](https://huggingface.co/Ttimms/Bible-Assistant-Qwen3.5-4B-v2-GGUF)**
+(F16 / Q8_0 / Q6_K / Q5_K_M / Q4_K_M).
+
+Under **benchmark protocol v3** (282 questions, verse-level verification), a
+controlled A/B vs. the prior shipped model:
+
+| | v1 (Qwen3-4B, ~1.8k SFT + 500 ORPO) | **v2-4b** (Qwen3.5-4B, 56k SFT) |
+|---|---|---|
+| verse-lookup exact accuracy | 58 % | **76.5 %** |
+| citation rate | 88 % | **98.9 %** |
+| hallucination rate | 1.5 % | 2.3 % |
+| overall fuzzy mean | 0.48 | 0.40 |
+
+v2-4b is markedly better at verbatim recall from retrieved context and at safe
+refusal, and currently **weaker at open-ended thematic synthesis** (it lists
+verses rather than explaining) — a limitation of the template-heavy training
+data, addressed in the planned v3 (teacher-distilled answers + a GRPO faithfulness
+stage). Full breakdown: [docs/MODEL_COMPARISON.md](docs/MODEL_COMPARISON.md).
+Card: [docs/MODEL_CARD.md](docs/MODEL_CARD.md).
+
 ## Training Pipeline
 
-### Stage 1: Supervised Fine-Tuning (SFT)
+### Stage 1: Supervised Fine-Tuning (SFT) — v2-4b
 
-- **Base model:** Qwen/Qwen3.5-4B
-- **Method:** bf16 LoRA (r=16, alpha=32, dropout=0.1)
-- **Dataset:** ~1,800 examples across 7 categories (verse lookups, RAG-grounded, thematic, general, meta, multi-turn, refusals)
-- **Config:** 3 epochs, batch size 2 (gradient accumulation 8), LR 2e-4, cosine schedule, 2048 seq length
-- **Result:** Training loss 0.96 → 0.10 over 270 steps (~18 min on RTX 5070 Ti)
+- **Base model:** Qwen/Qwen3.5-4B (`training/config.v2-4b.yaml`)
+- **Method:** bf16 LoRA (r=32, alpha=64, dropout=0.05), fully unquantized
+- **Dataset:** 56,022 examples (`training/build_dataset_v2.py`) — 8 scripture-citation
+  categories + `grounded_exegesis` (Matthew Henry's Commentary, CC0), `pastoral_triage`
+  (escalation / tradition-aware framing / calibrated abstention), and a ~24 %
+  `general_blend` from smoltalk2 (Apache-2.0) as a catastrophic-forgetting guard.
+  Provenance-tracked; decontaminated against the eval suite.
+- **Config:** 1 epoch (3,474 steps), effective batch 16, LR 2e-4 cosine, seq 1280
+- **Result:** eval loss 0.25 → 0.21 (monotonic, no overfit), ~10.4 h on RTX 5070 Ti
 
-### Stage 2: ORPO Preference Alignment
+  *(v1-era Stage 1: r=16, ~1,800 examples, 3 epochs — see git history / `training/config.yaml`.)*
 
-- **Method:** Odds Ratio Preference Optimization (ORPO)
-- **Dataset:** 500 preference pairs covering failure modes (hallucinated verses, instruction leaking, repetition, verbosity, off-topic Bible answers)
-- **Config:** 1 epoch, 63 steps, LR 5e-6
-- **Result:** Loss 1.19 → 0.69; reward accuracy 100% (model correctly distinguishes chosen vs rejected responses)
+### Stage 2: ORPO Preference Alignment (v1; not yet re-run for v2)
 
-### Stage 3: GRPO Reasoning Alignment (Planned)
+- **Method:** Odds Ratio Preference Optimization (ORPO) — no reference model needed
+- **Dataset:** 500 preference pairs covering failure modes (hallucinated verses,
+  instruction leaking, repetition, verbosity, off-topic Bible answers)
+- **v1 result:** loss 1.19 → 0.69; reward accuracy 100 %
 
-- **Method:** Group Relative Policy Optimization (GRPO) — the technique behind DeepSeek-R1
-- **Goal:** Train the model to reason step-by-step before answering, reducing hallucination on complex theological questions
-- **Dataset:** Multi-hop Bible reasoning pairs with chain-of-thought rationales
+### Stage 3: GRPO Faithfulness Alignment (planned for v3)
+
+- **Method:** Group Relative Policy Optimization with a **verifiable reward**
+  (citation-exists + fuzzy text-match + format) reusing `rag/verification.py` —
+  scaffolded in `training/train_grpo.py`
+- **Goal:** push verse-citation faithfulness past the ≥85 % bar and fix the
+  thematic-synthesis regression
 - **Framework:** TRL `GRPOTrainer` + Unsloth backend for VRAM efficiency
-
-### Training Curves
-
-| Metric | SFT Start | SFT End | ORPO Start | ORPO End |
-|--------|-----------|---------|------------|----------|
-| Training Loss | 0.96 | 0.10 | 1.19 | 0.69 |
-| Learning Rate | 9.8e-5 | 2.5e-5 | 2.3e-6 | 4.7e-7 |
-
-See [docs/MODEL_COMPARISON.md](docs/MODEL_COMPARISON.md) for full evaluation results comparing SFT-only vs. SFT+ORPO.
 
 ## Evaluation Results
 
-Measured with the **v1** keyword-overlap protocol (`benchmarks/manifest.v1.yaml`, 54 scored questions). These figures predate benchmark protocol v2 (282-question suite with citations verified against the indexed text) and have **not yet been re-run** under it — treat as historical, and see [docs/MODEL_COMPARISON.md](docs/MODEL_COMPARISON.md) for the methodology caveats:
-
-| Model | Size | Verse Accuracy | Citation Rate | Hallucination Rate |
-|-------|------|----------------|---------------|--------------------|
-| SFT-only (no ORPO) | 8.5 GB | N/A (incoherent) | N/A | N/A |
-| SFT+ORPO (Q4_K_M) | 2.5 GB | 5.6% | 74% (40/54) | 20% (11/54) |
-| SFT+ORPO (F16) | 8.5 GB | 9.3% | 87% (47/54) | 26% (14/54) |
-
-> **Why ORPO matters:** Without preference alignment, the SFT-only model outputs gibberish. ORPO's 500 targeted preference pairs transform it into a coherent, citation-grounding assistant. The citation rate (74–87%) better reflects retrieval quality than the strict keyword-overlap verse accuracy metric. See [docs/MODEL_COMPARISON.md](docs/MODEL_COMPARISON.md) for full analysis.
+Current numbers are in **Current model — v2-4b** above (protocol v3, 282 questions,
+raw JSONs in `docs/benchmark_runs/`). The v1-era protocol-v1 figures
+(SFT+ORPO: 5.6–9.3 % verse accuracy on 54 questions) are historical and **not
+comparable** — the metric and hallucination-check changed. See
+[docs/MODEL_COMPARISON.md](docs/MODEL_COMPARISON.md) for both eras and the
+methodology caveats.
 
 ## Repository Structure
 
@@ -155,12 +176,14 @@ Requires: [Docker Desktop](https://www.docker.com/products/docker-desktop/), [Ol
 git clone https://github.com/t-timms/bible-ai-assistant.git
 cd bible-ai-assistant
 
-# 2. Build the model into Ollama (the GGUF is not on a public registry).
-#    Get the adapter from huggingface.co/Ttimms/bible-ai-qwen3.5-4b-lora, then
-#    merge + export a GGUF into models/ (see docs/WALKTHROUGH.md steps 8-11):
-#    python training/merge_adapters.py && python training/export_gguf.py
-python deployment/pc/generate_modelfile.py            # writes deployment/pc/Modelfile
-ollama create bible-assistant-orpo -f deployment/pc/Modelfile
+# 2. Get a GGUF quant (needs current llama.cpp — Ollama's bundled runtime is not
+#    new enough for the Qwen3.5 hybrid arch yet):
+#    huggingface-cli download Ttimms/Bible-Assistant-Qwen3.5-4B-v2-GGUF \
+#      bible-v2-4b-Q4_K_M.gguf --local-dir models/
+#    Serve it: llama-server -m models/bible-v2-4b-Q4_K_M.gguf -ngl 99 --port 8080
+#    (pass chat_template_kwargs={"enable_thinking": false} on /v1/chat/completions)
+#    Or run the merged safetensors via transformers / vLLM — see docs/MODEL_CARD.md.
+python deployment/pc/generate_modelfile.py            # writes deployment/pc/Modelfile (for when Ollama support lands)
 
 # 3. Install the package (all components)
 conda activate bible-ai-assistant

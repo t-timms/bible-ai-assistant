@@ -1,6 +1,63 @@
-# Model Comparison: SFT vs. SFT+ORPO
+# Model Comparison
 
-Comparison of the two final models produced by the Bible AI Assistant training pipeline.
+## Latest: v2-4b (Qwen3.5-4B, 56k SFT) vs. v1 shipped model — protocol v3, 2026-08-29
+
+First measurement under **protocol v3** (`bible_assistant_baseline_v3`, 282 questions,
+sha-pinned suite; keyword/verification metrics, no judge). Both models served via a local
+transformers `/v1/chat/completions` wrapper (`scripts/_tf_openai_server.py`) behind the RAG
+server — GGUF/Ollama is blocked (Qwen3.5-4B is a hybrid Gated-DeltaNet+attention arch that
+llama.cpp cannot load yet) and vLLM's UVA path is broken under WSL2. Greedy decode, seed 42.
+
+| Metric | v1 (Qwen3-4B, ~1.8k SFT + 500 ORPO) | **v2-4b** (Qwen3.5-4B, 56k SFT, 1 epoch) | Δ |
+|---|---|---|---|
+| verse_lookup — exact verse acc | 58% | **76.5%** | **+18.5 pp** |
+| verse_lookup — fuzzy pass @0.85 | 39% | 45% | +6 pp |
+| overall verse acc (exact) | 22% | 29.3% | +7.3 pp |
+| overall citation rate | 88% | **98.9%** | +11 pp |
+| overall hallucination rate | 1.5% | 2.3% | +0.8 pp (CIs overlap) |
+| **overall fuzzy mean** | **0.483** | 0.396 | **−0.087** |
+
+Per-category fuzzy mean (closeness to the expected natural answer):
+
+| Category | v1 | v2-4b | |
+|---|---|---|---|
+| character | 0.356 | 0.198 | v2 worse |
+| context | 0.404 | 0.227 | v2 worse |
+| topical | 0.351 | 0.198 | v2 worse |
+| theological_reliability | 0.292 | 0.149 | v2 worse |
+| cross_reference | 0.412 | 0.404 | tie |
+| verse_lookup | 0.665 | 0.648 | tie |
+
+Raw JSONs: `docs/benchmark_runs/20260829_v2-4b_keyword.json`,
+`docs/benchmark_runs/20260829_v1-baseline_keyword.json`.
+
+### Finding: templated answers are the ceiling
+
+v2-4b's 56k-example dataset added real capability — the new `pastoral_triage`,
+`grounded_exegesis`, and `cross_reference_chains` categories produce genuine escalation
+answers, multi-passage character syntheses, and cross-reference reasoning in the transcripts.
+And it is **markedly better at the core RAG task**: verbatim verse recall from provided
+context 58% → 76.5%, citation rate 88% → 98.9%, near-zero hallucination.
+
+But the eight scripture-citation categories use rigid fill-in-the-blank **answer** templates
+(`"Ref (TL) says: …"`, `"Here are five passages on X, spanning old and new covenant
+writings: • …"`). The dataset upgrade diversified the *questions*, not the *answers*. One
+epoch of SFT on 35k templated scripture answers taught the model the *format* rather than the
+*skill*: for "What is the context of Psalm 23?" or "Who is Jesus?" it emits a bare verse list
+instead of an explanation, and its answers are **further** from the expected natural answers
+than the lightly-tuned v1's (overall fuzzy 0.48 → 0.40). The smoltalk2 catastrophic-forgetting
+blend (24% of the mix) slowed this but did not stop it against that volume of templates.
+
+This re-confirms the v1-era learning ("1,800 diverse examples outperform 31,000 repetitive
+ones"), now with a controlled A/B: **the fix is teacher-distilled natural answers + a GRPO
+stage for citation faithfulness, not more templated SFT.** v2-4b's verse-recall gain carries
+forward; the method that produced it is being replaced. See `docs/V2_EXECUTION_PLAN.md`.
+
+---
+
+# Historical: SFT vs. SFT+ORPO (v1-era, protocol v1)
+
+Comparison of the two final models produced by the original (v1) Bible AI Assistant pipeline.
 
 > **Methodology note (2026-08-24):** The numbers below were measured under benchmark protocol
 > **v1** (`bible_assistant_baseline_v1`, 57 questions) with the original `check_hallucination`,

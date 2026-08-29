@@ -195,3 +195,100 @@ class TestManifestIntegrity:
         assert man["total"] == 2
         assert "seed" in man and "counts_dropped_contamination_or_dupes" in man
         assert manifest == man
+
+
+class TestPersona:
+    def test_persona_sometimes_prefixes_and_keeps_grammar(self):
+        random.seed(v2.RANDOM_SEED)
+        outs = {v2._persona("What does John 3:16 say?") for _ in range(200)}
+        # at least one bare and one prefixed variant appear
+        assert "What does John 3:16 say?" in outs
+        assert any(o != "What does John 3:16 say?" for o in outs)
+        # a mid-sentence prefix lowercases the following word
+        assert all("— What" not in o for o in outs)
+
+
+class TestCleanTurns:
+    def test_strips_think_blocks(self):
+        msgs = [
+            {"role": "system", "content": "sys"},
+            {"role": "user", "content": "Solve 2+2."},
+            {"role": "assistant", "content": "<think>add them</think>The answer is 4."},
+        ]
+        turns = v2._clean_turns(msgs)
+        assert turns == [("Solve 2+2.", "The answer is 4.")]
+
+    def test_multi_turn_preserved_system_dropped(self):
+        msgs = [
+            {"role": "user", "content": "hi"},
+            {"role": "assistant", "content": "hello"},
+            {"role": "user", "content": "bye"},
+            {"role": "assistant", "content": "goodbye"},
+        ]
+        assert v2._clean_turns(msgs) == [("hi", "hello"), ("bye", "goodbye")]
+
+    def test_empty_after_strip_is_unusable(self):
+        msgs = [
+            {"role": "user", "content": "q"},
+            {"role": "assistant", "content": "<think>only reasoning</think>"},
+        ]
+        assert v2._clean_turns(msgs) is None
+
+
+class TestPastoralTriage:
+    def test_mixes_all_three_behaviours(self):
+        random.seed(v2.RANDOM_SEED)
+        out = v2.gen_pastoral_triage(SYSTEM_PROMPT, n=30)
+        assert len(out) == 30
+        answers = " ".join(e["messages"][2]["content"] for e in out)
+        assert "pastor" in answers.lower()  # an escalation answer surfaced
+        assert "not a Bible verse" in answers  # a calibrated-abstention answer surfaced
+        assert "differ" in answers  # a tradition-aware answer surfaced
+
+    def test_full_pool_covers_crisis_escalation(self):
+        out = v2.gen_pastoral_triage(SYSTEM_PROMPT, n=10_000)
+        answers = " ".join(e["messages"][2]["content"] for e in out)
+        assert "988" in answers  # the suicide-crisis escalation is in the pool
+
+    def test_all_examples_well_formed(self):
+        out = v2.gen_pastoral_triage(SYSTEM_PROMPT, n=50)
+        for e in out:
+            roles = [m["role"] for m in e["messages"]]
+            assert roles == ["system", "user", "assistant"]
+            assert all(m["content"].strip() for m in e["messages"])
+
+
+class TestGroundedExegesis:
+    def _cache(self, tmp_path: Path) -> Path:
+        blob = {
+            "meta": {"source": "MHC", "license": "CC0", "sha256": "abc"},
+            "records": [
+                {
+                    "book": "John",
+                    "chapter": 3,
+                    "verse_start": 16,
+                    "verse_end": 17,
+                    "text": "This is a long stretch of grounded exposition about the love of "
+                    "God shown in giving the Son, repeated enough to clear the 200-"
+                    "character floor the generator enforces before it will emit an "
+                    "example at all, and then some more for good measure.",
+                }
+            ],
+        }
+        p = tmp_path / "mhc_commentary.json"
+        p.write_text(json.dumps(blob), encoding="utf-8")
+        return p
+
+    def test_emits_grounded_answer_with_commentary_in_context(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(v2, "_MHC_CACHE", self._cache(tmp_path))
+        out = v2.gen_grounded_exegesis(make_corpus(SAMPLE_VERSES), SYSTEM_PROMPT, n=2)
+        assert out
+        user = out[0]["messages"][1]["content"]
+        assistant = out[0]["messages"][2]["content"]
+        assert "Matthew Henry" in user  # commentary injected as context, matches RAG wrapper
+        assert "John 3:16" in user
+        assert "public domain" in assistant
+
+    def test_missing_cache_is_soft_skip(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(v2, "_MHC_CACHE", tmp_path / "nope.json")
+        assert v2.gen_grounded_exegesis(make_corpus(SAMPLE_VERSES), SYSTEM_PROMPT, n=2) == []

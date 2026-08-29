@@ -453,8 +453,39 @@ def main() -> None:
         format_messages, batched=True, remove_columns=full_dataset.column_names
     )
 
-    # Pre-tokenize with text-only tokenizer (avoids VL processor treating prompt text as base64 images)
-    # Pad to max_length so collator gets same-length sequences; mask padding in labels with -100
+    # Drop examples whose assistant turn does not survive truncation to
+    # MAX_SEQ_LENGTH — a long context/user turn (e.g. a big general-blend document
+    # or a commentary-grounded prompt) can push the "<|im_start|>assistant\n"
+    # marker past the window, which would make build_completion_labels() raise.
+    # Filter here rather than crash, and log the count so the drop is visible.
+    _span_ids = text_tokenizer(ASSISTANT_START_SPAN, add_special_tokens=False)["input_ids"]
+    _min_completion_tokens = 4
+
+    def _assistant_turn_fits(example: dict) -> bool:
+        ids = text_tokenizer(
+            example["text"], truncation=True, max_length=MAX_SEQ_LENGTH, return_tensors=None
+        )["input_ids"]
+        start = find_last_subsequence(ids, _span_ids)
+        return start != -1 and (len(ids) - start - len(_span_ids)) >= _min_completion_tokens
+
+    _before = len(full_dataset)
+    full_dataset = full_dataset.filter(_assistant_turn_fits, desc="Length-filtering")
+    _dropped = _before - len(full_dataset)
+    if _dropped:
+        logger.warning(
+            "Dropped %d/%d examples (%.1f%%) whose assistant turn is truncated at "
+            "max_seq_length=%d — raise max_seq_length or shorten those examples.",
+            _dropped,
+            _before,
+            100 * _dropped / _before,
+            MAX_SEQ_LENGTH,
+        )
+
+    # Pre-tokenize with text-only tokenizer (avoids VL processor treating prompt text as base64 images).
+    # Fixed pad to MAX_SEQ_LENGTH: every batch is the same shape, so the CUDA allocator never
+    # fragments — dynamic ("longest") padding thrashed the allocator near the 16 GB ceiling and
+    # step time climbed without bound. Keep MAX_SEQ_LENGTH tight (see config) since the v2 mix
+    # has a ~280-token median; only general_blend / grounded_exegesis run long.
     if text_tokenizer.pad_token is None:
         text_tokenizer.pad_token = text_tokenizer.eos_token
 
@@ -543,6 +574,7 @@ def main() -> None:
     # Pass the plain tokenizer, not Qwen3.5's Qwen3VLProcessor wrapper, so TRL
     # takes the non-VLM path (processing_class renamed from `tokenizer` in TRL).
     _proc = getattr(tokenizer, "tokenizer", tokenizer)
+
     trainer = SFTTrainer(
         model=model,
         processing_class=_proc,
