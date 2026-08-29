@@ -17,8 +17,8 @@ The validated RAG/eval/CI stack stays; the model layer is rebuilt at full-canon 
   guard. Provenance-tracked (per-source SHA + license); decontaminated vs. the eval suite (0 overlap).
 - **v2-4b SFT** (`training/config.v2-4b.yaml`): Qwen3.5-4B bf16 LoRA (r=32), 1 epoch / 3,474 steps,
   eval loss 0.25 → 0.21, ~10.4 h on the 5070 Ti. Published:
-  [`Ttimms/bible-ai-assistant-qwen3.5-4b-v2`](https://huggingface.co/Ttimms/bible-ai-assistant-qwen3.5-4b-v2)
-  + [`…-v2-GGUF`](https://huggingface.co/Ttimms/bible-ai-assistant-qwen3.5-4b-v2-GGUF).
+  [`Ttimms/Bible-Assistant-Qwen3.5-4B-v2`](https://huggingface.co/Ttimms/Bible-Assistant-Qwen3.5-4B-v2)
+  + [`…-v2-GGUF`](https://huggingface.co/Ttimms/Bible-Assistant-Qwen3.5-4B-v2-GGUF).
 - **Protocol-v3 eval + v1 A/B** (`docs/MODEL_COMPARISON.md`): verse-lookup exact accuracy
   **58 % → 76.5 %**, citation **88 % → 98.9 %**, hallucination flat ~2 %; but overall fuzzy
   0.48 → 0.40 — the templated *answers* in the scripture categories regressed open-ended
