@@ -1,35 +1,42 @@
 # Bible AI Assistant — Project Status & End Goal
 
-**Last updated:** August 2026 (v2 rebuild kickoff — see V2 section below)
+**Last updated:** 2026-08-29 (v2-4b SFT trained, evaluated, and published — see below)
 
 ---
 
-## V2 Rebuild (Aug 2026) — in progress, branch `v2`
+## V2 Rebuild — v2-4b SFT shipped 2026-08-29
 
 Decision: the v1 model layer (1.8k-example 4B fine-tune) is the ceiling, not the system.
 The validated RAG/eval/CI stack stays; the model layer is rebuilt at full-canon scale.
 
 ### Done
-- **Dataset engine `training/build_dataset_v2.py`** (commit `cec12ce`): 61,556 post-dedupe examples
-  across 8 categories — verbatim recall in 6 public-domain translations (KJV/ASV/WEB/DARBY/YLT/BBE),
-  translation comparisons, reverse lookup, off-by-one near-miss guards, passage spans,
-  TSK cross-reference chains (CC-BY, openbible.info), anchored topical sets,
-  unique-trigram chapter-context recognition — plus inherited general/meta/refusal pools.
-  Every prompt uses the production `prompt_format` context wrapper; provenance (source sha256s,
-  seed, drop counts) recorded in `data/processed/train_v2.manifest.json`.
-- **V2 config `training/config.v2.yaml`**: Qwen3.5-27B QLoRA + GRPO scaffold whose rewards are
-  fully programmatic (citation-exists / exact-text-match / format-compliance).
-- 17 offline tests for the engine; repo suite 429 passing.
+- **v2 dataset** (`training/build_dataset_v2.py`, branch `v2/dataset-full-upgrade-2026-08-28`):
+  56,022 examples — 8 scripture-citation categories (~35.6k, capped from ~61k) + `grounded_exegesis`
+  (Matthew Henry's Commentary, CC0), `pastoral_triage` (escalation / tradition-aware / calibrated
+  abstention), and a ~24 % `general_blend` from smoltalk2 (Apache-2.0) as a catastrophic-forgetting
+  guard. Provenance-tracked (per-source SHA + license); decontaminated vs. the eval suite (0 overlap).
+- **v2-4b SFT** (`training/config.v2-4b.yaml`): Qwen3.5-4B bf16 LoRA (r=32), 1 epoch / 3,474 steps,
+  eval loss 0.25 → 0.21, ~10.4 h on the 5070 Ti. Published:
+  [`Ttimms/bible-ai-assistant-qwen3.5-4b-v2`](https://huggingface.co/Ttimms/bible-ai-assistant-qwen3.5-4b-v2)
+  + [`…-v2-GGUF`](https://huggingface.co/Ttimms/bible-ai-assistant-qwen3.5-4b-v2-GGUF).
+- **Protocol-v3 eval + v1 A/B** (`docs/MODEL_COMPARISON.md`): verse-lookup exact accuracy
+  **58 % → 76.5 %**, citation **88 % → 98.9 %**, hallucination flat ~2 %; but overall fuzzy
+  0.48 → 0.40 — the templated *answers* in the scripture categories regressed open-ended
+  thematic synthesis. **The dataset's templated answers are the bottleneck.**
+- `config.v2-9b.yaml` (9B QLoRA) and `config.v2.yaml` (27B stretch) exist for escalation.
+  GRPO scaffold in `training/train_grpo.py`. Repo suite 439 tests.
 
-### Plan & schedule (RTX 5070 Ti 16 GB)
-| Phase | Work | Duration |
-|---|---|---|
-| 0 | External-benchmark adapters + base-model ablation | 1 evening |
-| 1 | SFT: 9B 4-bit (~1–1.5 d) first; 27B (~2–3 d) only if 9B clears | overnight runs |
-| 2 | GRPO verifiable rewards + constrained decoding (ref trie) | ~1–2 d |
-| 3 | Rubric-class benchmarks (honest scoreboard) | after 1–2 |
-| 4 | Publish suite + leaderboard entries | after 2 |
-Realistic end-to-end: under two weeks to a full head-to-head benchmark table.
+### Next (the v3 SOTA push)
+| Phase | Work |
+|---|---|
+| 1 | Judge re-score v2 + v1 (fair scoring on synthesis categories) |
+| 2 | **Dataset v3 = teacher distillation** — regenerate all answers with a strong model, natural + grounded, non-templated; cut recall-drill volume |
+| 3 | SFT on v3 (4B first) → **GRPO** with the verifiable citation reward — the stage meant to clear the ≥85 % verse-accuracy bar |
+| 4 | Re-eval + FMG-Bench / FaithBench; escalate to 9B only on a measured shortfall |
+| 5 | Retrieval upgrade (embedder stronger than nomic-v1.5) + constrained verse-reference decoding |
+
+Also open: `rag_server.py` commentary-retrieval path (so `grounded_exegesis` training matches
+inference); Ollama GGUF support (pending Ollama's bundled-llama.cpp bump).
 
 ### Rules that outlive v1
 - Eval/benchmark data is never training data (decontamination enforced).
