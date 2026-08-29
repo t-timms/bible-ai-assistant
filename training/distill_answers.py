@@ -141,13 +141,14 @@ def _hf_teacher(model: str) -> TeacherFn:
 
 
 def _vllm_teacher(model: str, base_url: str) -> TeacherFn:
-    import urllib.request  # lazy, stdlib only
+    import requests  # lazy; already a project dep
 
     url = base_url.rstrip("/") + "/chat/completions"
 
     def call(system: str, user: str) -> str:
-        payload = json.dumps(
-            {
+        resp = requests.post(
+            url,
+            json={
                 "model": model,
                 "max_tokens": 600,
                 "temperature": 0.7,
@@ -155,13 +156,11 @@ def _vllm_teacher(model: str, base_url: str) -> TeacherFn:
                     {"role": "system", "content": system},
                     {"role": "user", "content": user},
                 ],
-            }
-        ).encode()
-        req = urllib.request.Request(
-            url, data=payload, headers={"Content-Type": "application/json"}
+            },
+            timeout=120,
         )
-        with urllib.request.urlopen(req, timeout=120) as resp:  # noqa: S310 - local endpoint
-            body = json.loads(resp.read())
+        resp.raise_for_status()
+        body = resp.json()
         return (body["choices"][0]["message"]["content"] or "").strip()
 
     return call
