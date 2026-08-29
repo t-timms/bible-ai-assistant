@@ -1,0 +1,61 @@
+# Bible AI Assistant - V2 Training Config (4B)
+#
+# Base-model decision 2026-08-28 (docs/V2_EXECUTION_PLAN.md): smallest-that-wins.
+# This is a RAG-faithfulness task; citation grounding + calibrated abstention are
+# learnable in small models. Train the 4B FIRST, fully unquantized; escalate to
+# config.v2-9b.yaml (QLoRA) only on a measured v3 / FMG-Bench shortfall.
+#
+#   python training/train_unsloth.py --config training/config.v2-4b.yaml \
+#       --run-name qwen3.5-4b-bible-v2-sft
+#
+# Fits 16 GB: Qwen3.5-4B bf16 LoRA is ~9.3 GB weights; at batch 2 / seq 1280 with
+# gradient_checkpointing="unsloth" the v2-4b run measured ~13.1 GB peak (2.8 GB
+# headroom). seq 2048 measured ~15.8 GB (works but tight); seq 4096 and batch 4 OOM.
+
+model:
+  name: "Qwen/Qwen3.5-4B"
+  revision: "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"  # main @ 2026-08-28, verified via HF Hub API
+  load_in_4bit: false          # bf16 LoRA — Unsloth does NOT recommend 4-bit for Qwen3.5-4B (quant noise)
+  # 1280, fixed-padded: the v2 mix has a ~280-token median; measured token p90=930,
+  # p99=1560. Only 3.3% of examples exceed 1280 (mostly general_blend), and the
+  # length filter in train_unsloth drops those whose answer wouldn't survive.
+  # Padding every batch to a fixed 1280 keeps batch shape constant (no allocator
+  # fragmentation) at ~2.5x less compute than 2048.
+  max_seq_length: 1280
+
+lora:
+  r: 32                        # 56k-example corpus -> r=32/alpha=64 is the 2026 default above ~10k
+  alpha: 64                    # alpha = 2*r
+  dropout: 0.05                # 50k+ examples dilute overfit risk (vs v1's 0.1 on ~7k)
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+  bias: "none"
+
+training:
+  output_dir: "checkpoints_v2_4b"
+  eval_split: 0.006            # ~330 held-out of 55.5k; keeps the every-50-step eval cheap
+  # 1 epoch. Measured on the v2-4b run: ~8.9 s/opt-step (stable, fixed-pad), 3,474
+  # steps, ~10.4 h incl. eval. eval_loss 0.25 -> 0.21, monotonic, no overfit. A 2nd
+  # epoch was judged not worth it before the GRPO stage; revisit only if the v3
+  # eval says the 1-epoch model is underfit.
+  num_train_epochs: 1
+  per_device_train_batch_size: 2
+  gradient_accumulation_steps: 8    # effective batch 16
+  learning_rate: 2.0e-4        # v1's proven 4B value (the 9B config drops to 1e-4 for the bigger base)
+  lr_scheduler_type: "cosine"
+  warmup_ratio: 0.03
+  max_eval_steps: 50
+  logging_steps: 25
+  bf16: true                   # REQUIRED on Blackwell (RTX 5070 Ti). Never fp16.
+  report_to: "wandb"
+  random_state: 20260828
+
+data:
+  train_file: "data/processed/train_v2.json"
+  eval_file: null

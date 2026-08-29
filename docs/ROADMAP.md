@@ -1,19 +1,39 @@
 # Bible AI Assistant — Remediation Roadmap
 
-## Block 0 — V2 rebuild workstream 🚧 (branch `v2`)
+## Block 0 — V2 rebuild workstream 🚧 (branch `v2/dataset-full-upgrade-2026-08-28`)
 
 Full-canon model-layer replacement; the RAG/eval/CI stack below stays as-is.
-Status & schedule live in `docs/PROJECT_STATUS_AND_GOALS.md` → "V2 Rebuild".
+**v2-4b SFT is trained, evaluated, and published** (2026-08-29) — see "▶ Resume here" below
+for what's next. Narrative status: `docs/PROJECT_STATUS_AND_GOALS.md`; full detail:
+`docs/V2_EXECUTION_PLAN.md`.
 
 - [x] Dataset engine: 8 categories, ~62k post-dedupe examples, sha-pinned sources (`cec12ce`)
 - [x] V2 config **files**: `config.v2-9b.yaml` (near-term) + `config.v2.yaml` (27B stretch) + GRPO reward block
 - [x] Config wiring: `train_unsloth.py --config/--data`; `_load_config_yaml` reads `data.train_file`
 - [x] GRPO scaffold: `training/train_grpo.py` — verifiable reward (citation-exists + text-match + format) reusing `rag/verification.py`; `--dry-run` verified. Needs a GPU `--max-steps 2` smoke before any real run.
-- [ ] `data/processed/train_v2.json` build + `check_train_eval_overlap.py` pass
-- [ ] SFT launch (9B first via `config.v2-9b.yaml`; 27B only if 9B clears the v1 baseline)
-- [ ] ORPO on the 9B SFT; then GRPO smoke → full GRPO
-- [ ] Constrained decoding: verse-reference trie, applied to the citation span only (mind the "alignment tax" — arXiv 2604.06066)
-- [ ] External-benchmark adapters — **now available** (2026-08-28 recheck): [FMG-Bench](https://github.com/FideAI/fmg-bench) (120 scenarios, has code), [FaithBench](https://faithbench.com/) (300+ cases, held-out). Use as honest external calibration, not win targets — both test theological *reasoning*/tradition-awareness, a harder and different task than RAG verse-citation.
+- [x] **Dataset full upgrade** (2026-08-28, branch `v2/dataset-full-upgrade-2026-08-28`): scripture cats capped ~61k→~34k; new `grounded_exegesis` (Matthew Henry, CC0), `pastoral_triage` (escalation/tradition-aware/abstention), `general_blend` (smoltalk2, Apache-2.0, `<think>` stripped); persona/phrasing diversity. `train_v2.json` = 56,022 examples, **23.9 % general/reasoning** (clears the forgetting floor), 0 eval overlap, 439 tests pass. See `docs/V2_EXECUTION_PLAN.md`.
+- [x] `data/processed/train_v2.json` build + `check_train_eval_overlap.py` pass
+- [x] **Base-model decision (2026-08-28): 4B first.** `training/config.v2-4b.yaml` — `Qwen/Qwen3.5-4B` bf16 LoRA (fully unquantized). Escalate to 9B only on a measured shortfall.
+- [x] **SFT run (v2-4b), 2026-08-29** — 1 epoch / 3,474 steps / ~10.4 h, eval_loss 0.25→0.21, no overfit. Merged → `models/qwen3.5-4b-bible-v2-merged`.
+- [x] **Protocol-v3 eval + v1 A/B, 2026-08-29** — v2 **+18.5 pp verse-lookup (58→76.5%)**, **+11 pp citation (→98.9%)**, hallucination flat 2.3%; but **−0.09 fuzzy overall** — templated answers regressed thematic responses vs. the lightly-tuned v1. Bottleneck = the dataset's templated *answers*. `docs/MODEL_COMPARISON.md`, `docs/benchmark_runs/2026-08-29_*`.
+- [x] **GGUF built + published, 2026-08-29** — `convert_hf_to_gguf.py --no-mtp` on current llama.cpp (the `~/wsl41361/llama.cpp` used at first was a 307-line stub). F16 + Q8_0/Q6_K/Q5_K_M/Q4_K_M, verified with `llama-server` (~85 tok/s). Ollama 0.33.x's bundled runtime is still too old for `qwen35` — LM Studio / current llama.cpp work now.
+- [x] **Published to HF, 2026-08-29** — [`Ttimms/bible-ai-assistant-qwen3.5-4b-v2`](https://huggingface.co/Ttimms/bible-ai-assistant-qwen3.5-4b-v2) (safetensors + card) and [`…-v2-GGUF`](https://huggingface.co/Ttimms/bible-ai-assistant-qwen3.5-4b-v2-GGUF). Docs (README, MODEL_CARD, MODEL_COMPARISON, this file, PROJECT_STATUS_AND_GOALS, evaluation_results, CHANGELOG) updated on branch `v2/dataset-full-upgrade-2026-08-28`.
+
+### ▶ Resume here (2026-08-29)
+
+1. [ ] **Commit + merge** branch `v2/dataset-full-upgrade-2026-08-28` (11 modified + untracked: `config.v2-4b.yaml`, `fetch_mhc_commentary.py`, `scripts/run_v2_4b_sft.sh`, `scripts/_tf_openai_server.py`, `scripts/_run_v3_eval.sh`, `docs/benchmark_runs/20260829_*`).
+2. [ ] **Judge re-score** v2 + v1 under protocol v3 with `--judge` (judge model `qwen3:8b` is pulled) — the keyword `verse_accuracy` scores 0 on synthesis questions with no canonical verse; the judge gives them a fair score.
+3. [ ] **Dataset v3 = teacher distillation** — regenerate answers for all categories with a strong model: natural, grounded, non-templated; cut recall-drill volume; keep the provenance-clean sources. **This is the bottleneck fix.** (Teacher + scope was left as an open user decision: Claude API vs. local 27–32B; ~18–50k.)
+4. [ ] **SFT on v3** (4B first, `config.v2-4b.yaml`) → **GRPO** (`training/train_grpo.py`, verifiable citation reward) — the stage meant to clear the ≥85 % verse-accuracy bar and fix the thematic-synthesis regression. Needs a `--max-steps 2` GRPO smoke first.
+5. [ ] **Re-eval** protocol v3 + FMG-Bench / FaithBench calibration. Escalate to 9B (`config.v2-9b.yaml`) **only** on a measured shortfall.
+6. [ ] `rag_server.py` **commentary-retrieval path** (so `grounded_exegesis` training matches inference — else it's the F-2/F-3 format mismatch).
+7. [ ] **Retrieval upgrade** — embedder stronger than `nomic-embed-text-v1.5`; then **constrained verse-reference decoding** (trie on the citation span; mind the alignment tax, arXiv 2604.06066).
+8. [ ] **Ornith GGUF backfill** — feasible: convert the *non-MTP-stripped* pruned bf16 (or the with-MTP variant); `unsloth/Qwen3.5-35B-A3B-GGUF` proves `qwen3_5_moe` GGUF works upstream.
+9. [ ] *(optional)* `microsoft/WSL#41361` — the fresh llama.cpp build (`3173a56`) is the commit the maintainer asked for; do a deliberate long-run hang repro + call stack if reopening.
+
+### Deferred / blocked
+- [ ] **vLLM** — `Qwen3_5ForCausalLM` registered locally but `UVA is not available` under WSL2 (0.26.0 `GPUModelRunnerV2`). Eval ran through `scripts/_tf_openai_server.py` instead.
+- External-benchmark adapters — [FMG-Bench](https://github.com/FideAI/fmg-bench) (120 scenarios, code), [FaithBench](https://faithbench.com/) (300+, held-out). Honest calibration, not win targets — they test theological *reasoning*, a harder/different task than RAG verse-citation. (Wired in at step 5.)
 
 ---
 
