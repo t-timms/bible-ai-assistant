@@ -32,7 +32,7 @@ The validated RAG/eval/CI stack stays; the model layer is rebuilt at full-canon 
 | 1 | Judge re-score v2 + v1 (fair scoring on synthesis categories) |
 | 2 | **Dataset v3 = teacher distillation** — regenerate all answers with a strong model, natural + grounded, non-templated; cut recall-drill volume |
 | 3 | SFT on v3 (4B first) → **GRPO** with the verifiable citation reward — the stage meant to clear the ≥85 % verse-accuracy bar |
-| 4 | Re-eval + FMG-Bench / FaithBench; escalate to 9B only on a measured shortfall |
+| 4 | Re-eval + FMG-Bench (`scripts/fmg_bench.py`); escalate to 9B only on a measured shortfall |
 | 5 | Retrieval upgrade (embedder stronger than nomic-v1.5) + constrained verse-reference decoding |
 
 Also open: `rag_server.py` commentary-retrieval path (so `grounded_exegesis` training matches

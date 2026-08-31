@@ -1,5 +1,14 @@
 # V3 dataset plan — kill the templated answers
 
+> **Status (2026-08-31): `data/processed/train_v3.json` built — 39,463 examples.**
+> Distillation ran against a local **Qwen3-14B Q5_K_M GGUF** (`llama-server`; vLLM is
+> dead on this box), 16,809 / 16,995 answers kept (98.9%). The build came in smaller
+> than the ~45.6k target below: `cross_reference_chains` / `chapter_context` landed
+> under target after dedup, and **`thematic_qa` was not built** (it needs the live
+> RAG retriever — deferred to a v3.1 pass). Category keys keep their v2 names with a
+> `_v3` suffix rather than the renamed keys in the table below. Exact shipped mix +
+> next action: `docs/V3_STATUS.md`. Everything else in this plan stands.
+
 ## Why v3
 
 Protocol-v3 A/B (`docs/MODEL_COMPARISON.md`): v2-4b lifted verbatim verse recall
@@ -75,21 +84,32 @@ will actually see.
 
 ## Pipeline
 
-1. `training/build_dataset_v2.py --v3` — emit the *inputs* (context + question) for
-   the regenerate/create categories to `data/raw_v3/distill_inputs.jsonl`; carry the
-   keep-as-is categories straight through.
-2. `python training/distill_answers.py --backend <x> --in data/raw_v3/distill_inputs.jsonl
-   --out data/raw_v3/distill_out.jsonl` — resumable; validates every answer.
-3. `training/build_dataset_v2.py --v3 --assemble` — merge distilled answers + kept
-   categories → `data/processed/train_v3.json`; rebuild `train_v3.manifest.json`
-   (provenance: teacher model + version, keep-rate, per-category counts).
-4. `check_train_eval_overlap.py` + the 282-question v3 suite decontam check.
+*(Implemented as two standalone scripts rather than `build_dataset_v2.py` flags.)*
+
+1. `python training/build_v3_inputs.py --out data/raw_v3/distill_inputs.jsonl` — run
+   the four templated-answer generators from `build_dataset_v2`, keep only
+   `(context, question)`; the teacher regenerates the answer.
+2. `python training/distill_answers.py --backend vllm --vllm-url http://127.0.0.1:8001/v1
+   --model t --concurrency 6 --in data/raw_v3/distill_inputs.jsonl
+   --out data/raw_v3/distill_out.jsonl` — resumable; every answer validated via
+   `rag.verification` (bad ref → 1 stricter retry → drop + log). `--backend vllm`
+   also drives a local `llama-server` (OpenAI-compat).
+3. `python training/assemble_v3.py --distilled data/raw_v3/distill_out.jsonl
+   --out data/processed/train_v3.json` — merge distilled answers + freshly-built
+   keep-as-is categories (verse-drill at v3 budgets, `near_miss_guard`,
+   `pastoral_triage`, `general_blend`) → dedup + decontaminate via
+   `build_dataset_v2.finalize`; write `train_v3.manifest.json` (per-source SHA +
+   license, per-category kept/dropped counts).
+4. `python scripts/check_train_eval_overlap.py --train data/processed/train_v3.json`
+   — enforces zero normalized-question overlap vs. all `benchmarks/suites/*.json`.
 5. SFT: `training/config.v3-4b.yaml` (fork of `config.v2-4b.yaml`, `train_file:
    data/processed/train_v3.json`, same seq/padding).
 6. **GRPO**: `training/train_grpo.py` (scaffold ready — reward = citation_exists +
    text_match + format) starting from the v3 SFT adapter. This is the stage that
    pushes past the 85% bar.
-7. Eval: protocol v3 + **FMG-Bench** + **FaithBench** (calibration, not win targets).
+7. Eval: protocol v3 + **FMG-Bench** (`scripts/fmg_bench.py`; open, 120+37, self-scored)
+   as calibration, not a win target. (FaithBench — the Christian-theology site — has no
+   public dataset yet; not wired in.)
 
 ## Acceptance criteria (the bar)
 
@@ -101,7 +121,7 @@ the identical run:
 - `verse_lookup` exact: **hold ≥ 74%** (don't trade recall away).
 - overall citation rate: **hold ≥ 97%**; hallucination: **≤ 2.5%**.
 - overall fuzzy mean: **≥ 0.52** (beat both v1's 0.48 and v2's 0.40).
-- FMG-Bench / FaithBench: report the number; no regression vs. a same-size baseline.
+- FMG-Bench: report the number; no regression vs. a same-size baseline. Not a pass/fail gate.
 
 If 4B stalls on `thematic_qa` after GRPO → escalate to `config.v2-9b.yaml` (QLoRA),
 per the base-model decision in `docs/V2_EXECUTION_PLAN.md`.

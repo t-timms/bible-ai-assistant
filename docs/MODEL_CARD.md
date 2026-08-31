@@ -115,9 +115,11 @@ natural answers than v2's templated ones. Full breakdown and diagnosis in
 [`docs/MODEL_COMPARISON.md`](MODEL_COMPARISON.md). Raw JSONs under
 `docs/benchmark_runs/`.
 
-External benchmarks (FMG-Bench, FaithBench) are planned as honest calibration for
-v3, not as win targets — they test theological reasoning, a harder and different
-task than RAG verse-citation.
+FMG-Bench (`FideAI/fmg-bench`, open, CC-BY-4.0) is wired in as honest calibration
+for v3 via `scripts/fmg_bench.py`, not as a win target — it tests theological
+triage / tradition-aware comparison / escalation, a harder and different task
+than RAG verse-citation. (FaithBench, the Christian-theology site, has no public
+dataset yet — not used.)
 
 ---
 

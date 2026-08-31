@@ -152,6 +152,13 @@ omit = [
     "training/train_grpo.py",
     "training/dataset_builder.py",
     "training/convert_web_tehshrike.py",
+    # v3 data-pipeline CLIs — every code path calls a network teacher or the
+    # full corpus + smoltalk2 blend build; the pure helpers are unit-tested
+    # (test_distill_answers.py, test_build_v3_inputs.py, test_assemble_v3.py).
+    # Same "needs an external service / the full data stack" rationale as above.
+    "training/distill_answers.py",
+    "training/build_v3_inputs.py",
+    "training/assemble_v3.py",
     # Require a running ChromaDB instance
     "rag/build_index.py",
     # Manual/interactive test scripts

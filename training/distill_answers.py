@@ -31,8 +31,10 @@ import argparse
 import json
 import os
 import sys
+import threading
 import time
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -141,9 +143,12 @@ def _hf_teacher(model: str) -> TeacherFn:
 
 
 def _vllm_teacher(model: str, base_url: str) -> TeacherFn:
+    import re as _re
+
     import requests  # lazy; already a project dep
 
     url = base_url.rstrip("/") + "/chat/completions"
+    think_re = _re.compile(r"<think>.*?</think>\s*", _re.S)
 
     def call(system: str, user: str) -> str:
         resp = requests.post(
@@ -156,12 +161,15 @@ def _vllm_teacher(model: str, base_url: str) -> TeacherFn:
                     {"role": "system", "content": system},
                     {"role": "user", "content": user},
                 ],
+                # Qwen3 defaults thinking ON; we want the answer only.
+                "chat_template_kwargs": {"enable_thinking": False},
             },
             timeout=120,
         )
         resp.raise_for_status()
         body = resp.json()
-        return (body["choices"][0]["message"]["content"] or "").strip()
+        text = body["choices"][0]["message"]["content"] or ""
+        return think_re.sub("", text).strip()
 
     return call
 
@@ -234,6 +242,40 @@ def load_done_ids(out_path: Path) -> set[str]:
 # --------------------------------------------------------------------------- #
 
 
+def _process_row(
+    row: dict,
+    teacher: TeacherFn,
+    verse_lookup: Callable[[str], str | None],
+    max_retries: int,
+    tag: str,
+) -> dict:
+    """Distil one input; retry once with a stricter system prompt on a bad citation."""
+    user = f"CONTEXT:\n{row['context']}\n\nQUESTION: {row['question']}"
+    system = SYSTEM_CONTRACT
+    answer, problems = "", ["not_attempted"]
+    for attempt in range(max_retries + 1):
+        try:
+            answer = teacher(system, user)
+        except Exception as e:  # noqa: BLE001 - network/rate-limit; back off and retry
+            print(f"  {row['id']} call error: {e!r}; backing off", flush=True)
+            time.sleep(5 * (attempt + 1))
+            continue
+        problems = validate(answer, verse_lookup)
+        if not problems:
+            break
+        system = SYSTEM_CONTRACT + STRICTER_SUFFIX
+    return {
+        "id": row["id"],
+        "category": row.get("category", "?"),
+        "question": row["question"],
+        "context": row["context"],
+        "answer": answer,
+        "teacher": tag,
+        "status": "ok" if not problems else "dropped",
+        "issues": problems,
+    }
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
     ap.add_argument("--in", dest="in_path", required=True, type=Path)
@@ -246,7 +288,12 @@ def main() -> None:
     ap.add_argument("--corpus", default="data/raw/bible_web.json", type=Path)
     ap.add_argument("--limit", type=int, default=0, help="0 = all")
     ap.add_argument("--max-retries", type=int, default=1)
-    ap.add_argument("--sleep", type=float, default=0.0, help="seconds between calls")
+    ap.add_argument(
+        "--concurrency",
+        type=int,
+        default=1,
+        help="parallel in-flight requests (match server --parallel)",
+    )
     args = ap.parse_args()
 
     corpus = args.corpus if args.corpus.is_absolute() else PROJECT_ROOT / args.corpus
@@ -255,6 +302,7 @@ def main() -> None:
     verse_lookup = build_verse_lookup(corpus)
 
     teacher = make_teacher(args)
+    tag = f"{args.backend}:{args.model}" if args.model else args.backend
     done = load_done_ids(args.out_path)
     args.out_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -263,57 +311,49 @@ def main() -> None:
     ]
     if args.limit:
         rows = rows[: args.limit]
+    pending = [r for r in rows if r["id"] not in done]
+    skipped = len(rows) - len(pending)
+    print(
+        f"{len(pending)} to do, {skipped} already done, concurrency={args.concurrency}", flush=True
+    )
 
-    kept = dropped = skipped = 0
-    with args.out_path.open("a", encoding="utf-8") as sink:
-        for i, row in enumerate(rows, 1):
-            rid = row["id"]
-            if rid in done:
-                skipped += 1
-                continue
-            user = f"CONTEXT:\n{row['context']}\n\nQUESTION: {row['question']}"
-            system = SYSTEM_CONTRACT
-            answer, problems = "", ["not_attempted"]
-            for attempt in range(args.max_retries + 1):
-                try:
-                    answer = teacher(system, user)
-                except Exception as e:  # noqa: BLE001 - network/rate-limit; back off and retry
-                    print(f"[{i}/{len(rows)}] {rid} call error: {e!r}; backing off", flush=True)
-                    time.sleep(5 * (attempt + 1))
-                    continue
-                problems = validate(answer, verse_lookup)
-                if not problems:
-                    break
-                system = SYSTEM_CONTRACT + STRICTER_SUFFIX
-            status = "ok" if not problems else "dropped"
-            rec = {
-                "id": rid,
-                "category": row.get("category", "?"),
-                "question": row["question"],
-                "context": row["context"],
-                "answer": answer,
-                "teacher": f"{args.backend}:{args.model}" if args.model else args.backend,
-                "status": status,
-                "issues": problems,
-            }
-            sink.write(json.dumps(rec, ensure_ascii=False) + "\n")
-            sink.flush()
-            if status == "ok":
-                kept += 1
-            else:
-                dropped += 1
-                print(f"[{i}/{len(rows)}] {rid} DROPPED: {problems}", flush=True)
-            if args.sleep:
-                time.sleep(args.sleep)
+    kept = dropped = 0
+    t0 = time.time()
+    write_lock = threading.Lock()
+    with (
+        args.out_path.open("a", encoding="utf-8") as sink,
+        ThreadPoolExecutor(max_workers=max(1, args.concurrency)) as pool,
+    ):
+        futs = {
+            pool.submit(_process_row, r, teacher, verse_lookup, args.max_retries, tag): r
+            for r in pending
+        }
+        for n, fut in enumerate(as_completed(futs), 1):
+            rec = fut.result()
+            with write_lock:
+                sink.write(json.dumps(rec, ensure_ascii=False) + "\n")
+                sink.flush()
+                if rec["status"] == "ok":
+                    kept += 1
+                else:
+                    dropped += 1
+                    print(f"  {rec['id']} DROPPED: {rec['issues']}", flush=True)
+            if n % 200 == 0:
+                rate = n / (time.time() - t0)
+                eta = (len(pending) - n) / rate / 3600
+                print(
+                    f"  {n}/{len(pending)}  {rate:.1f}/s  ETA {eta:.1f}h  "
+                    f"(kept {kept} / dropped {dropped})",
+                    flush=True,
+                )
 
     total_new = kept + dropped
-    rate = (kept / total_new * 100) if total_new else 0.0
+    pct = (kept / total_new * 100) if total_new else 0.0
     print(
-        f"done: kept={kept} dropped={dropped} skipped={skipped} "
-        f"keep_rate={rate:.1f}% -> {args.out_path}",
+        f"done: kept={kept} dropped={dropped} skipped={skipped} keep_rate={pct:.1f}% -> {args.out_path}",
         flush=True,
     )
-    if total_new and rate < 90.0:
+    if total_new and pct < 90.0:
         print("WARNING: keep-rate below 90% — check the teacher prompt / model", flush=True)
 
 
