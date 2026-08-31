@@ -7,6 +7,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [Unreleased]
 
 ### Added
+- **v3 dataset pipeline + `train_v3.json` (2026-08-31)** — teacher-distilled answers replace the
+  templated ones that regressed v2's open-ended quality. `training/build_v3_inputs.py` emits
+  16,995 `(context, question)` inputs from the four templated-answer generators;
+  `training/distill_answers.py` (now with `--concurrency` and an `enable_thinking:false` /
+  `<think>`-strip patch for the OpenAI-compat `vllm` backend) regenerates the answers against a
+  local **Qwen3-14B Q5_K_M GGUF** served by `llama-server` (vLLM is unusable on this box —
+  `UVA is not available` under WSL2), every answer citation-validated — **16,809 / 16,995 kept
+  (98.9%)**; `training/assemble_v3.py` merges those with freshly-built keep-as-is categories
+  (verse-drill cut ~60% to ~7k, `near_miss_guard`, `pastoral_triage`, `general_blend` ~11k) into
+  **`data/processed/train_v3.json` — 39,463 examples**, general/reasoning share 27.9% (clears the
+  catastrophic-forgetting floor), zero eval-suite overlap. `training/config.v3-4b.yaml` (fork of
+  `config.v2-4b.yaml`, seed 20260830). `thematic_qa` deferred to a follow-up (needs the live RAG
+  retriever). Status + next action: `docs/V3_STATUS.md`; plan: `docs/V3_DATASET_PLAN.md`. SFT not
+  yet run. +8 tests (456 total).
 - **v2-4b model + protocol-v3 evaluation (2026-08-29)** — Qwen3.5-4B bf16 LoRA SFT, 1 epoch on
   55,570 examples (`training/config.v2-4b.yaml`), eval_loss 0.25→0.21. First measurement under
   benchmark protocol v3: verse-lookup exact accuracy **58% → 76.5%** vs. the v1 model, citation

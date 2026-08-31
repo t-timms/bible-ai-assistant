@@ -78,6 +78,9 @@ docs/SOTA_ROADMAP.md
 # V2 dataset source cache (re-downloadable; provenance tracked in manifest)
 data/raw_v2/
 
+# V3 distillation intermediates (regenerable from build_v3_inputs.py + distill_answers.py)
+data/raw_v3/
+
 # Local editor / assistant config (developer-specific, not part of the project)
 CLAUDE.md
 AGENTS.md

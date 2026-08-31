@@ -23,8 +23,13 @@ for what's next. Narrative status: `docs/PROJECT_STATUS_AND_GOALS.md`; full deta
 
 1. [ ] **Commit + merge** branch `v2/dataset-full-upgrade-2026-08-28` (11 modified + untracked: `config.v2-4b.yaml`, `fetch_mhc_commentary.py`, `scripts/run_v2_4b_sft.sh`, `scripts/_tf_openai_server.py`, `scripts/_run_v3_eval.sh`, `docs/benchmark_runs/20260829_*`).
 2. [ ] **Judge re-score** v2 + v1 under protocol v3 with `--judge` (judge model `qwen3:8b` is pulled) — the keyword `verse_accuracy` scores 0 on synthesis questions with no canonical verse; the judge gives them a fair score.
-3. [ ] **Dataset v3 = teacher distillation** — regenerate answers for all categories with a strong model: natural, grounded, non-templated; cut recall-drill volume; keep the provenance-clean sources. **This is the bottleneck fix.** (Teacher + scope was left as an open user decision: Claude API vs. local 27–32B; ~18–50k.)
-4. [ ] **SFT on v3** (4B first, `config.v2-4b.yaml`) → **GRPO** (`training/train_grpo.py`, verifiable citation reward) — the stage meant to clear the ≥85 % verse-accuracy bar and fix the thematic-synthesis regression. Needs a `--max-steps 2` GRPO smoke first.
+3. [x] **Dataset v3 = teacher distillation (2026-08-31)** — `training/build_v3_inputs.py` +
+   `training/distill_answers.py` (local Qwen3-14B Q5_K_M GGUF teacher via `llama-server`; vLLM
+   dead on this box) + `training/assemble_v3.py` → **`data/processed/train_v3.json`, 39,463
+   examples**, templated answers regenerated as synthesized cited prose, verse-drill cut ~60%,
+   98.9% distillation keep-rate, zero eval overlap. `config.v3-4b.yaml` added. `thematic_qa`
+   deferred (needs the RAG retriever). `docs/V3_STATUS.md` / `docs/V3_DATASET_PLAN.md`.
+4. [ ] **SFT on v3** (4B first, `training/config.v3-4b.yaml`) → **GRPO** (`training/train_grpo.py`, verifiable citation reward) — the stage meant to clear the ≥85 % verse-accuracy bar and fix the thematic-synthesis regression. Needs a `--max-steps 2` GRPO smoke first.
 5. [ ] **Re-eval** protocol v3 + FMG-Bench / FaithBench calibration. Escalate to 9B (`config.v2-9b.yaml`) **only** on a measured shortfall.
 6. [ ] `rag_server.py` **commentary-retrieval path** (so `grounded_exegesis` training matches inference — else it's the F-2/F-3 format mismatch).
 7. [ ] **Retrieval upgrade** — embedder stronger than `nomic-embed-text-v1.5`; then **constrained verse-reference decoding** (trie on the citation span; mind the alignment tax, arXiv 2604.06066).

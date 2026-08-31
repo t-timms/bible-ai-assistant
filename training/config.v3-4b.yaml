@@ -1,0 +1,58 @@
+# Bible AI Assistant - V3 Training Config (4B SFT)
+#
+# V3 = kill the templated answers. train_v3.json (39,463 examples) regenerates the
+# topical_collections / cross_reference_chains / chapter_context / grounded_exegesis
+# answers via a teacher (Qwen3-14B Q5_K_M GGUF, served by llama-server — vLLM is
+# dead on this box, "UVA is not available" under WSL2) into synthesized, cited
+# prose; cuts the saturated verse-drill volume ~60%. thematic_qa is deferred to a
+# follow-up pass (needs the live RAG retriever). See docs/V3_DATASET_PLAN.md.
+#
+# This is the SFT stage. GRPO (training/train_grpo.py, citation reward) runs AFTER,
+# starting from this adapter — that's the stage that clears the 85% bar.
+#
+#   python training/train_unsloth.py --config training/config.v3-4b.yaml \
+#       --run-name qwen3.5-4b-bible-v3-sft
+#
+# Identical fit profile to v2-4b: Qwen3.5-4B bf16 LoRA ~9.3 GB weights, batch 2 /
+# seq 1280 / gradient_checkpointing="unsloth" measured ~13.1 GB peak (2.8 GB head).
+
+model:
+  name: "Qwen/Qwen3.5-4B"
+  revision: "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"  # same pin as v2-4b, verified via HF Hub API
+  load_in_4bit: false          # bf16 LoRA
+  # seq 1280 fixed-padded — same rationale as v2-4b (v3 mix has a similar short
+  # median; the length filter in train_unsloth drops the few over-long examples).
+  max_seq_length: 1280
+
+lora:
+  r: 32
+  alpha: 64
+  dropout: 0.05
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+  bias: "none"
+
+training:
+  output_dir: "checkpoints_v3_4b"
+  eval_split: 0.006            # match v2-4b for A/B comparability
+  num_train_epochs: 1
+  per_device_train_batch_size: 2
+  gradient_accumulation_steps: 8    # effective batch 16
+  learning_rate: 2.0e-4
+  lr_scheduler_type: "cosine"
+  warmup_ratio: 0.03
+  max_eval_steps: 50
+  logging_steps: 25
+  bf16: true                   # REQUIRED on Blackwell. Never fp16.
+  report_to: "wandb"
+  random_state: 20260830
+
+data:
+  train_file: "data/processed/train_v3.json"
+  eval_file: null
