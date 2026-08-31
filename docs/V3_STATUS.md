@@ -42,9 +42,14 @@ Plan: `docs/V3_DATASET_PLAN.md`. This file = exact state + the next action.
     forgetting floor.
   - verse-drill (recall + passage + reverse + translation) = **6,996**, down ~60%
     from v2's ~18k, as planned.
-  - Dedup + decontam via `build_dataset_v2.finalize` dropped 199
-    (`check_train_eval_overlap.py`: **zero** normalized-question overlap vs. all
-    `benchmarks/suites/*.json`, re-verified 2026-08-31).
+  - Dedup + decontam via `build_dataset_v2.finalize` dropped **187** for
+    contamination/dupes (`train_v3.manifest.json`: `topical_collections_v3` 170,
+    `near_miss_guard` 11, `passage_recall` 2, `general_blend` 4).
+    `check_train_eval_overlap.py`: **zero** normalized-question overlap vs. all
+    `benchmarks/suites/*.json` (re-verified 2026-08-31).
+  - Known cosmetic: `train_v3.manifest.json` carries `protocol_id:
+    bible_assistant_v2_train` (inherited from `build_dataset_v2.finalize`); the
+    data is v3.
 
 - **Scripts, lint-clean** (this branch): `training/build_v3_inputs.py`,
   `training/assemble_v3.py`, `training/config.v3-4b.yaml`, the

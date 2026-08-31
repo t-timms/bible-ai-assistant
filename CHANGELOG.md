@@ -14,7 +14,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   rate, broken down by family/triage; run JSON records the dataset sha256. `--dry-run` (stub
   judge) validates the whole pipeline offline; a real run needs a served model + judge.
   Reported as honest calibration, **not** a pass/fail gate — it tests a different task than
-  the protocol-v3 verse-citation suite. +8 tests. Docs corrected: **FaithBench**
+  the protocol-v3 verse-citation suite. +8 tests (**464 total**; 7 skip in CI on the
+  corpus-gated cases). Docs corrected: **FaithBench**
   (faithbench.com, the Christian-theology site) is *not* usable — leaderboard-only research
   preview, no public dataset, linked repo 404s — removed from the "wire in" plan across
   ROADMAP / MODEL_CARD / V2_EXECUTION_PLAN / V3_DATASET_PLAN / PROJECT_STATUS_AND_GOALS.
@@ -31,7 +32,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   catastrophic-forgetting floor), zero eval-suite overlap. `training/config.v3-4b.yaml` (fork of
   `config.v2-4b.yaml`, seed 20260830). `thematic_qa` deferred to a follow-up (needs the live RAG
   retriever). Status + next action: `docs/V3_STATUS.md`; plan: `docs/V3_DATASET_PLAN.md`. SFT not
-  yet run. +8 tests (456 total).
+  yet run. +8 tests.
 - **v2-4b model + protocol-v3 evaluation (2026-08-29)** — Qwen3.5-4B bf16 LoRA SFT, 1 epoch on
   55,570 examples (`training/config.v2-4b.yaml`), eval_loss 0.25→0.21. First measurement under
   benchmark protocol v3: verse-lookup exact accuracy **58% → 76.5%** vs. the v1 model, citation
