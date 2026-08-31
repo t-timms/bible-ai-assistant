@@ -30,7 +30,7 @@ for what's next. Narrative status: `docs/PROJECT_STATUS_AND_GOALS.md`; full deta
    98.9% distillation keep-rate, zero eval overlap. `config.v3-4b.yaml` added. `thematic_qa`
    deferred (needs the RAG retriever). `docs/V3_STATUS.md` / `docs/V3_DATASET_PLAN.md`.
 4. [ ] **SFT on v3** (4B first, `training/config.v3-4b.yaml`) → **GRPO** (`training/train_grpo.py`, verifiable citation reward) — the stage meant to clear the ≥85 % verse-accuracy bar and fix the thematic-synthesis regression. Needs a `--max-steps 2` GRPO smoke first.
-5. [ ] **Re-eval** protocol v3 + FMG-Bench / FaithBench calibration. Escalate to 9B (`config.v2-9b.yaml`) **only** on a measured shortfall.
+5. [ ] **Re-eval** protocol v3 + FMG-Bench calibration (`scripts/fmg_bench.py`). Escalate to 9B (`config.v2-9b.yaml`) **only** on a measured shortfall.
 6. [ ] `rag_server.py` **commentary-retrieval path** (so `grounded_exegesis` training matches inference — else it's the F-2/F-3 format mismatch).
 7. [ ] **Retrieval upgrade** — embedder stronger than `nomic-embed-text-v1.5`; then **constrained verse-reference decoding** (trie on the citation span; mind the alignment tax, arXiv 2604.06066).
 8. [ ] **Ornith GGUF backfill** — feasible: convert the *non-MTP-stripped* pruned bf16 (or the with-MTP variant); `unsloth/Qwen3.5-35B-A3B-GGUF` proves `qwen3_5_moe` GGUF works upstream.
@@ -38,7 +38,7 @@ for what's next. Narrative status: `docs/PROJECT_STATUS_AND_GOALS.md`; full deta
 
 ### Deferred / blocked
 - [ ] **vLLM** — `Qwen3_5ForCausalLM` registered locally but `UVA is not available` under WSL2 (0.26.0 `GPUModelRunnerV2`). Eval ran through `scripts/_tf_openai_server.py` instead.
-- External-benchmark adapters — [FMG-Bench](https://github.com/FideAI/fmg-bench) (120 scenarios, code), [FaithBench](https://faithbench.com/) (300+, held-out). Honest calibration, not win targets — they test theological *reasoning*, a harder/different task than RAG verse-citation. (Wired in at step 5.)
+- External-benchmark adapter — [FMG-Bench](https://github.com/FideAI/fmg-bench) (120 scenarios + 37 perturbations, open, CC-BY-4.0): **done** — `scripts/fmg_bench.py` (`--dry-run` offline; real run needs a served model + judge). Honest calibration, not a win target — it tests theological triage/comparison/escalation, a harder/different task than RAG verse-citation. Run at step 5. [FaithBench](https://faithbench.com/) (the Christian-theology site) is **not usable** — leaderboard-only research preview, no public dataset, linked repo 404s (2026-08-31); watch for a data release.
 
 ---
 

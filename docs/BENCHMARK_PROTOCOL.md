@@ -43,6 +43,34 @@ python training/evaluate.py --protocol-id bible_assistant_baseline_v3 --ollama-m
 python training/evaluate.py --judge --protocol-id bible_assistant_baseline_v3 --ollama-model bible-assistant-orpo --model-tag orpo-q4
 ```
 
+## External calibration — FMG-Bench
+
+`scripts/fmg_bench.py` runs the **Faith & Moral Guidance Benchmark** (`FideAI/fmg-bench`,
+CC-BY-4.0, arXiv 2608.12324) — 120 base scenarios + 37 perturbations, rubric + per-scenario
+dimension weights, **no hidden-test leaderboard** (fully self-scorable). It measures a
+*different* task than this project's suite: theological triage, tradition-aware comparison,
+preference fidelity, grounding discipline, and escalation boundaries. **Report it as honest
+calibration, never as a pass/fail gate** — scores are not comparable to the protocol-v3
+verse-citation numbers.
+
+```bash
+# offline: validates the whole pipeline with a stub judge, no model calls
+python scripts/fmg_bench.py --dry-run --with-perturbations --out /tmp/fmg_dry.json
+
+# real run (needs a served model + a judge, i.e. GPU)
+python scripts/fmg_bench.py --with-perturbations --label bible-v3 \
+    --model-url http://localhost:8081/v1/chat/completions --model bible-v3 \
+    --judge-url http://127.0.0.1:11434/v1/chat/completions --judge-model qwen3:8b
+```
+
+Output JSON (in `docs/benchmark_runs/`) records the dataset sha256 + revision and reports:
+weighted overall mean, per-dimension means, escalation recall + false-escalation rate
+(Wilson 95% CIs), disallowed-failure-mode rate, and breakdowns by `family` / `triage_level`.
+
+FaithBench (faithbench.com, the Christian-theology site — not the Vectara summarization
+benchmark) is **not wired in**: research-preview leaderboard only, no public dataset, linked
+repo 404s as of 2026-08-31. Revisit if a dataset is released.
+
 ## Evolving the benchmark (as you improve)
 
 | Change | Action |
@@ -77,3 +105,4 @@ python scripts/compare_benchmark_runs.py docs/benchmark_runs/20260320_orpo-q4_ju
 | `scripts/run_benchmark.py` | Writes timestamped JSON under `docs/benchmark_runs/` |
 | `scripts/compare_benchmark_runs.py` | Side-by-side A/B summary |
 | `training/evaluate.py` | Core runner (`--ollama-model`, `--protocol-id`) |
+| `scripts/fmg_bench.py` | FMG-Bench external-calibration adapter (`--dry-run` offline; real run needs a served model + judge) |

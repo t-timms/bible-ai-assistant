@@ -7,6 +7,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [Unreleased]
 
 ### Added
+- **FMG-Bench external-calibration adapter (2026-08-31)** — `scripts/fmg_bench.py` runs the
+  open Faith & Moral Guidance Benchmark (`FideAI/fmg-bench`, CC-BY-4.0, 120 scenarios + 37
+  perturbations, no hidden-test leaderboard). Fetch → generate → rubric LLM-judge → weighted
+  per-dimension scores + escalation recall/false-escalation (Wilson CIs) + disallowed-failure
+  rate, broken down by family/triage; run JSON records the dataset sha256. `--dry-run` (stub
+  judge) validates the whole pipeline offline; a real run needs a served model + judge.
+  Reported as honest calibration, **not** a pass/fail gate — it tests a different task than
+  the protocol-v3 verse-citation suite. +8 tests. Docs corrected: **FaithBench**
+  (faithbench.com, the Christian-theology site) is *not* usable — leaderboard-only research
+  preview, no public dataset, linked repo 404s — removed from the "wire in" plan across
+  ROADMAP / MODEL_CARD / V2_EXECUTION_PLAN / V3_DATASET_PLAN / PROJECT_STATUS_AND_GOALS.
 - **v3 dataset pipeline + `train_v3.json` (2026-08-31)** — teacher-distilled answers replace the
   templated ones that regressed v2's open-ended quality. `training/build_v3_inputs.py` emits
   16,995 `(context, question)` inputs from the four templated-answer generators;

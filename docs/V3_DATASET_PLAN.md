@@ -107,7 +107,9 @@ will actually see.
 6. **GRPO**: `training/train_grpo.py` (scaffold ready — reward = citation_exists +
    text_match + format) starting from the v3 SFT adapter. This is the stage that
    pushes past the 85% bar.
-7. Eval: protocol v3 + **FMG-Bench** + **FaithBench** (calibration, not win targets).
+7. Eval: protocol v3 + **FMG-Bench** (`scripts/fmg_bench.py`; open, 120+37, self-scored)
+   as calibration, not a win target. (FaithBench — the Christian-theology site — has no
+   public dataset yet; not wired in.)
 
 ## Acceptance criteria (the bar)
 
@@ -119,7 +121,7 @@ the identical run:
 - `verse_lookup` exact: **hold ≥ 74%** (don't trade recall away).
 - overall citation rate: **hold ≥ 97%**; hallucination: **≤ 2.5%**.
 - overall fuzzy mean: **≥ 0.52** (beat both v1's 0.48 and v2's 0.40).
-- FMG-Bench / FaithBench: report the number; no regression vs. a same-size baseline.
+- FMG-Bench: report the number; no regression vs. a same-size baseline. Not a pass/fail gate.
 
 If 4B stalls on `thematic_qa` after GRPO → escalate to `config.v2-9b.yaml` (QLoRA),
 per the base-model decision in `docs/V2_EXECUTION_PLAN.md`.

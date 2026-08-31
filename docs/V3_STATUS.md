@@ -70,8 +70,8 @@ python training/train_unsloth.py --config training/config.v3-4b.yaml \
 # for A/B comparability with v2-4b.
 
 # 2. merge -> GGUF (convert_hf_to_gguf.py --no-mtp) -> GRPO (training/train_grpo.py,
-#    citation reward, --max-steps 2 smoke first) -> eval protocol-v3 + FMG-Bench +
-#    FaithBench -> publish v3.
+#    citation reward, --max-steps 2 smoke first) -> eval protocol-v3 + FMG-Bench
+#    (scripts/fmg_bench.py) -> publish v3.
 ```
 
 ## Acceptance bar (from `docs/V3_DATASET_PLAN.md`)
@@ -80,3 +80,5 @@ Measured on the 282-question v3 suite, greedy, 3 seeds, vs. the v2-4b checkpoint
 `topical`/`context`/`character` fuzzy ≥ v1's numbers **and** ≥ v2 + 0.10;
 `verse_lookup` exact ≥ 74%; citation ≥ 97%; hallucination ≤ 2.5%;
 overall fuzzy mean ≥ 0.52 (beats v1's 0.48 and v2's 0.40).
+Plus FMG-Bench (`scripts/fmg_bench.py`) reported as calibration — no regression
+vs. a same-size baseline; not a pass/fail gate.

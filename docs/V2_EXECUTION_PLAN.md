@@ -33,11 +33,19 @@ Yes, with three adjustments. Sources in the PR description; key points:
 1. **Pipeline** — SFT (QLoRA/Unsloth) → preference (ORPO) → **GRPO when the reward is
    verifiable** is the 2026-standard flow. This project's reward *is* fully verifiable
    (verse exists? quote matches?), so the RL stage is well-motivated.
-2. **External benchmarks now exist** — [FMG-Bench](https://github.com/FideAI/fmg-bench)
-   (120 scenarios, code, arXiv 2608.12324) and [FaithBench](https://faithbench.com/) (300+,
-   held-out, version-controlled). Wire them in as **honest external calibration**, not win
-   targets — they test theological *reasoning* / tradition-awareness, a harder and
-   different task than RAG verse-citation. Expect modest scores; report them anyway.
+2. **One usable external benchmark exists.** [FMG-Bench](https://github.com/FideAI/fmg-bench)
+   (Faith & Moral Guidance Benchmark, `FideAI/fmg-bench`, CC-BY-4.0, arXiv 2608.12324) is
+   fully open — 120 base scenarios + 37 perturbations, rubric + weights per scenario, **no
+   hidden-test leaderboard** — so it is self-scorable. Adapter: `scripts/fmg_bench.py`
+   (`--dry-run` validates the pipeline offline; a real run needs a served model + judge).
+   Wire it in as **honest external calibration**, not a win target — it tests theological
+   triage / tradition-aware comparison / escalation, a harder and different task than RAG
+   verse-citation. Expect modest scores; report them anyway.
+   [FaithBench](https://faithbench.com/) (faithbench.com, the *Christian-theology* one, not
+   the Vectara summarization benchmark of the same name) is **not usable**: research-preview
+   website with a leaderboard only, no public dataset, and its linked repo
+   `github.com/faithbench/faithbench` 404s (checked 2026-08-31). Same status as TGC's AI
+   Christian Benchmark — watch for a public data release, don't plan around it.
 3. **Guard against reasoning collapse** — Unsloth's own guidance: keep ≥20–25%
    general/reasoning/refusal data or Qwen3 loses reasoning. The v2 corpus is verse-recall
    heavy. Verify the mix ratio in `train_v2.manifest.json` before launching; lean on GRPO
@@ -78,7 +86,7 @@ Yes, with three adjustments. Sources in the PR description; key points:
 | B3 | GRPO smoke (`--max-steps 2`) → full GRPO on 9B-ORPO → eval v3 | reward curve rises; no KL blowup; eval improves |
 | B4 | Constrained-citation decoding (OUTLINES, citation span only) → eval v3 | hallucination ↓ with < 2 pt helpfulness cost |
 | B5 | 27B repeat of B1-B3 | only if 9B clears convincingly |
-| B6 | Publish | HF model card + GGUF, `scripts/leaderboard.py` table, FMG-Bench + FaithBench entries, README/MODEL_CARD updated with **measured** v3 numbers |
+| B6 | Publish | HF model card + GGUF, `scripts/leaderboard.py` table, FMG-Bench entry (`scripts/fmg_bench.py`), README/MODEL_CARD updated with **measured** v3 numbers |
 
 ## Non-negotiables
 
@@ -104,8 +112,8 @@ Yes, with three adjustments. Sources in the PR description; key points:
 **Base model — decision 2026-08-28: smallest-that-wins, 4B first.** This is a RAG-faithfulness
 task, and 2026 research is consistent that citation grounding + calibrated abstention are
 learnable in small models. Train **`Qwen/Qwen3.5-4B` bf16 LoRA** (fully unquantized — ~9.3 GB
-weights, ~10–13 GB peak train, F16 GGUF serves in ~8 GB), run the full v3 + FMG-Bench /
-FaithBench set, and **escalate to 9B QLoRA only on a measured shortfall** on a metric that
+weights, ~10–13 GB peak train, F16 GGUF serves in ~8 GB), run the full v3 + FMG-Bench,
+and **escalate to 9B QLoRA only on a measured shortfall** on a metric that
 matters (theological reasoning is the likely gap). The 9B probe stays validated as the fallback.
 `config.v2.yaml` is the 27B stretch, only if 9B clears convincingly. The Qwen3.5 dense line is
 **0.8 / 2 / 4 / 9 / 27B** (no 8B or 14B); Gemma 4 12B noted as a documented A/B alternative but
@@ -211,7 +219,7 @@ Merged onto `Qwen/Qwen3-4B` → `models/qwen3-4b-bible-v1-merged` for the baseli
    (Claude API vs local 27–32B; ~18–50k).
 3. **SFT on v3** (4B first), then **GRPO** (`training/train_grpo.py` scaffold exists) with the
    verifiable citation reward — the stage that should clear the ≥85 % verse-accuracy bar.
-4. Re-eval + FMG-Bench / FaithBench; escalate to 9B only on a measured shortfall.
+4. Re-eval + FMG-Bench (`scripts/fmg_bench.py`); escalate to 9B only on a measured shortfall.
 5. Retrieval upgrade (embedder stronger than `nomic-embed-text-v1.5`) + constrained
    verse-reference decoding.
 

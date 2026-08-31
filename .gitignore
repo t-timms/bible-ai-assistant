@@ -81,6 +81,9 @@ data/raw_v2/
 # V3 distillation intermediates (regenerable from build_v3_inputs.py + distill_answers.py)
 data/raw_v3/
 
+# External benchmark caches (re-fetched by their adapters; provenance in run JSONs)
+data/external/
+
 # Local editor / assistant config (developer-specific, not part of the project)
 CLAUDE.md
 AGENTS.md
