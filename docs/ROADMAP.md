@@ -22,20 +22,20 @@ for what's next. Narrative status: `docs/PROJECT_STATUS_AND_GOALS.md`; full deta
 ### ▶ Resume here (2026-08-29)
 
 1. [ ] **Commit + merge** branch `v2/dataset-full-upgrade-2026-08-28` (11 modified + untracked: `config.v2-4b.yaml`, `fetch_mhc_commentary.py`, `scripts/run_v2_4b_sft.sh`, `scripts/_tf_openai_server.py`, `scripts/_run_v3_eval.sh`, `docs/benchmark_runs/20260829_*`).
-2. [x] **v3 SFT + GRPO + protocol-v3 keyword eval (2026-09-01)** — v3-SFT: synthesis
-   categories up ~1.8×, citation 98%, hallucination 2%, quote recall held; but overall fuzzy
-   0.488 < 0.52 and `verse_lookup` exact 50% (an exposition-phrasing artifact). **GRPO inert**
-   (0/266 changed). Full analysis: `docs/V3_STATUS.md`.
-2b. [~] **Judge abandoned → protocol v4 (2026-09-02).** The `qwen3.5:27b` judge is infeasible
-   on 16 GB (333 s/call, past the 180 s timeout — both attempts died on Q1). Replaced with
-   **protocol v4** (`benchmarks/manifest.v4.yaml`): split `verse_lookup` → `verse_quote` /
-   `verse_exposition`, exposition scored by fuzzy not exact, overall fuzzy reported two ways.
-   `scripts/rescore_v4.py` + `scripts/exposition_sidebyside.py` (no GPU) produce the
-   ship-v3-SFT-vs-retrain decision numbers. Judge, if ever, = `qwen3:8b`, calibration-only.
-2c. [ ] **SOTA evaluation (`docs/SOTA_EVAL.md`)** — `scripts/run_external_baselines.sh`
-   (8 open comparators through the unchanged RAG stack, protocol v4) + `scripts/sota_scoreboard.py`.
-   Establishes/refutes "best open model at RAG-grounded scripture Q&A, size-independent"
-   + "SOTA for the 16 GB Blackwell class". GPU, ~3–4 h; run after the Path-D decision.
+2. [x] **v3 SFT + GRPO + eval; judge abandoned → protocol v4 (2026-09-01 / 09-02)**
+   - v3-SFT: synthesis categories up ~1.8×, citation 98%, hallucination 2%, quote recall
+     held; but overall fuzzy 0.488 < 0.52 and `verse_lookup` exact 50% (an exposition-phrasing
+     artifact). **GRPO inert** (0/266 changed). Full analysis: `docs/V3_STATUS.md`.
+   - The `qwen3.5:27b` judge is infeasible on 16 GB (333 s/call, past the 180 s timeout — both
+     attempts died on Q1). Replaced with **protocol v4** (`benchmarks/manifest.v4.yaml`): split
+     `verse_lookup` → `verse_quote` / `verse_exposition`, exposition scored by fuzzy not exact,
+     overall fuzzy reported two ways. `scripts/rescore_v4.py` + `scripts/exposition_sidebyside.py`
+     (no GPU) produce the ship-v3-SFT-vs-retrain decision numbers. Judge, if ever, = `qwen3:8b`,
+     calibration-only.
+   - **SOTA evaluation** (`docs/SOTA_EVAL.md`) — `scripts/run_external_baselines.sh` (8 open
+     comparators through the unchanged RAG stack, protocol v4) + `scripts/sota_scoreboard.py`.
+     Establishes/refutes "best open model at RAG-grounded scripture Q&A, size-independent" +
+     "SOTA for the 16 GB Blackwell class". GPU, ~3–4 h; run after the Path-D decision.
 3. [x] **Dataset v3 = teacher distillation (2026-08-31)** — `training/build_v3_inputs.py` +
    `training/distill_answers.py` (local Qwen3-14B Q5_K_M GGUF teacher via `llama-server`; vLLM
    dead on this box) + `training/assemble_v3.py` → **`data/processed/train_v3.json`, 39,463
