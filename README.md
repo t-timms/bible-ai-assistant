@@ -4,8 +4,8 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![Model](https://img.shields.io/badge/HF-Bible--Assistant--Qwen3.5--4B--v2-orange?style=flat-square&logo=huggingface)](https://huggingface.co/Ttimms/Bible-Assistant-Qwen3.5-4B-v2)
 [![GGUF](https://img.shields.io/badge/HF-v2--GGUF-orange?style=flat-square&logo=huggingface)](https://huggingface.co/Ttimms/Bible-Assistant-Qwen3.5-4B-v2-GGUF)
-[![W&B](https://img.shields.io/badge/W%26B-34_runs-yellow?style=flat-square&logo=weightsandbiases)](https://wandb.ai/)
-[![Tests](https://img.shields.io/badge/tests-430_passing-brightgreen?style=flat-square)]()
+![W&B](https://img.shields.io/badge/W%26B-34_runs-yellow?style=flat-square&logo=weightsandbiases)
+[![Tests](https://img.shields.io/badge/tests-430_passing-brightgreen?style=flat-square)](https://github.com/t-timms/bible-ai-assistant/actions/workflows/ci.yml)
 [![Ruff](https://img.shields.io/badge/code%20style-ruff-black?style=flat-square&logo=ruff)](https://docs.astral.sh/ruff/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 
@@ -52,7 +52,7 @@ graph TD
         Pinned["Pinned verse refs + topical anchors"]
     end
 
-    subgraph LLM ["Ollama (port 11434)"]
+    subgraph LLM ["Local LLM server · port 11434 (llama.cpp now; Ollama once its runtime supports qwen35)"]
         Model["Bible-Assistant-Qwen3.5-4B-v2 (Qwen3.5-4B SFT · safetensors / GGUF)"]
     end
 
