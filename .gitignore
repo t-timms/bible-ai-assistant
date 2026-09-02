@@ -99,5 +99,6 @@ AGENTS.md
 .venv-rag/
 .venv*/
 checkpoints_v2*/
+checkpoints_v3*/
 logs/
 models/

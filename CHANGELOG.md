@@ -7,6 +7,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [Unreleased]
 
 ### Added
+- **Benchmark protocol v4 + SOTA evaluation track (2026-09-02)** —
+  `benchmarks/manifest.v4.yaml` (`bible_assistant_baseline_v4`) splits the single
+  `verse_lookup` category into `verse_quote` (66 Qs — "What does X say?", "Quote X") and
+  `verse_exposition` (36 Qs — "What does X teach?", "What is X about?"); deterministic rule,
+  same 282 questions, produced by `scripts/make_v4_suite.py` →
+  `benchmarks/suites/evaluation_questions.v3.json` (sha-pinned). `verse_exposition`'s headline
+  metric is fuzzy pass-rate, not exact-match (an explanation of a verse is a pass at
+  exact-match 0 — same reasoning protocol v3 applied to `refusal`); overall fuzzy mean is
+  reported **all-in and exposition-excluded**. `scripts/rescore_v4.py` moves an existing
+  protocol-v3 keyword run to v4 with no re-generation (deterministic re-bucket, aggregation
+  reused from `evaluate.py`); `scripts/exposition_sidebyside.py` dumps the 36 exposition items
+  v2-vs-v3 for a manual read.
+  - **SOTA track — `docs/SOTA_EVAL.md`**: `benchmarks/external_comparators.yaml` (8 open
+    comparators — `sleepdeprived3/Christian-Bible-Expert` 8B/12B, `nbeerbower/llama-3-bible-dpo-8B`,
+    `Phora68/bible-study-phi3-mini`, `rhemabible/BibleAI`, Qwen3-8B/14B/32B instruct) run through
+    the **unchanged** RAG stack on the v4 suite via `scripts/run_external_baselines.sh` +
+    `scripts/_run_ext_eval.sh`; `scripts/sota_scoreboard.py` builds the ranked head-to-head
+    (Wilson CIs, paired McNemar vs. our best) and a **scoped verdict** — "best *open* model at
+    RAG-grounded scripture Q&A, size-independent" + "SOTA for the 16 GB Blackwell class", never
+    a frontier / unconstrained-hardware claim.
+- **LLM-judge on 16 GB: `qwen3.5:27b` is infeasible (measured, 2026-09-02)** — the v3 default
+  judge (Q4_K_M, ~17 GB) does not fit the 16 GB VRAM budget, CPU-offloads, and one rubric call
+  measured **333.7 s** on an idle GPU — past `evaluate.py`'s 180 s HTTP timeout, which is why
+  the 2026-09-01 and 2026-09-02 judge runs both failed on question 1. Protocol-v4 judge runs
+  (if any) use `qwen3:8b` and are calibration-only, not a gate. Recorded in
+  `benchmarks/manifest.v4.yaml` and `docs/BENCHMARK_PROTOCOL.md`.
 - **FMG-Bench external-calibration adapter (2026-08-31)** — `scripts/fmg_bench.py` runs the
   open Faith & Moral Guidance Benchmark (`FideAI/fmg-bench`, CC-BY-4.0, 120 scenarios + 37
   perturbations, no hidden-test leaderboard). Fetch → generate → rubric LLM-judge → weighted
