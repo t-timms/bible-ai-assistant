@@ -107,21 +107,32 @@ will actually see.
 6. **GRPO**: `training/train_grpo.py` (scaffold ready — reward = citation_exists +
    text_match + format) starting from the v3 SFT adapter. This is the stage that
    pushes past the 85% bar.
-7. Eval: protocol v3 + **FMG-Bench** (`scripts/fmg_bench.py`; open, 120+37, self-scored)
-   as calibration, not a win target. (FaithBench — the Christian-theology site — has no
-   public dataset yet; not wired in.)
+7. Eval: **protocol v4** + **FMG-Bench** (`scripts/fmg_bench.py`; open, 120+37, self-scored)
+   as calibration, not a win target + the **SOTA board** (`scripts/sota_scoreboard.py`,
+   `docs/SOTA_EVAL.md`). (FaithBench — the Christian-theology site — has no public dataset
+   yet; not wired in.)
 
 ## Acceptance criteria (the bar)
 
-Measured on the 282-question v3 suite, greedy, 3 seeds, vs. the v2-4b checkpoint on
-the identical run:
+Measured on the 282-question v4 suite, greedy, 3 seeds, vs. the v2-4b checkpoint on
+the identical run. **Protocol v4 note (2026-09-02):** `verse_lookup` is split into
+`verse_quote` (exact-match, the real recall metric) and `verse_exposition` (fuzzy —
+exact-match is wrong for "explain this verse" questions); overall fuzzy mean is
+reported all-in **and** exposition-excluded. The 27B judge is infeasible on 16 GB so
+"judge ≥ v2" is dropped from the bar; a manual read of the 36 `verse_exposition` items
+(`scripts/exposition_sidebyside.py`) replaces it.
 
 - `topical` / `context` / `character` fuzzy: **v3 ≥ v1's** numbers (0.35 / 0.40 /
   0.36) — i.e. recover everything v2 lost — **and** ≥ v2 + 0.10.
-- `verse_lookup` exact: **hold ≥ 74%** (don't trade recall away).
+- `verse_quote` exact: **hold ≥ 74%** (don't trade recall away). *(was `verse_lookup` exact)*
+- `verse_exposition`: fuzzy pass-rate reported; judged by the manual read, not a fixed threshold.
 - overall citation rate: **hold ≥ 97%**; hallucination: **≤ 2.5%**.
-- overall fuzzy mean: **≥ 0.52** (beat both v1's 0.48 and v2's 0.40).
+- overall fuzzy mean (**exposition-excluded**): **≥ 0.52** (beat both v1's 0.48 and v2's 0.40).
+  All-in is reported alongside but the exposition-excluded number is the bar (an accurate
+  prose explanation should not count against the headline just for missing exact-match).
 - FMG-Bench: report the number; no regression vs. a same-size baseline. Not a pass/fail gate.
+- SOTA board: our best ranks #1 among open models on the headline metric while meeting the
+  citation/hallucination gates → the scoped "best open at the task" claim holds.
 
 If 4B stalls on `thematic_qa` after GRPO → escalate to `config.v2-9b.yaml` (QLoRA),
 per the base-model decision in `docs/V2_EXECUTION_PLAN.md`.

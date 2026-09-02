@@ -281,9 +281,11 @@ def main() -> None:
         return
 
     # ---- real training path (bible-orpo env) ----
+    # unsloth MUST import before trl/transformers/peft: it patches TRL (incl. the
+    # optional-dep import chain in trl.trainer.callbacks) and applies its kernels.
+    from unsloth import FastLanguageModel
     import torch  # noqa: F401
     from trl import GRPOConfig, GRPOTrainer
-    from unsloth import FastLanguageModel
 
     model, tokenizer = FastLanguageModel.from_pretrained(
         model_name=args.policy_path,

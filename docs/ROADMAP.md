@@ -22,7 +22,20 @@ for what's next. Narrative status: `docs/PROJECT_STATUS_AND_GOALS.md`; full deta
 ### ▶ Resume here (2026-08-29)
 
 1. [ ] **Commit + merge** branch `v2/dataset-full-upgrade-2026-08-28` (11 modified + untracked: `config.v2-4b.yaml`, `fetch_mhc_commentary.py`, `scripts/run_v2_4b_sft.sh`, `scripts/_tf_openai_server.py`, `scripts/_run_v3_eval.sh`, `docs/benchmark_runs/20260829_*`).
-2. [ ] **Judge re-score** v2 + v1 under protocol v3 with `--judge` (judge model `qwen3:8b` is pulled) — the keyword `verse_accuracy` scores 0 on synthesis questions with no canonical verse; the judge gives them a fair score.
+2. [x] **v3 SFT + GRPO + protocol-v3 keyword eval (2026-09-01)** — v3-SFT: synthesis
+   categories up ~1.8×, citation 98%, hallucination 2%, quote recall held; but overall fuzzy
+   0.488 < 0.52 and `verse_lookup` exact 50% (an exposition-phrasing artifact). **GRPO inert**
+   (0/266 changed). Full analysis: `docs/V3_STATUS.md`.
+2b. [~] **Judge abandoned → protocol v4 (2026-09-02).** The `qwen3.5:27b` judge is infeasible
+   on 16 GB (333 s/call, past the 180 s timeout — both attempts died on Q1). Replaced with
+   **protocol v4** (`benchmarks/manifest.v4.yaml`): split `verse_lookup` → `verse_quote` /
+   `verse_exposition`, exposition scored by fuzzy not exact, overall fuzzy reported two ways.
+   `scripts/rescore_v4.py` + `scripts/exposition_sidebyside.py` (no GPU) produce the
+   ship-v3-SFT-vs-retrain decision numbers. Judge, if ever, = `qwen3:8b`, calibration-only.
+2c. [ ] **SOTA evaluation (`docs/SOTA_EVAL.md`)** — `scripts/run_external_baselines.sh`
+   (8 open comparators through the unchanged RAG stack, protocol v4) + `scripts/sota_scoreboard.py`.
+   Establishes/refutes "best open model at RAG-grounded scripture Q&A, size-independent"
+   + "SOTA for the 16 GB Blackwell class". GPU, ~3–4 h; run after the Path-D decision.
 3. [x] **Dataset v3 = teacher distillation (2026-08-31)** — `training/build_v3_inputs.py` +
    `training/distill_answers.py` (local Qwen3-14B Q5_K_M GGUF teacher via `llama-server`; vLLM
    dead on this box) + `training/assemble_v3.py` → **`data/processed/train_v3.json`, 39,463
@@ -30,7 +43,8 @@ for what's next. Narrative status: `docs/PROJECT_STATUS_AND_GOALS.md`; full deta
    98.9% distillation keep-rate, zero eval overlap. `config.v3-4b.yaml` added. `thematic_qa`
    deferred (needs the RAG retriever). `docs/V3_STATUS.md` / `docs/V3_DATASET_PLAN.md`.
 4. [ ] **SFT on v3** (4B first, `training/config.v3-4b.yaml`) → **GRPO** (`training/train_grpo.py`, verifiable citation reward) — the stage meant to clear the ≥85 % verse-accuracy bar and fix the thematic-synthesis regression. Needs a `--max-steps 2` GRPO smoke first.
-5. [ ] **Re-eval** protocol v3 + FMG-Bench calibration (`scripts/fmg_bench.py`). Escalate to 9B (`config.v2-9b.yaml`) **only** on a measured shortfall.
+5. [ ] **Re-eval** protocol v4 + FMG-Bench calibration (`scripts/fmg_bench.py`) + the SOTA
+   board (`scripts/sota_scoreboard.py`). Escalate to 9B (`config.v2-9b.yaml`) **only** on a measured shortfall.
 6. [ ] `rag_server.py` **commentary-retrieval path** (so `grounded_exegesis` training matches inference — else it's the F-2/F-3 format mismatch).
 7. [ ] **Retrieval upgrade** — embedder stronger than `nomic-embed-text-v1.5`; then **constrained verse-reference decoding** (trie on the citation span; mind the alignment tax, arXiv 2604.06066).
 8. [ ] **Ornith GGUF backfill** — feasible: convert the *non-MTP-stripped* pruned bf16 (or the with-MTP variant); `unsloth/Qwen3.5-35B-A3B-GGUF` proves `qwen3_5_moe` GGUF works upstream.

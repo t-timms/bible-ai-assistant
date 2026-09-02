@@ -1,5 +1,11 @@
 # Model Comparison
 
+> **Protocol note (2026-09-02):** the current protocol is **v4** — `verse_lookup` split into
+> `verse_quote` / `verse_exposition`, judge dropped to calibration-only. The head-to-head
+> against external open comparators (the "best open model at the task" claim) lives in
+> [`docs/SOTA_EVAL.md`](SOTA_EVAL.md). The sections below are the v1→v2→v3 internal history,
+> measured under protocol v3.
+
 ## Latest: v2-4b (Qwen3.5-4B, 56k SFT) vs. v1 shipped model — protocol v3, 2026-08-29
 
 First measurement under **protocol v3** (`bible_assistant_baseline_v3`, 282 questions,
