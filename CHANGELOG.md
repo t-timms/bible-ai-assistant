@@ -131,6 +131,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- **RAG retrieval matched verse *reference* tokens, not meaning, for exposition questions
+  (2026-09-03)** — "What does X teach?" / "What is X about?" queries passed the bare
+  `Book chap:verse` string to dense + BM25, so verse-number coincidences
+  ("1 Chronicles 9:17" → "2 Chronicles 17:9") outranked thematic neighbours (found while
+  hand-reading the `verse_exposition` category; see `docs/CODEBASE_AUDIT.md`). Now
+  `rag/helpers._extract_exposition_verse_ref` detects the pattern, `rag/rag_server` pins the
+  named verse and passes its **text** as a `search_query` override to
+  `rag/retrieval._retrieve_entries` (new optional arg; the cross-encoder rerank still scores
+  against the raw question). +10 tests (**476 total**). This changes retrieval output for the
+  exposition category, so protocol-v4 numbers dated 2026-09-02/03 pre-date it — a re-eval is
+  needed to measure the gain.
 - **SFT/inference prompt-format skew** — bulk of SFT data trained a format that never occurred at inference; unified via shared `prompt_format.py`
 - **Train/eval contamination** — ~100+ verbatim duplicates between training pools and eval suite identified and decontaminated
 - **`verify_citations` crash** — unguarded call in response path could 500 after generation succeeded

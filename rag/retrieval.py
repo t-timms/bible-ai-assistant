@@ -449,6 +449,7 @@ async def _retrieve_entries(
     user_message: str,
     top_k: int = 5,
     pin_refs: list[str] | None = None,
+    search_query: str | None = None,
 ) -> list[tuple[str, str]]:
     """Hybrid retrieval: Dense + BM25 -> RRF -> Rerank -> (ref, text) entries.
 
@@ -456,8 +457,17 @@ async def _retrieve_entries(
     dropped when hybrid search ranks other verses higher. Pinned entries are
     protected from the settings.context_max_chars budget; lowest-ranked unpinned
     entries are skipped first when the budget is exhausted.
+
+    search_query: when given, dense + BM25 candidate retrieval run against this
+    string instead of `user_message` (the cross-encoder rerank still scores
+    against `user_message`). Used for exposition questions — searching with the
+    verse's own text finds thematic neighbours, whereas the bare "Book chap:verse"
+    reference in the raw question retrieves verse-number coincidences.
     """
 
+    retrieval_query = (
+        search_query.strip() if search_query and search_query.strip() else user_message
+    )
     pin_refs = _merge_pin_order(pin_refs or [])
     pinned = _fetch_verses_by_refs(pin_refs)
     pinned_ids = {vid for vid, _ in pinned}
@@ -499,14 +509,14 @@ async def _retrieve_entries(
         loop.run_in_executor(
             _dense_executor,
             _dense_search,
-            user_message,
+            retrieval_query,
             verse_collection,
             embedder,
             settings.hybrid_candidates,
         ),
         timeout=settings.chroma_query_timeout_seconds,
     )
-    bm25_task = asyncio.to_thread(_bm25_search, user_message, settings.hybrid_candidates)
+    bm25_task = asyncio.to_thread(_bm25_search, retrieval_query, settings.hybrid_candidates)
     dense_outcome, bm25_outcome = await asyncio.gather(
         dense_task, bm25_task, return_exceptions=True
     )
@@ -594,7 +604,10 @@ async def _retrieve(
     user_message: str,
     top_k: int = 5,
     pin_refs: list[str] | None = None,
+    search_query: str | None = None,
 ) -> str:
     """Backward-compatible wrapper: hybrid retrieval as a formatted context string."""
-    entries = await _retrieve_entries(user_message, top_k=top_k, pin_refs=pin_refs)
+    entries = await _retrieve_entries(
+        user_message, top_k=top_k, pin_refs=pin_refs, search_query=search_query
+    )
     return "\n".join(format_context_entry(ref, text) for ref, text in entries)
