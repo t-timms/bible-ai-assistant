@@ -36,19 +36,45 @@ for what's next. Narrative status: `docs/PROJECT_STATUS_AND_GOALS.md`; full deta
      comparators through the unchanged RAG stack, protocol v4) + `scripts/sota_scoreboard.py`.
      Establishes/refutes "best open model at RAG-grounded scripture Q&A, size-independent" +
      "SOTA for the 16 GB Blackwell class". GPU, ~3–4 h; run after the Path-D decision.
+   - **RESULT (2026-09-03), from `rescore_v4.py` + a manual read of all 36 exposition items:**
+     the `verse_lookup` "regression" is an **eval artifact** — `verse_quote` (real recall,
+     n=66) held at 77.3% vs. v2's 78.8% (McNemar p=0.50). Overall fuzzy expo-excluded 0.499
+     vs. v2's 0.391 — misses the round 0.52 bar by 0.021. Citation 97.7%, hallucination 1.5%
+     (bars held). v3-SFT better-or-tie on 34/36 exposition items; **one confident v3
+     hallucination (Genesis 19:28)**. **Recommendation: ship v3-SFT as v3** (see
+     `docs/V3_STATUS.md` "RESULT (2026-09-03)" for the all-CPU ship steps). GRPO still inert.
 3. [x] **Dataset v3 = teacher distillation (2026-08-31)** — `training/build_v3_inputs.py` +
    `training/distill_answers.py` (local Qwen3-14B Q5_K_M GGUF teacher via `llama-server`; vLLM
    dead on this box) + `training/assemble_v3.py` → **`data/processed/train_v3.json`, 39,463
    examples**, templated answers regenerated as synthesized cited prose, verse-drill cut ~60%,
    98.9% distillation keep-rate, zero eval overlap. `config.v3-4b.yaml` added. `thematic_qa`
    deferred (needs the RAG retriever). `docs/V3_STATUS.md` / `docs/V3_DATASET_PLAN.md`.
-4. [ ] **SFT on v3** (4B first, `training/config.v3-4b.yaml`) → **GRPO** (`training/train_grpo.py`, verifiable citation reward) — the stage meant to clear the ≥85 % verse-accuracy bar and fix the thematic-synthesis regression. Needs a `--max-steps 2` GRPO smoke first.
-5. [ ] **Re-eval** protocol v4 + FMG-Bench calibration (`scripts/fmg_bench.py`) + the SOTA
-   board (`scripts/sota_scoreboard.py`). Escalate to 9B (`config.v2-9b.yaml`) **only** on a measured shortfall.
-6. [ ] `rag_server.py` **commentary-retrieval path** (so `grounded_exegesis` training matches inference — else it's the F-2/F-3 format mismatch).
-7. [ ] **Retrieval upgrade** — embedder stronger than `nomic-embed-text-v1.5`; then **constrained verse-reference decoding** (trie on the citation span; mind the alignment tax, arXiv 2604.06066).
-8. [ ] **Ornith GGUF backfill** — feasible: convert the *non-MTP-stripped* pruned bf16 (or the with-MTP variant); `unsloth/Qwen3.5-35B-A3B-GGUF` proves `qwen3_5_moe` GGUF works upstream.
-9. [ ] *(optional)* `microsoft/WSL#41361` — the fresh llama.cpp build (`3173a56`) is the commit the maintainer asked for; do a deliberate long-run hang repro + call stack if reopening.
+4. [x] **SFT on v3** (`training/config.v3-4b.yaml`), 2026-09-01 — 2,447 steps, eval_loss 0.568→0.49,
+   adapter merged → `models/qwen3.5-4b-bible-v3-merged`. GRPO 150-step probe ran and was **inert**
+   (0/266 changed); not shipped. See `docs/V3_STATUS.md`.
+5. [ ] **Ship v3-SFT as v3** (all CPU) — `merge_adapters.py` (done) → `convert_hf_to_gguf.py --no-mtp`
+   → `llama-quantize` ladder (Q4_K_M/Q5_K_M/Q6_K/Q8_0 + imatrix) → publish
+   `Ttimms/Bible-Assistant-Qwen3.5-4B-v3` + `-v3-GGUF` (HF push needs the owner's token) → add
+   the `## Architecture` mermaid to the new cards → bump README / MODEL_CARD / MODEL_COMPARISON to v3.
+6. [ ] **Fix `rag/retrieval.py` reference-token matching** (GPU-free, highest-leverage on the
+   `verse_exposition` category) — for "What is X about?" questions the hybrid retriever returns
+   verse-*number* coincidences ("1 Chronicles 9:17" → "2 Chronicles 17:9") instead of thematic
+   neighbours, feeding both v2 and v3 poor context (see `docs/CODEBASE_AUDIT.md`). Down-weight
+   or strip bare `book chap:verse` tokens from the sparse/dense query for non-lookup intents;
+   re-score the exposition category after.
+7. [ ] **v3.1 — the SOTA push** (GPU, only after 6): (a) add quote-first exposition templates
+   (`"{ref} reads: "{verbatim}". [1–2 sentence explanation]"`) to the verse-drill generators;
+   (b) add a small hallucination-hardening set (decline-when-context-missing, and the
+   Genesis-19:28 class of misattribution); (c) re-SFT; (d) re-eval protocol v4 + the SOTA board.
+   Acceptance: overall fuzzy expo-excl ≥ 0.52, hallucination ≤ 1.0% (tighter than v2's 2.3%),
+   and **rank #1 among open models on `docs/SOTA_EVAL.md`** on closeness-to-expected while
+   meeting the citation/hallucination gates.
+8. [ ] **Run the SOTA board** — `scripts/run_external_baselines.sh` + `scripts/sota_scoreboard.py`
+   (GPU, ~3–4 h) — fills `docs/SOTA_EVAL.md`'s 8 pending comparators. Run once v3 ships, then again after v3.1.
+9. [ ] `rag_server.py` **commentary-retrieval path** (so `grounded_exegesis` training matches inference — else it's the F-2/F-3 format mismatch).
+10. [ ] **Retrieval upgrade** — embedder stronger than `nomic-embed-text-v1.5`; then **constrained verse-reference decoding** (trie on the citation span; mind the alignment tax, arXiv 2604.06066).
+11. [ ] **Ornith GGUF backfill** — feasible: convert the *non-MTP-stripped* pruned bf16 (or the with-MTP variant); `unsloth/Qwen3.5-35B-A3B-GGUF` proves `qwen3_5_moe` GGUF works upstream.
+12. [ ] *(optional)* `microsoft/WSL#41361` — the fresh llama.cpp build (`3173a56`) is the commit the maintainer asked for; do a deliberate long-run hang repro + call stack if reopening.
 
 ### Deferred / blocked
 - [ ] **vLLM** — `Qwen3_5ForCausalLM` registered locally but `UVA is not available` under WSL2 (0.26.0 `GPUModelRunnerV2`). Eval ran through `scripts/_tf_openai_server.py` instead.

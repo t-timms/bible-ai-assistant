@@ -6,7 +6,41 @@
 > [`docs/SOTA_EVAL.md`](SOTA_EVAL.md). The sections below are the v1→v2→v3 internal history,
 > measured under protocol v3.
 
-## Latest: v2-4b (Qwen3.5-4B, 56k SFT) vs. v1 shipped model — protocol v3, 2026-08-29
+## Latest: v3-SFT vs. v2-4b — protocol v4 rescore, 2026-09-03
+
+Re-scored from the 2026-09-01 protocol-v3 keyword runs (`scripts/rescore_v4.py`; no model
+re-run) — the `verse_lookup` category split into `verse_quote` (66, verbatim recall) and
+`verse_exposition` (36, explanation expected). Raw:
+`docs/benchmark_runs/20260902_{v2-4b,v3-sft,v3-grpo}_v4keyword.json`; per-item exposition
+read: `docs/benchmark_runs/20260902_exposition_v2_vs_v3.md`.
+
+| metric (protocol v4) | v2-4b | v3-SFT | v3-GRPO | bar |
+|---|--:|--:|--:|--:|
+| **verse_quote** exact (n=66 — the real recall metric) | 78.8% | **77.3%** | 77.3% | ≥74% ✓ |
+| verse_quote vs. v2, McNemar | — | p=0.50 (held) | — | — |
+| verse_exposition fuzzy mean (n=36) | 0.427 | 0.418 | 0.418 | — (tie) |
+| verse_exposition exact (non-primary) | 72.2% | 1.4% | 0.0% | — |
+| overall fuzzy mean, **exposition-excluded** (n=230) | 0.391 | **0.499** | 0.498 | ≥0.52 ✗ (−0.021) |
+| overall fuzzy mean, all-in (n=266) | 0.396 | 0.488 | 0.487 | ≥0.52 ✗ |
+| citation rate | 98.9% | 97.7% | 98.1% | ≥97% ✓ |
+| hallucination rate | 2.3% | 1.5% | 1.9% | ≤2.5% ✓ |
+
+**The `verse_lookup` "50%" regression was an eval artifact.** Splitting the category shows
+scripture-quote recall held (77.3% vs. 78.8%, not significant); the drop was 26/36
+exposition-phrased questions where v2 "passed" exact-match by dumping the verbatim verse
+and v3 answers with a prose explanation instead. A manual read of all 36 has v3-SFT
+better-or-tie on **34/36** — but with **one confident v3 hallucination (Genesis 19:28)**,
+partly built on reference-token-matched retrieval noise (see `docs/CODEBASE_AUDIT.md`).
+**GRPO is inert** — `v3-grpo` equals `v3-sft` to three decimal places on every metric.
+
+**Recommendation: ship v3-SFT as v3.** Recall held, the real v2 regression (synthesis
+categories, ~1.8× on the 2026-09-01 protocol-v3 run) is fixed, exposition answers are
+genuinely better, citation and hallucination bars held. Overall fuzzy expo-excl 0.499
+beats v1 (0.48) and v2 (0.40); it misses the round 0.52 target by 0.021, and `manifest.v4`
+itself notes the fuzzy mean "is NOT an accuracy". Ship steps (all CPU) and the v3.1 SOTA
+plan: `docs/V3_STATUS.md` and `docs/ROADMAP.md` items 5–8.
+
+## v2-4b (Qwen3.5-4B, 56k SFT) vs. v1 shipped model — protocol v3, 2026-08-29
 
 First measurement under **protocol v3** (`bible_assistant_baseline_v3`, 282 questions,
 sha-pinned suite; keyword/verification metrics, no judge). Both models served via a local

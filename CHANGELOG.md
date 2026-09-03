@@ -7,6 +7,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [Unreleased]
 
 ### Added
+- **Protocol-v4 rescore result — v3-SFT recommended for release (2026-09-03)** —
+  ran `scripts/rescore_v4.py` + `scripts/exposition_sidebyside.py` + `scripts/sota_scoreboard.py`
+  (no GPU, no model re-run). Artifacts: `docs/benchmark_runs/20260902_{v2-4b,v3-sft,v3-grpo}_v4keyword.json`,
+  `docs/benchmark_runs/20260902_exposition_v2_vs_v3.md`, `docs/SOTA_EVAL.md` (ours-only board;
+  8 external comparators still pending a GPU run). Findings: **the "`verse_lookup` 50%"
+  regression was an eval artifact** — splitting into `verse_quote` / `verse_exposition` shows
+  scripture-quote recall held (77.3% vs. v2's 78.8%, McNemar p=0.50); the drop was entirely
+  26/36 exposition-phrased questions where v2 "passed" exact-match by dumping the verbatim
+  verse and v3 answers with a prose explanation. Overall fuzzy mean (exposition-excluded)
+  0.499 vs. v2's 0.391 — a large gain that still misses the round 0.52 target by 0.021
+  (`manifest.v4` itself notes the fuzzy mean is not an accuracy). Citation 97.7%,
+  hallucination 1.5% — both bars held. A manual read of all 36 exposition items has v3-SFT
+  better-or-tie on 34/36, with one confident v3 hallucination (Genesis 19:28). GRPO still
+  inert. Recommendation and all-CPU ship steps in `docs/V3_STATUS.md`'s
+  "RESULT (2026-09-03)" block.
+- **Known issue surfaced — RAG retrieval matches verse *reference* tokens, not meaning**
+  (2026-09-03) — for "What is X about?" style questions the hybrid retriever returns
+  verse-number coincidences (e.g. "1 Chronicles 9:17" → "2 Chronicles 17:9") instead of
+  thematic neighbours, feeding both v2 and v3 poor context. GPU-free to fix in
+  `rag/retrieval.py`; documented in `docs/CODEBASE_AUDIT.md` and flagged as the
+  highest-leverage lever on the `verse_exposition` category. Not yet fixed.
 - **Benchmark protocol v4 + SOTA evaluation track (2026-09-02)** —
   `benchmarks/manifest.v4.yaml` (`bible_assistant_baseline_v4`) splits the single
   `verse_lookup` category into `verse_quote` (66 Qs — "What does X say?", "Quote X") and
