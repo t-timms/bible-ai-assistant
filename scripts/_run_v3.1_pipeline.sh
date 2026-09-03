@@ -29,6 +29,7 @@ LLAMA_SERVER="$HOME/llama.cpp-full/build/bin/llama-server"
 THEMATIC_IN="data/raw_v3/thematic_inputs.jsonl"
 THEMATIC_OUT="data/raw_v3/thematic_out.jsonl"
 DISTILL_OUT="data/raw_v3/distill_out.jsonl"          # v3 regen categories — reused as-is
+BLEND_FROM="data/processed/train_v3.json"            # reuse v3's cleaned general_blend (skip the ~2 h smoltalk2 stream)
 TRAIN_V31="data/processed/train_v3.1.json"
 SFT_CONFIG="training/config.v3.1-4b.yaml"
 RUN_NAME="qwen3.5-4b-bible-v3.1-sft"
@@ -43,6 +44,7 @@ banner() { echo; echo "======== $(date -Is)  $1 ========"; }
 banner "preflight (SMOKE=$SMOKE)"
 [ -f "$THEMATIC_IN" ]  || die "missing $THEMATIC_IN (run training/build_v3_thematic.py)" 10
 [ -f "$DISTILL_OUT" ]  || die "missing $DISTILL_OUT (v3 regen distill output)" 10
+[ -f "$BLEND_FROM" ]   || die "missing $BLEND_FROM (v3 dataset — source of the reused general_blend)" 10
 [ -f "$TEACHER" ]      || die "missing teacher $TEACHER" 10
 [ -x "$LLAMA_SERVER" ] || die "missing $LLAMA_SERVER" 10
 [ -f "$SFT_CONFIG" ]   || die "missing $SFT_CONFIG" 10
@@ -89,7 +91,8 @@ echo "thematic_out: $(wc -l < "$THEMATIC_OUT") rows, $OKN ok"
 # ── Stage 3: assemble train_v3.1.json ──────────────────────────────────────
 banner "stage 3 — assemble ${TRAIN_V31}"
 python training/assemble_v3.py \
-  --distilled "$DISTILL_OUT" --thematic "$THEMATIC_OUT" --out "$TRAIN_V31" || die "assemble_v3 failed" 13
+  --distilled "$DISTILL_OUT" --thematic "$THEMATIC_OUT" --blend-from "$BLEND_FROM" \
+  --out "$TRAIN_V31" || die "assemble_v3 failed" 13
 python -c "import json,sys; d=json.load(open('$TRAIN_V31')); print('train_v3.1:', len(d), 'examples')" || die "train_v3.1 unreadable" 13
 
 if [ "$SMOKE" = 1 ]; then
