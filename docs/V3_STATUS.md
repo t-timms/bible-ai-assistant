@@ -4,25 +4,55 @@ Plan: `docs/V3_DATASET_PLAN.md`. This file = exact state + the next action.
 
 ---
 
-## ►►►► CURRENT (2026-09-03, later) — retrieval fix merged; next is a GPU re-eval
+## ►►►► RE-EVAL DONE (2026-09-03) — v3-SFT misses 0.52 through the fixed RAG; HOLD, v3.1 retargeted
 
-PRs #44 (protocol v4), #45 (v4 rescore + docs), **#46 (retrieval reference-token fix,
-`eaeb649f`)** are all on `main`. #46 changes what the RAG stack retrieves for exposition
-questions ("what does X teach?" now pins the verse and searches on its *text*, not the bare
-reference), so the numbers in the RESULT block below **pre-date it**.
+Ran `scripts/_run_v3_eval_all.sh` on all three checkpoints through the **#46-fixed** RAG
+stack. Merged models were gone (disk pressure) → rebuilt fresh from
+`models/qwen3.5-4b-bible-{v2,v3}-sft/adapter_model.safetensors` via `training/merge_adapters.py`
+(`--output …-{v2,v3}-merged`), both coherence-checked (verbatim John 3:16 recall, no LoRA-skip).
+Artifacts: `docs/benchmark_runs/20260903_{v2-4b,v3-sft,v3-grpo}_keyword.json` + `…_v4keyword.json`.
 
-**NEXT — needs ~40 min GPU:** `git pull` then re-run protocol-v4 keyword on **v3-SFT and
-v2-4b** through the fixed RAG stack (`scripts/_run_v3_eval_all.sh`). Then:
-- v3-SFT clears overall-fuzzy-expo-excl ≥ 0.52 **and** the Genesis-19:28-class hallucination
-  is gone → **ship v3-SFT as v3** (ROADMAP item 5; all-CPU packaging, HF push needs the token).
-- else → **one v3.1 retrain** (ROADMAP item 7): quote-first exposition templates +
-  hallucination-hardening set, ~7 h.
-Run the external SOTA board (`run_external_baselines.sh`) **once**, on the final weights.
-**Recommendation: publish nothing until this re-eval decides.**
+| metric (protocol v4, **post-#46**) | v2-4b | **v3-sft** | v3-grpo | bar | vs pre-#46 (09-01) |
+|---|--:|--:|--:|--:|--|
+| verse_quote exact (n=66, real recall) | 78.8% | **77.3%** | 77.3% | ≥74% ✓ | 77.3 → 77.3 (held) |
+| verse_quote McNemar vs v2 | — | p=0.50 (v3 +2 / v2 +0) | — | held | — |
+| verse_exposition fuzzy mean (n=36) | 0.509 | **0.542** | 0.539 | — | **0.418 → 0.542** (#46 worked) |
+| overall fuzzy mean, expo-excl (n=230) | 0.394 | **0.497** | 0.496 | ≥0.52 ✗ (−0.023) | 0.499 → 0.497 (flat) |
+| overall fuzzy mean, all-in (n=266) | 0.409 | **0.503** | 0.501 | ≥0.52 ✗ (−0.017) | 0.488 → 0.503 (up) |
+| hallucination_detected (corpus mode) | 9/282 | **4/282** | 5/282 | — | Gen 19:28 **now clean** |
+
+**Decision gate = "clears 0.52 (expo-excl) AND the Genesis-19:28-class hallucination is gone."**
+- Hallucination half — **MET.** Gen 19:28 is clean in all three runs (was a confident
+  fabrication pre-#46); total flags down to 4 (fewest of the three, half of v2's). Of v3-sft's
+  4: one real misquote (Song of Solomon 2:13 → the model returns 1:13's text); the other three
+  read as corpus-checker false positives on exposition-style answers.
+- 0.52 half — **NOT MET.** 0.497 expo-excl, short by 0.023, flat vs the 0.499 pre-#46.
+
+**→ HOLD. Do not ship v3-SFT.** This reverses the "ship" recommendation in the RESULT
+block below (that call was made *before* this re-eval).
+
+**Where the gap is — v3.1 must retarget.** v3-sft per-category fuzzy mean: `verse_lookup 0.707`
+carries the average; **every synthesis category is stuck at ~0.31–0.41** — cross_reference 0.396,
+context 0.374, topical 0.380, character 0.365, theological_reliability 0.311. That ~163-question
+block at ~0.37 is what pins the overall at 0.497. v3-SFT already ~doubled these vs v2-4b, but
+they plateau well short of the ~0.52 that clears the bar. **Exposition is already fixed by #46**,
+so the on-file v3.1 plan (quote-first exposition templates + hallucination hardening) aims at
+the wrong target. **v3.1's real job: push the synthesis categories 0.37 → ~0.52** with
+teacher-distilled *explanatory* answers for character / context / cross_reference / topical /
+theological questions that match the reference style. ROADMAP item 7 rewritten.
+
+**NEXT:** v3.1 dataset work — thematic-synthesis distillation (`training/distill_answers.py`
+teacher path, targeting the five synthesis categories), then re-SFT → re-eval protocol v4 →
+SOTA board once. Publish nothing until v3.1.
 
 ---
 
-## ►►► RESULT (2026-09-03) — protocol-v4 rescore + manual read done. Recommend: ship v3-SFT as v3.
+## ►►► RESULT (2026-09-03, earlier) — SUPERSEDED by the RE-EVAL DONE block above
+
+*(The "ship v3-SFT as v3" recommendation here was made from the pre-#46 rescore. The
+2026-09-03 re-eval through the fixed RAG stack — block above — shows v3-SFT still at 0.497
+expo-excl, so the decision is HOLD, not ship. Kept for the `verse_lookup`-artifact analysis,
+which still stands.)*
 
 Ran the Path-D tooling (no GPU, no model re-run): `scripts/rescore_v4.py`,
 `scripts/exposition_sidebyside.py`, `scripts/sota_scoreboard.py`. Artifacts:

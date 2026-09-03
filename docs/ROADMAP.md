@@ -21,16 +21,17 @@ for what's next. Narrative status: `docs/PROJECT_STATUS_AND_GOALS.md`; full deta
 
 ### ▶ Resume here (2026-08-29)
 
-> **▶▶ CURRENT (2026-09-03).** Protocol v4 shipped (#44). v4 rescore done (#45): the
-> `verse_lookup` "regression" was an eval artifact — quote recall held (77.3% vs 78.8%,
-> p=0.50); v3-SFT overall fuzzy expo-excl **0.499** (< 0.52 bar by 0.021), one confident
-> hallucination (Genesis 19:28). The `rag/retrieval.py` reference-token bug that caused
-> the bad exposition context is **fixed and merged (#46)** — but this changes retrieval
-> output, so the v4 numbers pre-date it. **NEXT (needs ~40 min GPU): re-eval v3-SFT + v2-4b
-> on protocol v4 through the fixed RAG stack.** If v3-SFT then clears 0.52 and the
-> Genesis-19:28-class error is gone → item 5 (ship v3-SFT as v3). Else → item 7 (one v3.1
-> retrain). Recommendation: **hold the publish until the re-eval decides.** Only the final
-> HF push needs the owner's token.
+> **▶▶ CURRENT (2026-09-03).** Re-eval DONE — `scripts/_run_v3_eval_all.sh` through the
+> post-#46 RAG stack (`docs/benchmark_runs/20260903_*`). #46 fixed exposition
+> (verse_exposition fuzzy 0.418 → 0.542) **and** the Genesis-19:28 hallucination — but
+> v3-SFT overall fuzzy expo-excl is still **0.497** (< 0.52 by 0.023, flat vs 0.499
+> pre-#46). verse_quote recall held (77.3%, p=0.50); hallucinations down to 4/282 (fewest
+> of the three). **Gate not met → HOLD, do not ship v3-SFT** (item 5 blocked). The gap is
+> in the **synthesis categories** (character/context/cross_reference/topical/theological
+> all ≈ 0.37 fuzzy mean; `verse_lookup` 0.707 carries the average) — **not exposition**,
+> which #46 already fixed. **NEXT: v3.1 retargeted at thematic-synthesis distillation**
+> (item 7, rewritten). Publish nothing until v3.1. Full numbers: `docs/V3_STATUS.md`
+> "RE-EVAL DONE".
 
 1. [ ] **Commit + merge** branch `v2/dataset-full-upgrade-2026-08-28` (11 modified + untracked: `config.v2-4b.yaml`, `fetch_mhc_commentary.py`, `scripts/run_v2_4b_sft.sh`, `scripts/_tf_openai_server.py`, `scripts/_run_v3_eval.sh`, `docs/benchmark_runs/20260829_*`).
 2. [x] **v3 SFT + GRPO + eval; judge abandoned → protocol v4 (2026-09-01 / 09-02)**
@@ -63,26 +64,37 @@ for what's next. Narrative status: `docs/PROJECT_STATUS_AND_GOALS.md`; full deta
 4. [x] **SFT on v3** (`training/config.v3-4b.yaml`), 2026-09-01 — 2,447 steps, eval_loss 0.568→0.49,
    adapter merged → `models/qwen3.5-4b-bible-v3-merged`. GRPO 150-step probe ran and was **inert**
    (0/266 changed); not shipped. See `docs/V3_STATUS.md`.
-4b. [ ] **Re-eval v3-SFT + v2-4b, protocol v4, through the fixed RAG stack** (~40 min GPU) —
-   `scripts/_run_v3_eval_all.sh` after `git pull` (picks up #46). Decides item 5 vs item 7.
-5. [ ] **Ship v3-SFT as v3** — *only if 4b clears the gate* (overall fuzzy expo-excl ≥ 0.52,
-   Genesis-19:28-class error gone). All CPU: `merge_adapters.py` (done) → `convert_hf_to_gguf.py
-   --no-mtp` → `llama-quantize` ladder (Q4_K_M/Q5_K_M/Q6_K/Q8_0 + imatrix) → publish
-   `Ttimms/Bible-Assistant-Qwen3.5-4B-v3` + `-v3-GGUF` (HF push needs the owner's token) → add
-   the `## Architecture` mermaid to the new cards → bump README / MODEL_CARD / MODEL_COMPARISON to v3.
+4b. [x] **Re-eval v3-SFT + v2-4b + v3-grpo, protocol v4, through the fixed RAG stack** (2026-09-03,
+   ~65 min GPU) — `scripts/_run_v3_eval_all.sh`. Merged models were gone (disk) → rebuilt from the
+   SFT adapters + coherence-checked first. **Result: v3-SFT overall fuzzy expo-excl 0.497** (< 0.52
+   by 0.023, flat vs 0.499 pre-#46). verse_quote 77.3% held (p=0.50); verse_exposition fuzzy
+   0.418 → 0.542 (#46 worked); hallucinations 4/282, Gen 19:28 clean. **Gate NOT met → item 5
+   blocked, go to item 7.** `docs/benchmark_runs/20260903_*`, analysis in `docs/V3_STATUS.md`.
+5. [ ] **Ship v3-SFT as v3** — **BLOCKED by 4b** (v3-SFT at 0.497 < 0.52). Superseded by item 7:
+   the release will be v3.1, not v3-SFT. Steps kept for reference: all CPU — `merge_adapters.py`
+   (done) → `convert_hf_to_gguf.py --no-mtp` → `llama-quantize` ladder (Q4_K_M/Q5_K_M/Q6_K/Q8_0 +
+   imatrix) → publish `Ttimms/Bible-Assistant-Qwen3.5-4B-v3` + `-v3-GGUF` (HF push needs the
+   owner's token) → add the `## Architecture` mermaid → bump README / MODEL_CARD / MODEL_COMPARISON.
 6. [x] **Fix `rag/retrieval.py` reference-token matching** — DONE, PR #46 (`eaeb649f`).
    `rag/helpers._extract_exposition_verse_ref` detects "what does X teach / what is X about" +
    a verse ref; `rag/rag_server` pins that verse and passes its **text** as a new `search_query`
    arg to `rag/retrieval._retrieve_entries` (dense+BM25 use it; rerank still uses the raw
    question) + a "quote first, then explain" note. +10 tests. Changes exposition retrieval →
    item 4b re-eval measures the gain.
-7. [ ] **v3.1 — the SOTA push** (GPU, only after 6): (a) add quote-first exposition templates
-   (`"{ref} reads: "{verbatim}". [1–2 sentence explanation]"`) to the verse-drill generators;
-   (b) add a small hallucination-hardening set (decline-when-context-missing, and the
-   Genesis-19:28 class of misattribution); (c) re-SFT; (d) re-eval protocol v4 + the SOTA board.
-   Acceptance: overall fuzzy expo-excl ≥ 0.52, hallucination ≤ 1.0% (tighter than v2's 2.3%),
-   and **rank #1 among open models on `docs/SOTA_EVAL.md`** on closeness-to-expected while
-   meeting the citation/hallucination gates.
+7. [ ] **v3.1 — the SOTA push** (GPU). The 2026-09-03 re-eval (4b) pins the gap to the
+   **synthesis categories** (character/context/cross_reference/topical/theological ≈ 0.37 fuzzy
+   mean; `verse_lookup` already 0.707, exposition already fixed by #46). So v3.1 is a *dataset*
+   change, not a template tweak:
+   (a) **thematic-synthesis distillation** — regenerate the character / context / cross_reference
+   / topical / theological training answers as teacher-distilled explanatory prose that matches
+   the reference-answer style and specifics (`training/distill_answers.py` teacher path; the RAG
+   retriever is live now, so `thematic_qa` — deferred in item 3 — is back on);
+   (b) keep a small hallucination-hardening slice (decline-when-context-missing; the
+   Song-of-Solomon-2:13 / verse-number-confusion class);
+   (c) re-SFT (`config.v3-4b.yaml`, ~7 h); (d) re-eval protocol v4 + the SOTA board.
+   Acceptance: overall fuzzy expo-excl ≥ 0.52, **each synthesis category ≥ 0.50**,
+   hallucination ≤ 1.0% (tighter than v2's 2.3%), and **rank #1 among open models on
+   `docs/SOTA_EVAL.md`** on closeness-to-expected while meeting the citation/hallucination gates.
 8. [ ] **Run the SOTA board** — `scripts/run_external_baselines.sh` + `scripts/sota_scoreboard.py`
    (GPU, ~3–4 h) — fills `docs/SOTA_EVAL.md`'s 8 pending comparators. Run once v3 ships, then again after v3.1.
 9. [ ] `rag_server.py` **commentary-retrieval path** (so `grounded_exegesis` training matches inference — else it's the F-2/F-3 format mismatch).
