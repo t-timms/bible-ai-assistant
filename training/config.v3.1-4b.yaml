@@ -1,0 +1,55 @@
+# Bible AI Assistant - V3.1 Training Config (4B SFT)
+#
+# V3.1 = the synthesis push. The 2026-09-03 re-eval (docs/V3_STATUS.md "RE-EVAL
+# DONE") pinned the v3-SFT gap to the synthesis categories (character / context /
+# cross_reference / topical / theological ~ 0.37 fuzzy mean; verse_lookup 0.707
+# carries the average, exposition already fixed by #46). v3.1 adds the deferred
+# thematic_qa distillation (training/build_v3_thematic.py -> distill_answers.py)
+# into the mix and re-SFTs.
+#
+# Same fit profile as v3-4b: Qwen3.5-4B bf16 LoRA, batch 2 / seq 1280 /
+# gradient_checkpointing="unsloth", ~13 GB peak. Dataset: data/processed/train_v3.1.json
+# (v3 regen categories reused as-is + new thematic_qa), assembled by
+# training/assemble_v3.py --thematic. Adapter -> models/qwen3.5-4b-bible-v3.1-sft.
+#
+#   python training/train_unsloth.py --config training/config.v3.1-4b.yaml \
+#       --run-name qwen3.5-4b-bible-v3.1-sft --no-wandb
+
+model:
+  name: "Qwen/Qwen3.5-4B"
+  revision: "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"  # same pin as v2-4b / v3-4b
+  load_in_4bit: false
+  max_seq_length: 1280
+
+lora:
+  r: 32
+  alpha: 64
+  dropout: 0.05
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+  bias: "none"
+
+training:
+  output_dir: "checkpoints_v3.1_4b"
+  eval_split: 0.006
+  num_train_epochs: 1
+  per_device_train_batch_size: 2
+  gradient_accumulation_steps: 8
+  learning_rate: 2.0e-4
+  lr_scheduler_type: "cosine"
+  warmup_ratio: 0.03
+  max_eval_steps: 50
+  logging_steps: 25
+  bf16: true
+  report_to: "none"
+  random_state: 20260830
+
+data:
+  train_file: "data/processed/train_v3.1.json"
+  eval_file: null

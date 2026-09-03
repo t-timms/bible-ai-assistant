@@ -4,6 +4,43 @@ Plan: `docs/V3_DATASET_PLAN.md`. This file = exact state + the next action.
 
 ---
 
+## ►►►►► RUN OVERNIGHT (2026-09-03) — v3.1 pipeline is wired; fire it
+
+The v3.1 dataset prep is done: `training/build_v3_thematic.py` +
+`training/v3_thematic_questions.json` (103 stems) generated
+**`data/raw_v3/thematic_inputs.jsonl` (2,395 rows)**. The one-command end-to-end
+pipeline is `scripts/_run_v3.1_pipeline.sh` — distill (Qwen3-14B teacher) →
+assemble (`train_v3.1.json`) → SFT (`config.v3.1-4b.yaml`, ~7 h) → merge →
+coherence-gate → protocol-v4 eval → prints the ship/hold verdict. All outputs use
+`*v3.1*` names; **no v3 artifact is overwritten**.
+
+**Before firing:** reboot Windows (box up 2+ days; `.wslconfig memory=64GB` is the
+mitigation but a 7 h SFT is the load that froze the VM before).
+
+```bash
+cd ~/bible-ai-assistant
+git pull                                            # if #50/#51 merged
+SMOKE=1 bash scripts/_run_v3.1_pipeline.sh           # ~10 min — validates stages 1-3, no SFT
+tmux new-session -d -s v31 'bash ~/bible-ai-assistant/scripts/_run_v3.1_pipeline.sh'
+tail -f ~/bible-ai-assistant/logs/v3.1_pipeline_*.log
+```
+
+**Morning check:** `grep -E 'EXIT_|VERDICT|GATE ' logs/v3.1_pipeline_*.log`.
+`EXIT_0` = clean; `EXIT_1x` = the stage that failed (10 preflight · 11 teacher ·
+12 distill · 13 assemble · 14 SFT · 15 merge · 16 coherence · 17 eval). The
+VERDICT line says SHIP or HOLD; per-category fuzzy means + the two gates
+(overall expo-excl ≥ 0.52, each synthesis category ≥ 0.50) print above it.
+
+**If SHIP:** CPU-only — `convert_hf_to_gguf.py --no-mtp` → `llama-quantize` ladder
+→ publish `Ttimms/Bible-Assistant-Qwen3.5-4B-v3.1` + `-v3.1-GGUF` (HF push needs
+the owner's token) → cards + README/MODEL_CARD/MODEL_COMPARISON → external SOTA
+board once (`scripts/run_external_baselines.sh`).
+**If HOLD:** read the per-category table — which synthesis categories still lag,
+and whether it's a data-coverage gap (add stems to `v3_thematic_questions.json`)
+or a teacher-quality gap (inspect `thematic_out.jsonl` `status:dropped` rows).
+
+---
+
 ## ►►►► RE-EVAL DONE (2026-09-03) — v3-SFT misses 0.52 through the fixed RAG; HOLD, v3.1 retargeted
 
 Ran `scripts/_run_v3_eval_all.sh` on all three checkpoints through the **#46-fixed** RAG
