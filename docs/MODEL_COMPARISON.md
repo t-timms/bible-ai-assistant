@@ -6,7 +6,36 @@
 > [`docs/SOTA_EVAL.md`](SOTA_EVAL.md). The sections below are the v1→v2→v3 internal history,
 > measured under protocol v3.
 
-## Latest: v3-SFT vs. v2-4b — protocol v4 rescore, 2026-09-03
+## Latest: v3-SFT re-eval through the #46-fixed RAG stack — protocol v4, 2026-09-03
+
+Full re-run (`scripts/_run_v3_eval_all.sh`, ~65 min GPU), all three checkpoints, through the
+retrieval stack **after PR #46** (exposition questions pin the verse and search on its text,
+not the bare reference). Merged models rebuilt from the SFT adapters + coherence-checked first.
+Raw: `docs/benchmark_runs/20260903_{v2-4b,v3-sft,v3-grpo}_keyword.json` + `…_v4keyword.json`.
+
+| metric (protocol v4, **post-#46**) | v2-4b | v3-SFT | v3-GRPO | bar | Δ vs pre-#46 rescore |
+|---|--:|--:|--:|--:|--|
+| **verse_quote** exact (n=66 — real recall) | 78.8% | **77.3%** | 77.3% | ≥74% ✓ | held |
+| verse_quote vs. v2, McNemar | — | p=0.50 (held) | — | — | — |
+| verse_exposition fuzzy mean (n=36) | 0.509 | **0.542** | 0.539 | — | v3-SFT **0.418 → 0.542** |
+| overall fuzzy mean, **exposition-excluded** (n=230) | 0.394 | **0.497** | 0.496 | ≥0.52 ✗ (−0.023) | 0.499 → 0.497 (flat) |
+| overall fuzzy mean, all-in (n=266) | 0.409 | **0.503** | 0.501 | ≥0.52 ✗ | 0.488 → 0.503 |
+| hallucination_detected (corpus mode) | 9/282 | **4/282** | 5/282 | — | Gen 19:28 **now clean** |
+
+**v3-SFT per-category fuzzy mean:** `verse_lookup` **0.707** carries the average; every
+synthesis category is ~0.31–0.41 — cross_reference 0.396, context 0.374, topical 0.380,
+character 0.365, theological_reliability 0.311. That ~163-question block at ~0.37 is what
+holds the overall at 0.497.
+
+**#46 did its job** (verse_exposition 0.418 → 0.542, Genesis 19:28 hallucination gone) — but
+v3-SFT still misses the 0.52 overall bar by 0.023, essentially flat vs the pre-#46 rescore.
+**Decision: HOLD — do not ship v3-SFT.** The gap is thematic synthesis, not exposition, so
+v3.1 retargets at synthesis-category distillation (`docs/ROADMAP.md` item 7, rewritten;
+`docs/V3_STATUS.md` "RE-EVAL DONE"). GRPO still inert (`v3-grpo` ≈ `v3-sft` to 3 d.p.).
+
+---
+
+## 2026-09-03 (earlier): v4 rescore of the pre-#46 runs — SUPERSEDED by the block above
 
 Re-scored from the 2026-09-01 protocol-v3 keyword runs (`scripts/rescore_v4.py`; no model
 re-run) — the `verse_lookup` category split into `verse_quote` (66, verbatim recall) and
@@ -33,12 +62,10 @@ better-or-tie on **34/36** — but with **one confident v3 hallucination (Genesi
 partly built on reference-token-matched retrieval noise (see `docs/CODEBASE_AUDIT.md`).
 **GRPO is inert** — `v3-grpo` equals `v3-sft` to three decimal places on every metric.
 
-**Recommendation: ship v3-SFT as v3.** Recall held, the real v2 regression (synthesis
-categories, ~1.8× on the 2026-09-01 protocol-v3 run) is fixed, exposition answers are
-genuinely better, citation and hallucination bars held. Overall fuzzy expo-excl 0.499
-beats v1 (0.48) and v2 (0.40); it misses the round 0.52 target by 0.021, and `manifest.v4`
-itself notes the fuzzy mean "is NOT an accuracy". Ship steps (all CPU) and the v3.1 SOTA
-plan: `docs/V3_STATUS.md` and `docs/ROADMAP.md` items 5–8.
+*(This block's "ship v3-SFT as v3" recommendation was made from the pre-#46 rescore. The
+2026-09-03 re-eval through the fixed RAG stack — section above — keeps v3-SFT at 0.497
+expo-excl, so the actual decision is **HOLD**. The `verse_lookup`-artifact analysis and the
+"synthesis categories were the real v2 regression" finding still stand.)*
 
 ## v2-4b (Qwen3.5-4B, 56k SFT) vs. v1 shipped model — protocol v3, 2026-08-29
 
