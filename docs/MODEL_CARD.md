@@ -205,7 +205,8 @@ Apply critical judgment to outputs, especially on contested theological question
 
 - [`docs/MODEL_COMPARISON.md`](MODEL_COMPARISON.md) — v2-4b vs. v1, protocol v3, full breakdown
 - [`docs/V2_EXECUTION_PLAN.md`](V2_EXECUTION_PLAN.md) — the pipeline and the v3 plan
-- [`docs/BENCHMARK_PROTOCOL.md`](BENCHMARK_PROTOCOL.md) — protocol v3 definition
+- [`docs/BENCHMARK_PROTOCOL.md`](BENCHMARK_PROTOCOL.md) — protocol v4 definition (v3 kept for history)
+- [`docs/SOTA_EVAL.md`](SOTA_EVAL.md) — head-to-head vs. open comparators
 - `docs/benchmark_runs/` — machine-readable eval results
 - `training/build_dataset_v2.py` — the v2 dataset engine
 - `training/config.v2-4b.yaml`, `training/train_unsloth.py` — SFT config + script

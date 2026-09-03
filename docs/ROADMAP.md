@@ -21,20 +21,74 @@ for what's next. Narrative status: `docs/PROJECT_STATUS_AND_GOALS.md`; full deta
 
 ### ▶ Resume here (2026-08-29)
 
+> **▶▶ CURRENT (2026-09-03).** Protocol v4 shipped (#44). v4 rescore done (#45): the
+> `verse_lookup` "regression" was an eval artifact — quote recall held (77.3% vs 78.8%,
+> p=0.50); v3-SFT overall fuzzy expo-excl **0.499** (< 0.52 bar by 0.021), one confident
+> hallucination (Genesis 19:28). The `rag/retrieval.py` reference-token bug that caused
+> the bad exposition context is **fixed and merged (#46)** — but this changes retrieval
+> output, so the v4 numbers pre-date it. **NEXT (needs ~40 min GPU): re-eval v3-SFT + v2-4b
+> on protocol v4 through the fixed RAG stack.** If v3-SFT then clears 0.52 and the
+> Genesis-19:28-class error is gone → item 5 (ship v3-SFT as v3). Else → item 7 (one v3.1
+> retrain). Recommendation: **hold the publish until the re-eval decides.** Only the final
+> HF push needs the owner's token.
+
 1. [ ] **Commit + merge** branch `v2/dataset-full-upgrade-2026-08-28` (11 modified + untracked: `config.v2-4b.yaml`, `fetch_mhc_commentary.py`, `scripts/run_v2_4b_sft.sh`, `scripts/_tf_openai_server.py`, `scripts/_run_v3_eval.sh`, `docs/benchmark_runs/20260829_*`).
-2. [ ] **Judge re-score** v2 + v1 under protocol v3 with `--judge` (judge model `qwen3:8b` is pulled) — the keyword `verse_accuracy` scores 0 on synthesis questions with no canonical verse; the judge gives them a fair score.
+2. [x] **v3 SFT + GRPO + eval; judge abandoned → protocol v4 (2026-09-01 / 09-02)**
+   - v3-SFT: synthesis categories up ~1.8×, citation 98%, hallucination 2%, quote recall
+     held; but overall fuzzy 0.488 < 0.52 and `verse_lookup` exact 50% (an exposition-phrasing
+     artifact). **GRPO inert** (0/266 changed). Full analysis: `docs/V3_STATUS.md`.
+   - The `qwen3.5:27b` judge is infeasible on 16 GB (333 s/call, past the 180 s timeout — both
+     attempts died on Q1). Replaced with **protocol v4** (`benchmarks/manifest.v4.yaml`): split
+     `verse_lookup` → `verse_quote` / `verse_exposition`, exposition scored by fuzzy not exact,
+     overall fuzzy reported two ways. `scripts/rescore_v4.py` + `scripts/exposition_sidebyside.py`
+     (no GPU) produce the ship-v3-SFT-vs-retrain decision numbers. Judge, if ever, = `qwen3:8b`,
+     calibration-only.
+   - **SOTA evaluation** (`docs/SOTA_EVAL.md`) — `scripts/run_external_baselines.sh` (8 open
+     comparators through the unchanged RAG stack, protocol v4) + `scripts/sota_scoreboard.py`.
+     Establishes/refutes "best open model at RAG-grounded scripture Q&A, size-independent" +
+     "SOTA for the 16 GB Blackwell class". GPU, ~3–4 h; run after the Path-D decision.
+   - **RESULT (2026-09-03), from `rescore_v4.py` + a manual read of all 36 exposition items:**
+     the `verse_lookup` "regression" is an **eval artifact** — `verse_quote` (real recall,
+     n=66) held at 77.3% vs. v2's 78.8% (McNemar p=0.50). Overall fuzzy expo-excluded 0.499
+     vs. v2's 0.391 — misses the round 0.52 bar by 0.021. Citation 97.7%, hallucination 1.5%
+     (bars held). v3-SFT better-or-tie on 34/36 exposition items; **one confident v3
+     hallucination (Genesis 19:28)**. **Recommendation: ship v3-SFT as v3** (see
+     `docs/V3_STATUS.md` "RESULT (2026-09-03)" for the all-CPU ship steps). GRPO still inert.
 3. [x] **Dataset v3 = teacher distillation (2026-08-31)** — `training/build_v3_inputs.py` +
    `training/distill_answers.py` (local Qwen3-14B Q5_K_M GGUF teacher via `llama-server`; vLLM
    dead on this box) + `training/assemble_v3.py` → **`data/processed/train_v3.json`, 39,463
    examples**, templated answers regenerated as synthesized cited prose, verse-drill cut ~60%,
    98.9% distillation keep-rate, zero eval overlap. `config.v3-4b.yaml` added. `thematic_qa`
    deferred (needs the RAG retriever). `docs/V3_STATUS.md` / `docs/V3_DATASET_PLAN.md`.
-4. [ ] **SFT on v3** (4B first, `training/config.v3-4b.yaml`) → **GRPO** (`training/train_grpo.py`, verifiable citation reward) — the stage meant to clear the ≥85 % verse-accuracy bar and fix the thematic-synthesis regression. Needs a `--max-steps 2` GRPO smoke first.
-5. [ ] **Re-eval** protocol v3 + FMG-Bench calibration (`scripts/fmg_bench.py`). Escalate to 9B (`config.v2-9b.yaml`) **only** on a measured shortfall.
-6. [ ] `rag_server.py` **commentary-retrieval path** (so `grounded_exegesis` training matches inference — else it's the F-2/F-3 format mismatch).
-7. [ ] **Retrieval upgrade** — embedder stronger than `nomic-embed-text-v1.5`; then **constrained verse-reference decoding** (trie on the citation span; mind the alignment tax, arXiv 2604.06066).
-8. [ ] **Ornith GGUF backfill** — feasible: convert the *non-MTP-stripped* pruned bf16 (or the with-MTP variant); `unsloth/Qwen3.5-35B-A3B-GGUF` proves `qwen3_5_moe` GGUF works upstream.
-9. [ ] *(optional)* `microsoft/WSL#41361` — the fresh llama.cpp build (`3173a56`) is the commit the maintainer asked for; do a deliberate long-run hang repro + call stack if reopening.
+4. [x] **SFT on v3** (`training/config.v3-4b.yaml`), 2026-09-01 — 2,447 steps, eval_loss 0.568→0.49,
+   adapter merged → `models/qwen3.5-4b-bible-v3-merged`. GRPO 150-step probe ran and was **inert**
+   (0/266 changed); not shipped. See `docs/V3_STATUS.md`.
+4b. [ ] **Re-eval v3-SFT + v2-4b, protocol v4, through the fixed RAG stack** (~40 min GPU) —
+   `scripts/_run_v3_eval_all.sh` after `git pull` (picks up #46). Decides item 5 vs item 7.
+5. [ ] **Ship v3-SFT as v3** — *only if 4b clears the gate* (overall fuzzy expo-excl ≥ 0.52,
+   Genesis-19:28-class error gone). All CPU: `merge_adapters.py` (done) → `convert_hf_to_gguf.py
+   --no-mtp` → `llama-quantize` ladder (Q4_K_M/Q5_K_M/Q6_K/Q8_0 + imatrix) → publish
+   `Ttimms/Bible-Assistant-Qwen3.5-4B-v3` + `-v3-GGUF` (HF push needs the owner's token) → add
+   the `## Architecture` mermaid to the new cards → bump README / MODEL_CARD / MODEL_COMPARISON to v3.
+6. [x] **Fix `rag/retrieval.py` reference-token matching** — DONE, PR #46 (`eaeb649f`).
+   `rag/helpers._extract_exposition_verse_ref` detects "what does X teach / what is X about" +
+   a verse ref; `rag/rag_server` pins that verse and passes its **text** as a new `search_query`
+   arg to `rag/retrieval._retrieve_entries` (dense+BM25 use it; rerank still uses the raw
+   question) + a "quote first, then explain" note. +10 tests. Changes exposition retrieval →
+   item 4b re-eval measures the gain.
+7. [ ] **v3.1 — the SOTA push** (GPU, only after 6): (a) add quote-first exposition templates
+   (`"{ref} reads: "{verbatim}". [1–2 sentence explanation]"`) to the verse-drill generators;
+   (b) add a small hallucination-hardening set (decline-when-context-missing, and the
+   Genesis-19:28 class of misattribution); (c) re-SFT; (d) re-eval protocol v4 + the SOTA board.
+   Acceptance: overall fuzzy expo-excl ≥ 0.52, hallucination ≤ 1.0% (tighter than v2's 2.3%),
+   and **rank #1 among open models on `docs/SOTA_EVAL.md`** on closeness-to-expected while
+   meeting the citation/hallucination gates.
+8. [ ] **Run the SOTA board** — `scripts/run_external_baselines.sh` + `scripts/sota_scoreboard.py`
+   (GPU, ~3–4 h) — fills `docs/SOTA_EVAL.md`'s 8 pending comparators. Run once v3 ships, then again after v3.1.
+9. [ ] `rag_server.py` **commentary-retrieval path** (so `grounded_exegesis` training matches inference — else it's the F-2/F-3 format mismatch).
+10. [ ] **Retrieval upgrade** — embedder stronger than `nomic-embed-text-v1.5`; then **constrained verse-reference decoding** (trie on the citation span; mind the alignment tax, arXiv 2604.06066).
+11. [ ] **Ornith GGUF backfill** — feasible: convert the *non-MTP-stripped* pruned bf16 (or the with-MTP variant); `unsloth/Qwen3.5-35B-A3B-GGUF` proves `qwen3_5_moe` GGUF works upstream.
+12. [ ] *(optional)* `microsoft/WSL#41361` — the fresh llama.cpp build (`3173a56`) is the commit the maintainer asked for; do a deliberate long-run hang repro + call stack if reopening.
 
 ### Deferred / blocked
 - [ ] **vLLM** — `Qwen3_5ForCausalLM` registered locally but `UVA is not available` under WSL2 (0.26.0 `GPUModelRunnerV2`). Eval ran through `scripts/_tf_openai_server.py` instead.

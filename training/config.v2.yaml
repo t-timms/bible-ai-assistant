@@ -49,7 +49,9 @@ grpo:
     format_compliance: 0.15
   num_generations: 8            # group size for relative advantage
   beta_kl: 0.02                 # light KL anchor to SFT policy
-  max_completion_length: 512
+  max_completion_length: 768    # 2026-09-01: raised 512->768 for v3 GRPO — the
+                                # v3 SFT model rarely emits EOS within 512 tok, so
+                                # at 512 ~94% of completions trained truncated.
 
 data:
   train_file: "data/processed/train_v2.json"

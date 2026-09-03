@@ -7,6 +7,53 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [Unreleased]
 
 ### Added
+- **Protocol-v4 rescore result — v3-SFT recommended for release (2026-09-03)** —
+  ran `scripts/rescore_v4.py` + `scripts/exposition_sidebyside.py` + `scripts/sota_scoreboard.py`
+  (no GPU, no model re-run). Artifacts: `docs/benchmark_runs/20260902_{v2-4b,v3-sft,v3-grpo}_v4keyword.json`,
+  `docs/benchmark_runs/20260902_exposition_v2_vs_v3.md`, `docs/SOTA_EVAL.md` (ours-only board;
+  8 external comparators still pending a GPU run). Findings: **the "`verse_lookup` 50%"
+  regression was an eval artifact** — splitting into `verse_quote` / `verse_exposition` shows
+  scripture-quote recall held (77.3% vs. v2's 78.8%, McNemar p=0.50); the drop was entirely
+  26/36 exposition-phrased questions where v2 "passed" exact-match by dumping the verbatim
+  verse and v3 answers with a prose explanation. Overall fuzzy mean (exposition-excluded)
+  0.499 vs. v2's 0.391 — a large gain that still misses the round 0.52 target by 0.021
+  (`manifest.v4` itself notes the fuzzy mean is not an accuracy). Citation 97.7%,
+  hallucination 1.5% — both bars held. A manual read of all 36 exposition items has v3-SFT
+  better-or-tie on 34/36, with one confident v3 hallucination (Genesis 19:28). GRPO still
+  inert. Recommendation and all-CPU ship steps in `docs/V3_STATUS.md`'s
+  "RESULT (2026-09-03)" block.
+- **Known issue surfaced — RAG retrieval matches verse *reference* tokens, not meaning**
+  (2026-09-03) — for "What is X about?" style questions the hybrid retriever returns
+  verse-number coincidences (e.g. "1 Chronicles 9:17" → "2 Chronicles 17:9") instead of
+  thematic neighbours, feeding both v2 and v3 poor context. GPU-free to fix in
+  `rag/retrieval.py`; documented in `docs/CODEBASE_AUDIT.md` and flagged as the
+  highest-leverage lever on the `verse_exposition` category. Not yet fixed.
+- **Benchmark protocol v4 + SOTA evaluation track (2026-09-02)** —
+  `benchmarks/manifest.v4.yaml` (`bible_assistant_baseline_v4`) splits the single
+  `verse_lookup` category into `verse_quote` (66 Qs — "What does X say?", "Quote X") and
+  `verse_exposition` (36 Qs — "What does X teach?", "What is X about?"); deterministic rule,
+  same 282 questions, produced by `scripts/make_v4_suite.py` →
+  `benchmarks/suites/evaluation_questions.v3.json` (sha-pinned). `verse_exposition`'s headline
+  metric is fuzzy pass-rate, not exact-match (an explanation of a verse is a pass at
+  exact-match 0 — same reasoning protocol v3 applied to `refusal`); overall fuzzy mean is
+  reported **all-in and exposition-excluded**. `scripts/rescore_v4.py` moves an existing
+  protocol-v3 keyword run to v4 with no re-generation (deterministic re-bucket, aggregation
+  reused from `evaluate.py`); `scripts/exposition_sidebyside.py` dumps the 36 exposition items
+  v2-vs-v3 for a manual read.
+  - **SOTA track — `docs/SOTA_EVAL.md`**: `benchmarks/external_comparators.yaml` (8 open
+    comparators — `sleepdeprived3/Christian-Bible-Expert` 8B/12B, `nbeerbower/llama-3-bible-dpo-8B`,
+    `Phora68/bible-study-phi3-mini`, `rhemabible/BibleAI`, Qwen3-8B/14B/32B instruct) run through
+    the **unchanged** RAG stack on the v4 suite via `scripts/run_external_baselines.sh` +
+    `scripts/_run_ext_eval.sh`; `scripts/sota_scoreboard.py` builds the ranked head-to-head
+    (Wilson CIs, paired McNemar vs. our best) and a **scoped verdict** — "best *open* model at
+    RAG-grounded scripture Q&A, size-independent" + "SOTA for the 16 GB Blackwell class", never
+    a frontier / unconstrained-hardware claim.
+- **LLM-judge on 16 GB: `qwen3.5:27b` is infeasible (measured, 2026-09-02)** — the v3 default
+  judge (Q4_K_M, ~17 GB) does not fit the 16 GB VRAM budget, CPU-offloads, and one rubric call
+  measured **333.7 s** on an idle GPU — past `evaluate.py`'s 180 s HTTP timeout, which is why
+  the 2026-09-01 and 2026-09-02 judge runs both failed on question 1. Protocol-v4 judge runs
+  (if any) use `qwen3:8b` and are calibration-only, not a gate. Recorded in
+  `benchmarks/manifest.v4.yaml` and `docs/BENCHMARK_PROTOCOL.md`.
 - **FMG-Bench external-calibration adapter (2026-08-31)** — `scripts/fmg_bench.py` runs the
   open Faith & Moral Guidance Benchmark (`FideAI/fmg-bench`, CC-BY-4.0, 120 scenarios + 37
   perturbations, no hidden-test leaderboard). Fetch → generate → rubric LLM-judge → weighted
@@ -84,6 +131,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- **RAG retrieval matched verse *reference* tokens, not meaning, for exposition questions
+  (2026-09-03)** — "What does X teach?" / "What is X about?" queries passed the bare
+  `Book chap:verse` string to dense + BM25, so verse-number coincidences
+  ("1 Chronicles 9:17" → "2 Chronicles 17:9") outranked thematic neighbours (found while
+  hand-reading the `verse_exposition` category; see `docs/CODEBASE_AUDIT.md`). Now
+  `rag/helpers._extract_exposition_verse_ref` detects the pattern, `rag/rag_server` pins the
+  named verse and passes its **text** as a `search_query` override to
+  `rag/retrieval._retrieve_entries` (new optional arg; the cross-encoder rerank still scores
+  against the raw question). +10 tests (**476 total**). This changes retrieval output for the
+  exposition category, so protocol-v4 numbers dated 2026-09-02/03 pre-date it — a re-eval is
+  needed to measure the gain.
 - **SFT/inference prompt-format skew** — bulk of SFT data trained a format that never occurred at inference; unified via shared `prompt_format.py`
 - **Train/eval contamination** — ~100+ verbatim duplicates between training pools and eval suite identified and decontaminated
 - **`verify_citations` crash** — unguarded call in response path could 500 after generation succeeded

@@ -56,7 +56,7 @@ inference); Ollama GGUF support (pending Ollama's bundled-llama.cpp bump).
 - **Upgrade 4:** Parent-child chunking — 5-verse passage windows alongside individual verses for thematic questions
 - **Upgrade 3:** Hybrid RAG — Dense + BM25 + Reciprocal Rank Fusion + cross-encoder reranking (bge-reranker-v2-m3)
 - **Upgrade 2:** ORPO preference alignment — built ~500 preference pairs and train_orpo.py script (teaches model what NOT to do)
-- **Upgrade 6:** LLM-as-judge evaluation — default judge Ollama `qwen3.5:27b` (`--judge-model` to change) scores responses on 5 dimensions (faithfulness, citation accuracy, hallucination, helpfulness, conciseness)
+- **Upgrade 6:** LLM-as-judge evaluation — scores responses on 5 dimensions (faithfulness, citation accuracy, hallucination, helpfulness, conciseness). Judge default is `qwen3:8b` since protocol v4 (`--judge-model` to change); `qwen3.5:27b` does not fit 16 GB VRAM (333 s/call — see `docs/BENCHMARK_PROTOCOL.md`), and since v4 the judge is calibration-only, not a gate
 - **W&B fixes:** UTF-8 console encoding + extended service timeout for Windows so training logs to Weights & Biases
 
 ### 3. Dataset & Training ✓

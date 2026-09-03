@@ -1,6 +1,192 @@
-# V3 status — resume here (2026-08-31)
+# V3 status — resume here (2026-09-01)
 
 Plan: `docs/V3_DATASET_PLAN.md`. This file = exact state + the next action.
+
+---
+
+## ►►►► CURRENT (2026-09-03, later) — retrieval fix merged; next is a GPU re-eval
+
+PRs #44 (protocol v4), #45 (v4 rescore + docs), **#46 (retrieval reference-token fix,
+`eaeb649f`)** are all on `main`. #46 changes what the RAG stack retrieves for exposition
+questions ("what does X teach?" now pins the verse and searches on its *text*, not the bare
+reference), so the numbers in the RESULT block below **pre-date it**.
+
+**NEXT — needs ~40 min GPU:** `git pull` then re-run protocol-v4 keyword on **v3-SFT and
+v2-4b** through the fixed RAG stack (`scripts/_run_v3_eval_all.sh`). Then:
+- v3-SFT clears overall-fuzzy-expo-excl ≥ 0.52 **and** the Genesis-19:28-class hallucination
+  is gone → **ship v3-SFT as v3** (ROADMAP item 5; all-CPU packaging, HF push needs the token).
+- else → **one v3.1 retrain** (ROADMAP item 7): quote-first exposition templates +
+  hallucination-hardening set, ~7 h.
+Run the external SOTA board (`run_external_baselines.sh`) **once**, on the final weights.
+**Recommendation: publish nothing until this re-eval decides.**
+
+---
+
+## ►►► RESULT (2026-09-03) — protocol-v4 rescore + manual read done. Recommend: ship v3-SFT as v3.
+
+Ran the Path-D tooling (no GPU, no model re-run): `scripts/rescore_v4.py`,
+`scripts/exposition_sidebyside.py`, `scripts/sota_scoreboard.py`. Artifacts:
+`docs/benchmark_runs/20260902_{v2-4b,v3-sft,v3-grpo}_v4keyword.json`,
+`docs/benchmark_runs/20260902_exposition_v2_vs_v3.md`, `docs/SOTA_EVAL.md`.
+
+| metric (protocol v4) | v2-4b | v3-sft | v3-grpo | bar |
+|---|--:|--:|--:|--:|
+| **verse_quote** exact (n=66, the real recall metric) | 78.8% | **77.3%** | 77.3% | ≥74% ✓ |
+| verse_quote vs v2: McNemar | — | p=0.50 (v3 +2 / v2 +0) | — | **held** |
+| verse_exposition fuzzy mean (n=36) | 0.427 | 0.418 | 0.418 | — (tie) |
+| overall fuzzy mean, exposition-excluded (n=230) | 0.391 | **0.499** | 0.498 | ≥0.52 ✗ (−0.021) |
+| overall fuzzy mean, all-in (n=266) | 0.396 | 0.488 | 0.487 | ≥0.52 ✗ |
+| citation rate | 98.9% | 97.7% | 98.1% | ≥97% ✓ |
+| hallucination rate | 2.3% | 1.5% | 1.9% | ≤2.5% ✓ |
+
+**The `verse_lookup` "regression" was an eval artifact — confirmed.** Splitting
+`verse_lookup` into `verse_quote` / `verse_exposition` shows quote recall held
+(77.3% vs 78.8%, not significant); the "50%" came entirely from 26/36
+exposition-phrased questions where v2 "passed" exact-match by dumping the verbatim
+verse and v3 answers with a prose explanation instead.
+
+**Manual read of all 36 `verse_exposition` items** (`20260902_exposition_v2_vs_v3.md`):
+v3-SFT is better-or-tie on **34/36**. v2's answers are verbatim-quote + a
+"for comparison, here are passages on…" list that is almost always
+**verse-number-coincidence matches, not thematic** (e.g. "1 Chronicles 9:17" →
+"2 Chronicles 17:9 / 1 Chronicles 17:17"). v3's are real, accurate explanations.
+Two real v3 issues: (1) **item 6, Genesis 19:28** — v3 hallucinated a "God
+protects Lot" reading (the verse is Abraham seeing Sodom's smoke); one confident
+factual error out of 36. (2) items 12, 30 — v3 honestly says "not in the provided
+context" where v2 emitted number-matched junk (v3 wins on faithfulness).
+
+**Surfaced (higher-leverage than model work): the RAG retriever returns
+verse-*reference*-token matches for exposition questions instead of thematic
+neighbours** — hits v2 AND v3, feeds both bad context. `rag/retrieval.py`, GPU-free
+to investigate. This is the single biggest lever on the exposition category.
+
+**GRPO still inert** — v3-grpo == v3-sft to 3 d.p. on every metric.
+
+### Recommendation — ship v3-SFT as v3
+
+- verse_quote recall **held** (the headline risk is disproven)
+- the actual v2 regression — synthesis categories (character/context/topical) — is
+  fixed: their fuzzy means are ~1.8× v2 (from the 2026-09-01 protocol-v3 run)
+- exposition answers are genuinely better (34/36 manual read); citation + hallucination hold
+- overall fuzzy expo-excl **0.499 beats v1 (0.48) and v2 (0.40)**; it misses the round
+  0.52 target by 0.021, and `manifest.v4` itself notes the fuzzy mean "is NOT an accuracy"
+
+**Ship steps (all CPU — no GPU):** `merge_adapters.py` (adapter →
+`models/qwen3.5-4b-bible-v3-merged`, already built) → `convert_hf_to_gguf.py --no-mtp`
+→ `llama-quantize` ladder (Q4_K_M / Q5_K_M / Q6_K / Q8_0 + imatrix) → publish
+`Ttimms/Bible-Assistant-Qwen3.5-4B-v3` + `-v3-GGUF` (needs HF_TOKEN — user runs the
+push) → add the `## Architecture` mermaid to the new cards → update README /
+MODEL_CARD / MODEL_COMPARISON to v3.
+
+**Then (GPU, ~3–4 h):** `run_external_baselines.sh` + `sota_scoreboard.py` — fills
+in `docs/SOTA_EVAL.md`'s 8 pending comparators for the "best open at the task" claim.
+
+**If instead going Path B (v3.1 retrain):** add quote-first exposition templates to
+the verse-drill generators AND fix the `rag/retrieval.py` reference-token matching
+first — the retrieval issue caps how much a retrain can help the exposition category.
+
+---
+
+## ►► UPDATE (2026-09-02) — judge is dead, Path D tooling + SOTA track staged
+
+**The judge eval is abandoned.** Both attempts (2026-09-01 18:04 and 2026-09-02
+05:54) died on question 1: `qwen3.5:27b` (Q4_K_M, ~17 GB) does not fit the 16 GB
+VRAM budget, CPU-offloads, and one rubric call measured **333.7 s** on 2026-09-02
+(idle GPU) — past `evaluate.py`'s 180 s timeout. Do not retry the 27B judge on
+this box. `benchmarks/manifest.v4.yaml` records this; v4 judge (if ever) = `qwen3:8b`,
+calibration-only.
+
+**Path D (recommended) — decide from keyword + a manual read, no judge, no GPU.**
+All tooling is staged and syntax-checked (nothing run yet — waiting on you):
+
+| file | what |
+|---|---|
+| `benchmarks/suites/evaluation_questions.v3.json` | frozen v4 suite; `verse_lookup` 102 → `verse_quote` 66 + `verse_exposition` 36 (rule: ends "teach?"/"about?"). sha `f6640605…` |
+| `benchmarks/manifest.v4.yaml` | protocol v4; exposition scored by fuzzy not exact; overall fuzzy reported all-in **and** exposition-excluded |
+| `scripts/make_v4_suite.py` | the inert suite generator (already run) |
+| `scripts/rescore_v4.py` | re-bucket the 3 `20260901_*_keyword.json` under v4, re-aggregate via `evaluate.py`'s own formulas → `20260902_*_v4keyword.json` + comparison table |
+| `scripts/exposition_sidebyside.py` | the 36 exposition items, v2 vs v3-sft, → `docs/benchmark_runs/20260902_exposition_v2_vs_v3.md` for the manual read |
+
+Run on return: `python scripts/rescore_v4.py` then `python scripts/exposition_sidebyside.py`.
+Decision: verse_lookup "regression" should dissolve (quote recall shown holding,
+exposition off exact-match). Open question stays the **overall fuzzy bar 0.52** —
+v3-SFT all-in is 0.488; exposition-excluded should clear. If the side-by-side read
+shows v3's explanations are accurate and better than v2's raw dumps → ship v3-SFT
+as v3. Else → Path B retrain.
+
+**SOTA track (new, 2026-09-02) — `docs/SOTA_EVAL.md`.** Establishes the
+"best *open* model at RAG-grounded scripture Q&A, size-independent" claim by
+measurement. Staged, GPU sweep not run:
+
+| file | what |
+|---|---|
+| `benchmarks/external_comparators.yaml` | 8 comparators: `sleepdeprived3` Christian-Bible-Expert 8B/12B, `nbeerbower/llama-3-bible-dpo-8B`, `Phora68/bible-study-phi3-mini`, `rhemabible/BibleAI`, Qwen3-8B/14B/32B instruct |
+| `scripts/run_external_baselines.sh` | promotes v4 suite (sha-checked, backs up `prompts/evaluation_questions.pre-v4.json`), pulls/creates each model, runs protocol-v4 keyword through the **unchanged** RAG stack. ETA ~3–4 h. `--only <key> --smoke-first` to validate one first |
+| `scripts/_run_ext_eval.sh` | per-model RAG-server + `run_benchmark.py` helper (Ollama-served, no tf-server) |
+| `scripts/sota_scoreboard.py` | reads ours (`rescore_v4`) + ext runs → ranked head-to-head + scoped verdict → rewrites `docs/SOTA_EVAL.md` |
+
+Claim rules baked into `SOTA_EVAL.md`: quality = best open at the task; hardware =
+16 GB Blackwell class; **not** a frontier / unconstrained-hardware claim.
+
+---
+
+## ► RESUME HERE (2026-09-01 evening)  — superseded by the 2026-09-02 update above
+
+**State:** SFT + merge + f16 GGUF done. GRPO 150-step probe done and **inert**
+(0/266 questions changed — do not ship, do not rerun without a new recipe).
+Protocol-v3 **keyword** eval done, 3-way (`docs/benchmark_runs/20260901_*.json`).
+**v3 does not clear the acceptance bar** — full analysis in the
+`## RESULT (2026-09-01)` section below.
+
+**Judge eval:** FAILED both times — see the 2026-09-02 update. The lines below are
+the original (now-stale) plan that assumed the judge would work.
+
+**Decision to make on return (pick one, then run overnight):**
+
+**Path A — fix the eval, ship v3-SFT (no retrain).** The verse_lookup "regression"
+is 25/26 exposition-phrased questions ("What does X *teach*?") where v3 explains
+instead of quoting; v2 only "passed" by dumping raw text. Split `verse_lookup` in
+`benchmarks/manifest.v4.yaml` into `verse_quote` (exact-match) + `verse_exposition`
+(fuzzy/judge), re-score the 3 existing runs, and if the judge (running now) shows
+v3-SFT ≥ v2 on faithfulness/helpfulness → publish v3-SFT. ~2 h, no GPU.
+```
+# after judge finishes:
+python scripts/compare_benchmark_runs.py \
+  docs/benchmark_runs/20260901_v2-4b_judge.json \
+  docs/benchmark_runs/20260901_v3-sft_judge.json
+# then author manifest.v4.yaml + re-score; then merge+GGUF+publish v3-sft as v3
+```
+
+**Path B — v3.1 retrain (7 h GPU, overnight).** Add exposition-phrased templates
+(`"What does {ref} teach?"`, `"What is {ref} about?"`) to the verse-drill
+generators in `training/build_dataset_v2.py` with **quote-first answers**
+(`"{ref} reads: \"{verbatim}\". [1–2 sentence explanation]"`), ~600–1000 examples;
+optionally bump `KEEP_BUDGETS` in `training/assemble_v3.py` (7,000 → ~11–13k).
+Rebuild → `data/processed/train_v3.1.json`, `check_train_eval_overlap.py`, then:
+```
+# edit config.v3-4b.yaml: train_file -> data/processed/train_v3.1.json,
+#   output_dir -> checkpoints_v3.1_4b, run-name -> qwen3.5-4b-bible-v3.1-sft
+tmux new-session -d -s v31sft 'bash ~/bible-ai-assistant/scripts/run_v3_4b_sft.sh'
+# ~7 h -> merge_adapters.py -> convert_hf_to_gguf.py --no-mtp -> re-eval keyword
+```
+
+**Recommendation:** wait for the judge result, then **Path A** unless the judge
+says v3-SFT's exposition is actually *worse* than v2's raw-quote dumps (unlikely).
+Path B only if A leaves a real, specific gap.
+
+**Uncommitted working tree** (all this session; PR with the v3-model when it ships):
+`docs/V3_STATUS.md`, `training/config.v2.yaml` (grpo `max_completion_length`
+512→768), `training/train_grpo.py` (unsloth-before-trl import fix),
+`scripts/{run_v3_4b_sft,run_v3_grpo,_run_v3_eval_all,_run_v3_judge}.sh`,
+`docs/benchmark_runs/20260901_*.json`, `checkpoints_v3_4b/` (gitignored SFT ckpts).
+Plus a site-packages patch: `~/miniforge3/envs/bible-orpo/.../trl/mergekit_utils.py`
+`try/except` (lost on env rebuild; the import-order fix in `train_grpo.py` is the
+real one). **Do NOT `pip install mergekit`** — it breaks the Unsloth stack.
+
+Merged models on disk (gitignored): `models/qwen3.5-4b-bible-v3-{sft,merged,grpo-merged}`,
+`models/qwen3.5-4b-bible-v3-grpo` (adapter), `models/gguf3/bible-v3-4b-f16.gguf`.
+
+---
 
 ## Done
 
@@ -64,20 +250,167 @@ Plan: `docs/V3_DATASET_PLAN.md`. This file = exact state + the next action.
   ~+2,500 examples. If the post-SFT eval shows `thematic`/`theological` still weak,
   this is the v3.1 iteration.
 
-## Next action
+## Done — SFT + merge + GGUF (2026-09-01)
+
+- **SFT complete.** `scripts/run_v3_4b_sft.sh` → `training/train_unsloth.py`
+  `--config training/config.v3-4b.yaml --run-name qwen3.5-4b-bible-v3-sft`.
+  2,447/2,447 steps, 6 h 55 m, **rc=0**. final `train_loss 0.5501`,
+  final `eval_loss 0.4923` (from 0.568 early — clean convergence, no overfit).
+  Adapter → `models/qwen3.5-4b-bible-v3-sft/` (170 MB, r32). Ran on the
+  stabilized box (`.wslconfig` memory 64 GB + reboot); no OOM over 7 h.
+  Log: `logs/v3sft_20260831-221437.log`.
+  - 83 train examples dropped as truncated at `max_seq_length=1280`
+    (39,463 → 39,380 → 39,143 train / 237 eval after the 0.006 split).
+
+- **Merge complete.** `training/merge_adapters.py --lora-path
+  models/qwen3.5-4b-bible-v3-sft --output models/qwen3.5-4b-bible-v3-merged`.
+  Base resolved to the cached pin `851bf6e8…` (only snapshot in the HF cache —
+  matches training). bf16 `model.safetensors` 8.41 GB. LoRA delta verified
+  present (q_proj / down_proj max|Δ| ~0.008 vs. base — not a silent skip).
+
+- **f16 GGUF complete.** `~/llama.cpp-full/convert_hf_to_gguf.py
+  models/qwen3.5-4b-bible-v3-merged --outfile models/gguf3/bible-v3-4b-f16.gguf
+  --outtype f16 --no-mtp`. 426 tensors, 8.42 GB (byte-identical size to v2's
+  f16). Arch `Qwen3_5ForCausalLM` → `conversion/qwen.py` (hybrid linear-attn,
+  `supports_mtp_export`). **Not** `~/wsl41361/llama.cpp` — that checkout is the
+  #41361 repro harness and is unbuilt; the built, current one is
+  `~/llama.cpp-full` (`LLM_ARCH_QWEN35` runtime support).
+  - Runtime smoke (`llama-cli -ngl 99 -st`, greedy): coherent, correctly cited
+    — "Bethlehem … Micah 5:2 … Matthew 2:5-6", 83 t/s on GPU.
+
+## GRPO — validated, ready for the full run (2026-09-01)
+
+- **Reward dry-run** (`--dry-run`, no GPU): reward(good)=0.872, reward(bad)=0.075
+  against the real `data/raw/bible_web.json` corpus + `data/processed/train_v3.json`
+  prompts. Wiring sane.
+- **2-step GPU smoke** (`--max-steps 2 --limit-prompts 32`): rc=0, 156 s, no OOM.
+  `rewards/verifiable_bible_reward/mean 0.76` (std 0.10), `kl 0.215`. Adapter
+  saved+reloaded clean. `completions/clipped_ratio 0.94` — the SFT model rarely
+  emits EOS within 512 tok, so most completions train truncated (raise
+  `max_completion_length` to ~768 for the full run, or accept it).
+- **Two fixes made to get here** (uncommitted, in the working tree):
+  - `training/train_grpo.py`: import `unsloth` **before** `trl` in the real-training
+    path (line ~285). Without it, `trl.trainer.callbacks` eagerly imports optional
+    deps (`mergekit`, `llm_blender`) that aren't installed and the import dies.
+  - `~/miniforge3/envs/bible-orpo/.../trl/mergekit_utils.py`: wrapped the
+    `from mergekit ...` import in `try/except` (site-packages patch, lost on env
+    rebuild — belt-and-braces; the import-order fix is the real one).
+  - **Do NOT `pip install mergekit`** into `bible-orpo` — it force-downgrades
+    `accelerate` (1.14→1.6), `huggingface_hub`, `pydantic`, `safetensors` and
+    breaks the Unsloth/transformers-5.5 stack. It was installed then fully
+    reverted on 2026-09-01; env re-verified (`unsloth 2026.8.22`, `trl 0.24.0`,
+    `accelerate 1.14.0`, `transformers 5.5.0`, torch 2.11.0+cu128).
+
+### Full GRPO — command + the one open decision
 
 ```
-# 1. SFT — user triggers overnight (GPU-gated; box must be stabilized first:
-#    .wslconfig memory 80GB -> 64GB + a Windows reboot, per the WSL2-load-hang notes).
-python training/train_unsloth.py --config training/config.v3-4b.yaml \
-    --run-name qwen3.5-4b-bible-v3-sft
-# ~7 h: ~2,452 steps x ~8.9 s + eval (v3 is ~30% smaller than v2). eval_split 0.006
-# for A/B comparability with v2-4b.
-
-# 2. merge -> GGUF (convert_hf_to_gguf.py --no-mtp) -> GRPO (training/train_grpo.py,
-#    citation reward, --max-steps 2 smoke first) -> eval protocol-v3 + FMG-Bench
-#    (scripts/fmg_bench.py) -> publish v3.
+python training/train_grpo.py \
+    --policy-path models/qwen3.5-4b-bible-v3-sft \
+    --config training/config.v2.yaml \
+    --data data/processed/train_v3.json \
+    --corpus data/raw/bible_web.json \
+    --run-name qwen3.5-4b-bible-v3-grpo \
+    --max-steps <N> --limit-prompts <M> --no-wandb
 ```
+
+**Decision needed: `--max-steps` / `--limit-prompts`.** `--max-steps -1` (the
+default) = 3 epochs over all 39,463 prompts ≈ 14.8k steps × ~78 s ≈ **prohibitive
+(~300 h)**. GRPO reward-shaping for a citation objective is typically a few
+hundred steps. Proposed default: **`--max-steps 400 --limit-prompts 4000`**
+(≈ 8–9 h at the smoke's 78 s/step; revisit step time on a fresh 25-step probe
+first). Bump `max_completion_length` 512→768 in `training/config.v2.yaml`'s
+`grpo:` block, or pass it through, to cut the 0.94 clip ratio.
+
+### After GRPO
+
+```
+# eval protocol-v3 (282-q suite, greedy, 3 seeds, vs. the v2-4b checkpoint)
+#   + FMG-Bench (scripts/fmg_bench.py, calibration only)
+# merge GRPO adapter -> bf16 -> GGUF (~/llama.cpp-full/convert_hf_to_gguf.py --no-mtp)
+#   -> quant ladder Q4_K_M/Q5_K_M/Q6_K/Q8_0 [+imatrix], mirror models/gguf2/ naming
+#   -> publish v3.
+```
+
+The `models/gguf3/bible-v3-4b-f16.gguf` already built is an **SFT-stage**
+validation artifact — the published GGUFs come from the post-GRPO merge.
+
+## RESULT (2026-09-01): protocol-v3 keyword eval, 3-way — v3 does not clear the bar, GRPO is a no-op
+
+Ran `scripts/_run_v3_eval_all.sh` (tf-server :8001 -> RAG :8081 -> `run_benchmark.py`,
+official protocol-v3 keyword scoring, suite sha256 verified) on all three merged
+checkpoints. Runs in `docs/benchmark_runs/20260901_{v2-4b,v3-sft,v3-grpo}_keyword.json`.
+Paired stats via `scripts/compare_benchmark_runs.py` (McNemar exact + 10k bootstrap).
+
+| metric (n=266) | v2-4b | v3-SFT | v3-GRPO | bar |
+|---|--:|--:|--:|--:|
+| overall fuzzy mean | 0.396 | 0.488 | 0.487 | ≥0.52 ✗ |
+| fuzzy pass-rate @0.85 | 16.3% | 15.6% | 15.6% | (McNemar p=0.69, flat) |
+| verse_lookup exact | **76%** | 50% | 50% | ≥74% ✗ |
+| verse_lookup fuzzy mean | 0.648 | 0.663 | 0.664 | — |
+| character / context / topical fuzzy mean | .20/.23/.20 | **.37/.39/.38** | .37/.40/.37 | ≥v2+0.10 ✓ |
+| citation rate | 99% | 98% | 98% | ≥97% ✓ |
+| hallucination | 2% | 2% | 2% | ≤2.5% ✓ |
+
+**GRPO changed nothing.** v3-GRPO vs v3-SFT: verse_accuracy delta +0.0pp, McNemar
+b=0/c=0 — not one question flipped pass/fail; fuzzy mean identical to 3 d.p. The
+150-step / lr 1e-6 / cosine-to-zero probe was confirmed inert (matches the training
+log: reward bounced 0.33–0.70 with no trend, lr ~0 by step ~75). Do **not** ship
+v3-GRPO and do **not** book a longer GRPO run without a changed recipe (constant or
+higher lr, more steps, reshaped reward).
+
+**The verse_lookup "regression" is a behaviour split on question phrasing, not a
+recall loss** (diagnosed from the per-item results):
+
+- QUOTE-style verse_lookup Qs ("What does X **say**?", "Quote X"): v3 held **51/52**.
+- EXPOSITION-style Qs ("What does X **teach**?", "What is X **about**?"): **25 of 26**
+  lost points. v2 answered these by dumping the verbatim WEB text (passing
+  exact-match); v3-SFT answers with an accurate *explanation* (fails exact-match,
+  fuzzy ~0.44). The teacher-distilled synthesis training generalised "explain in
+  prose" onto exposition-phrased single-verse questions.
+- `prompts/system_prompt.txt` already says *"For verse lookups: quote the verse,
+  cite the reference, then explain"* — SFT overrode that instruction for the
+  `teach`/`about` phrasings, so a prompt-only fix is unlikely to be sufficient.
+
+### Verdict
+
+v3-SFT: real, measurable synthesis gains (character/context/topical fuzzy means
+~1.8x, clear ≥ v2+0.10); scripture recall intact on direct quote requests (98%);
+citation and hallucination held. But it **misses the acceptance bar** — overall
+fuzzy 0.488 < 0.52, and verse_lookup exact 50% < 74% because of the
+exposition-phrasing behaviour split. **v3 does not ship as-is.** GRPO is not the
+lever.
+
+### Recommended next step: v3.1 — "quote-then-explain" for named references
+
+Cheapest fix that keeps the synthesis gains and recovers verse_lookup:
+
+1. In `training/build_dataset_v2.py`, add exposition-phrased templates
+   (`"What does {ref} teach?"`, `"What is {ref} about?"`, `"What's the message of
+   {ref}?"`) to the verse-drill generators, with answers in **quote-first form**:
+   `"{ref} reads: “{verbatim}”. [1–2 sentence explanation]"`. ~600–1000
+   examples across `verse_recall` / `passage_recall`.
+2. Optionally bump `KEEP_BUDGETS` in `training/assemble_v3.py` (currently
+   verse_recall 2000 / passage_recall 2000 / reverse_lookup 1500 /
+   translation_specific 1500 = 7,000 vs v2's ~18,000) back toward ~11–13k total —
+   partial restore, not full re-saturation.
+3. Rebuild -> `data/processed/train_v3.1.json`; re-run `check_train_eval_overlap.py`.
+4. SFT re-run (`config.v3-4b.yaml` with the new `train_file`), ~7 h — **user-gated**.
+5. Re-eval keyword; if it clears the bar, ship v3.1 SFT (skip GRPO until the recipe
+   question is worth revisiting).
+
+Alternative if "distinguish explain-vs-quote" is the *desired* behaviour: fix the
+**eval** instead — split `verse_lookup` into `verse_quote` (exact-match) and
+`verse_exposition` (fuzzy/judge). Then v3-SFT's picture is "synthesis up, quote
+recall held, no real loss." This is a `manifest.v4` change, not a retrain.
+
+### Still open
+
+- **Judge eval** (`_run_v3_judge.sh`, v2-4b + v3-sft, qwen3.5:27b via Ollama):
+  queued. `ollama pull qwen3.5:27b` stalled on 2026-09-01 (registry throttling,
+  dropped to ~26 KB/s); a detached retry loop is running. Judge would confirm
+  whether v3-SFT's exposition answers score better on faithfulness/helpfulness —
+  expected, and it informs the "fix eval vs retrain" choice above.
+- **FMG-Bench** (`scripts/fmg_bench.py`) — not run; calibration only.
 
 ## Acceptance bar (from `docs/V3_DATASET_PLAN.md`)
 

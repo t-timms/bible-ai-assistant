@@ -1,0 +1,119 @@
+# External comparators for the SOTA-at-task claim (protocol v4).
+#
+# Every entry is run through the SAME RAG stack (hybrid retrieval + reranker +
+# citation verification) and the SAME 282-question v4 suite, greedy, seed 42,
+# so the only variable is the generator model. Results ->
+# docs/benchmark_runs/20260902_ext_<key>_v4keyword.json ; scoreboard via
+# scripts/sota_scoreboard.py -> docs/SOTA_EVAL.md.
+#
+# Claim scope (see docs/SOTA_EVAL.md and CLAUDE.md):
+#   * quality angle  = "best OPEN model at RAG-grounded scripture Q&A" — size-
+#     independent, because no large lab optimizes for this niche. Beating the
+#     dedicated bible fine-tunes below AND holding vs. larger general instruct
+#     models is what backs it.
+#   * hardware angle = SOTA for the 16 GB / consumer-Blackwell class.
+#   * NOT a claim about beating frontier models on unconstrained hardware.
+#
+# serving:
+#   ollama_tag : `ollama pull <tag>` then serve directly.
+#   hf_gguf    : download the listed GGUF file, `ollama create` from a generated
+#                Modelfile (chat template + stop tokens per `template`).
+# fits_16gb  : whether the quant runs fully on-GPU here (informational; CPU
+#              offload is allowed for a one-time baseline, just slow).
+
+protocol_id: bible_assistant_baseline_v4
+rag_stack: unchanged                       # same commit, same Chroma index
+decoding: {temperature: 0.0, seed: 42}
+
+comparators:
+
+  # ---- dedicated open "bible/theology" fine-tunes (the direct peers) ----
+  - key: christian-bible-expert-12b
+    hf: https://hf.co/sleepdeprived3/Christian-Bible-Expert-v2.0-12B
+    gguf: https://hf.co/mradermacher/Christian-Bible-Expert-v2.0-12B-i1-GGUF
+    params_b: 12
+    license: apache-2.0
+    serving: hf_gguf
+    gguf_file: Christian-Bible-Expert-v2.0-12B.i1-Q4_K_M.gguf
+    template: mistral
+    fits_16gb: true
+    group: dedicated_bible
+    note: most-downloaded dedicated bible model family on HF (Apr 2025).
+
+  - key: christian-bible-expert-8b
+    hf: https://hf.co/sleepdeprived3/Baptist-Christian-Bible-Expert-v2.0-8B
+    gguf: https://hf.co/mradermacher/Baptist-Christian-Bible-Expert-v2.0-8B-i1-GGUF
+    params_b: 8
+    license: other            # 8B card is license:other — record, note in writeup
+    serving: hf_gguf
+    gguf_file: Baptist-Christian-Bible-Expert-v2.0-8B.i1-Q4_K_M.gguf
+    template: llama3
+    fits_16gb: true
+    group: dedicated_bible
+
+  - key: llama3-bible-dpo-8b
+    hf: https://hf.co/nbeerbower/llama-3-bible-dpo-8B
+    gguf: https://hf.co/mradermacher/llama-3-bible-dpo-8B-i1-GGUF
+    params_b: 8
+    license: other            # llama-3 community license
+    serving: hf_gguf
+    gguf_file: llama-3-bible-dpo-8B.i1-Q4_K_M.gguf
+    template: llama3
+    fits_16gb: true
+    group: dedicated_bible
+
+  - key: bible-study-phi3-mini
+    hf: https://hf.co/Phora68/bible-study-phi3-mini
+    params_b: 3.8
+    license: mit
+    serving: hf_gguf
+    gguf_file: bible-study-phi3-mini.Q4_K_M.gguf   # repo ships its own GGUF
+    template: phi3
+    fits_16gb: true
+    group: size_matched      # closest to our 4B — the fair size-for-size row
+
+  - key: rhema-bibleai-gemma
+    hf: https://hf.co/rhemabible/BibleAI
+    params_b: 4              # gemma-based; confirm exact size from config on download
+    license: apache-2.0
+    serving: hf_gguf
+    gguf_file: BibleAI.Q4_K_M.gguf
+    template: gemma
+    fits_16gb: true
+    group: size_matched
+
+  # ---- general instruct baselines (the "does niche tuning even help?" control) ----
+  - key: qwen3-8b-instruct
+    hf: https://hf.co/Qwen/Qwen3-8B
+    params_b: 8
+    license: apache-2.0
+    serving: ollama_tag
+    ollama_tag: qwen3:8b          # already pulled on this box
+    fits_16gb: true
+    group: general_instruct
+
+  - key: qwen3-14b-instruct
+    hf: https://hf.co/Qwen/Qwen3-14B
+    params_b: 14
+    license: apache-2.0
+    serving: ollama_tag
+    ollama_tag: qwen3:14b
+    fits_16gb: true              # Q4_K_M ~9 GB
+    group: general_instruct
+
+  - key: qwen3-32b-instruct
+    hf: https://hf.co/Qwen/Qwen3-32B
+    params_b: 32
+    license: apache-2.0
+    serving: ollama_tag
+    ollama_tag: qwen3:32b        # already pulled (used as the dead judge); Q4 ~20 GB
+    fits_16gb: false            # CPU-offload; one-time baseline only
+    group: general_instruct_large
+    note: the "can a 4B beat a 32B at this task" headline row. Slow; run last.
+
+# Optional frontier ceiling — reference only, never counted as a peer for the
+# claim. Left disabled: needs an API key and an OpenAI-compatible shim into the
+# RAG server. Enable explicitly if a key is available.
+frontier_ceiling:
+  enabled: false
+  candidates: [gpt-4o, claude-sonnet]

@@ -263,6 +263,51 @@ class TestHybridCandidatesWiring:
         assert entries == []
 
 
+class TestSearchQueryOverride:
+    """Exposition path: dense + BM25 search against `search_query` (the verse text),
+    not `user_message` (the bare reference, which retrieves verse-number coincidences)."""
+
+    def _capture(self, monkeypatch):
+        seen: dict[str, str] = {}
+
+        def dense(query, collection, embedder, n):
+            seen["dense_q"] = query
+            return []
+
+        def sparse(query, n):
+            seen["bm25_q"] = query
+            return []
+
+        monkeypatch.setattr(retrieval, "_get_rag", lambda: (object(), None, object()))
+        monkeypatch.setattr(retrieval, "_dense_search", dense)
+        monkeypatch.setattr(retrieval, "_bm25_search", sparse)
+        monkeypatch.setattr(retrieval, "_fetch_verses_by_refs", lambda refs: [])
+        return seen
+
+    def test_search_query_used_for_candidates(self, monkeypatch) -> None:
+        seen = self._capture(monkeypatch)
+        _run(
+            retrieval._retrieve_entries(
+                "What is 1 Chronicles 9:17 about?",
+                top_k=2,
+                search_query="The gatekeepers: Shallum, Akkub, Talmon, Ahiman",
+            )
+        )
+        assert seen["dense_q"] == "The gatekeepers: Shallum, Akkub, Talmon, Ahiman"
+        assert seen["bm25_q"] == "The gatekeepers: Shallum, Akkub, Talmon, Ahiman"
+
+    def test_none_search_query_falls_back_to_user_message(self, monkeypatch) -> None:
+        seen = self._capture(monkeypatch)
+        _run(retrieval._retrieve_entries("What does John 3:16 say?", top_k=2))
+        assert seen["dense_q"] == "What does John 3:16 say?"
+        assert seen["bm25_q"] == "What does John 3:16 say?"
+
+    def test_blank_search_query_falls_back(self, monkeypatch) -> None:
+        seen = self._capture(monkeypatch)
+        _run(retrieval._retrieve_entries("real question", top_k=2, search_query="   "))
+        assert seen["dense_q"] == "real question"
+
+
 class TestContextBudget:
     """R6b: lowest-ranked unpinned entries are dropped under the char budget."""
 

@@ -5,7 +5,7 @@
 [![Model](https://img.shields.io/badge/HF-Bible--Assistant--Qwen3.5--4B--v2-orange?style=flat-square&logo=huggingface)](https://huggingface.co/Ttimms/Bible-Assistant-Qwen3.5-4B-v2)
 [![GGUF](https://img.shields.io/badge/HF-v2--GGUF-orange?style=flat-square&logo=huggingface)](https://huggingface.co/Ttimms/Bible-Assistant-Qwen3.5-4B-v2-GGUF)
 ![W&B](https://img.shields.io/badge/W%26B-34_runs-yellow?style=flat-square&logo=weightsandbiases)
-[![Tests](https://img.shields.io/badge/tests-430_passing-brightgreen?style=flat-square)](https://github.com/t-timms/bible-ai-assistant/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/tests-476_passing-brightgreen?style=flat-square)](https://github.com/t-timms/bible-ai-assistant/actions/workflows/ci.yml)
 [![Ruff](https://img.shields.io/badge/code%20style-ruff-black?style=flat-square&logo=ruff)](https://docs.astral.sh/ruff/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 
@@ -15,7 +15,7 @@ A locally-hosted Bible Q&A assistant fine-tuned on Qwen3.5-4B with hybrid RAG re
 
 ## Why
 
-Most Bible apps offer keyword search. This project builds a real AI that *understands* Scripture — fine-tuned on theology, grounded in retrieved passages, and guardrailed against hallucination. It combines a custom ORPO-trained Qwen3.5-4B model with hybrid RAG (BM25 + dense retrieval + cross-encoder reranking) and constitutional AI safety checks. Voice input and output make it accessible to anyone. Built as a production system, not a demo — 430 tests, 34 W&B training runs, full CI/CD, Docker deployment.
+Most Bible apps offer keyword search. This project builds a real AI that *understands* Scripture — fine-tuned on theology, grounded in retrieved passages, and guardrailed against hallucination. It combines a custom ORPO-trained Qwen3.5-4B model with hybrid RAG (BM25 + dense retrieval + cross-encoder reranking) and constitutional AI safety checks. Voice input and output make it accessible to anyone. Built as a production system, not a demo — 476 tests, 34 W&B training runs, full CI/CD, Docker deployment.
 
 ---
 
@@ -25,9 +25,9 @@ Most Bible apps offer keyword search. This project builds a real AI that *unders
 |------|---------|
 | **LLM Fine-Tuning** | bf16 LoRA (Unsloth/PEFT/TRL) on Qwen3.5-4B; v2 SFT on a 56k-example, provenance-tracked, eval-decontaminated dataset with a general-data blend as a catastrophic-forgetting guard; ORPO (v1) and a verifiable-reward GRPO stage (scaffolded) |
 | **Retrieval-Augmented Generation** | Hybrid retrieval: ChromaDB dense search + BM25 sparse search + Reciprocal Rank Fusion + cross-encoder reranking (bge-reranker-v2-m3) |
-| **Evaluation & Benchmarking** | 282-question suite across 8 categories, chapter:verse verified against the indexed text; sha256-pinned versioned protocol (v1–v3); controlled A/B between model versions with Wilson CIs |
+| **Evaluation & Benchmarking** | 282-question suite across 9 categories, chapter:verse verified against the indexed text; sha256-pinned versioned protocol (v1–v4); controlled A/B between model versions with Wilson CIs |
 | **Model Quantization & Deployment** | GGUF export (F16 + Q8_0/Q6_K/Q5_K_M/Q4_K_M) for the Qwen3.5 hybrid arch via current llama.cpp; local serving; Jetson Orin Nano deployment guide |
-| **MLOps & CI/CD** | GitHub Actions: lint (Ruff), type-check (mypy), unit tests (pytest, 430 tests, 67% coverage / 60% gate) across Python 3.10–3.12, security scan (pip-audit CVE + bandit SAST), Docker build validation; W&B experiment tracking (34 runs) |
+| **MLOps & CI/CD** | GitHub Actions: lint (Ruff), type-check (mypy), unit tests (pytest, 476 tests, 67% coverage / 60% gate) across Python 3.10–3.12, security scan (pip-audit CVE + bandit SAST), Docker build validation; W&B experiment tracking (34 runs) |
 | **Production Hardening** | Optional API key auth, per-IP rate limiting (slowapi), `X-Request-ID` request correlation, structured JSON logging, Pydantic-validated settings, 1 MB request body guard |
 | **Voice Pipeline** | Faster-Whisper STT (GPU/CPU fallback) + Kokoro TTS; Gradio 6 web UI |
 | **Constitutional AI** | Behavioral guardrails grounded in biblical principles; counseling-pattern detection with safety referrals |
@@ -155,10 +155,10 @@ bible-ai-assistant/
 ├── ui/                   # Gradio 6 web interface (text + voice)
 ├── voice/                # STT (Faster-Whisper) + TTS (Kokoro)
 ├── scripts/              # Benchmarking, leaderboard, testing, retrieval metrics, qrels
-├── tests/                # 430 pytest tests across 16 modules (67% line coverage, 60% gate)
-├── prompts/              # System prompt + 282-question eval suite (8 categories)
+├── tests/                # 476 pytest tests across 20 modules (67% line coverage, 60% gate)
+├── prompts/              # System prompt + 282-question eval suite (9 categories)
 ├── deployment/           # PC, Jetson, VPS deployment configs + Dockerfiles
-├── benchmarks/           # Versioned evaluation protocol (manifest.v1–v3.yaml, sha256-pinned suites)
+├── benchmarks/           # Versioned evaluation protocol (manifest.v1–v4.yaml, sha256-pinned suites)
 ├── docs/                 # Guides, architecture, training results, model card
 ├── .github/workflows/    # CI: lint · type-check · security · test · Docker build
 ├── .pre-commit-config.yaml
@@ -242,7 +242,7 @@ PYTHONPATH=. pytest tests/
 PYTHONPATH=. pytest tests/ --cov=rag --cov=training --cov-report=term-missing
 ```
 
-The test suite comprises **430 tests** across 16 modules, grouped by area:
+The test suite comprises **476 tests** across 20 modules, grouped by area:
 
 | Area | Modules | Focus |
 |------|---------|-------|
@@ -273,7 +273,8 @@ Every push and pull request runs a staged pipeline (`lint` → `type-check` + `s
 | [MODEL_CARD.md](docs/MODEL_CARD.md) | Model card: training, evaluation, limitations, bias |
 | [architecture.md](docs/architecture.md) | System design, phase deployment, lessons learned |
 | [MODEL_COMPARISON.md](docs/MODEL_COMPARISON.md) | SFT vs. ORPO evaluation and analysis |
-| [BENCHMARK_PROTOCOL.md](docs/BENCHMARK_PROTOCOL.md) | Versioned evaluation methodology (protocol v3) |
+| [BENCHMARK_PROTOCOL.md](docs/BENCHMARK_PROTOCOL.md) | Versioned evaluation methodology (protocol v4) |
+| [SOTA_EVAL.md](docs/SOTA_EVAL.md) | Head-to-head vs. open comparators — the "best open model at the task" claim |
 | [V2_EXECUTION_PLAN.md](docs/V2_EXECUTION_PLAN.md) | Ordered plan for the v2 model rebuild (SFT → ORPO → GRPO) |
 | [CONSTITUTION.md](CONSTITUTION.md) | Biblical behavioral guardrails |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Development workflow, branch conventions, PR process |

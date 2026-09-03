@@ -366,6 +366,51 @@ def _extract_verse_ref_from_lookup(question: str) -> str | None:
     return _normalize_verse_id(m.group(1))
 
 
+# Exposition-style phrasing: the question names a specific verse but asks what it
+# *means* / teaches / is about, not for its verbatim text. These need the verse
+# pinned AND a topical retrieval query (the verse's own words), because searching
+# with the bare "Book chap:verse" reference returns verse-number coincidences
+# ("1 Chronicles 9:17" -> "2 Chronicles 17:9"), not thematic neighbours.
+# See docs/CODEBASE_AUDIT.md "RAG retrieval matches verse reference tokens".
+_EXPOSITION_CUE = re.compile(
+    r"\b(about|teach(?:es|ing)?|mean(?:s|ing)?|message of|point of|context of|"
+    r"significance of|getting at|talking about|referring to)\b",
+    re.IGNORECASE,
+)
+
+
+def _extract_exposition_verse_ref(question: str) -> str | None:
+    """Normalized `Book chap:verse` for an *exposition* question about one verse.
+
+    Returns a ref only when the question (a) names a single `Book chap:verse`,
+    (b) carries exposition phrasing (`about` / `teach` / `mean` / `context of` …),
+    and (c) is NOT a verbatim-quote lookup (`_is_verse_lookup`). Otherwise None.
+    """
+    if not question or _is_verse_lookup(question):
+        return None
+    if not _EXPOSITION_CUE.search(question):
+        return None
+    t = question.strip()
+    low = t.lower()
+    for prefix in ("what does ", "what is ", "what's ", "explain ", "tell me about "):
+        if low.startswith(prefix):
+            t = t[len(prefix) :].strip()
+            break
+    # Drop a leading "(the) context/meaning/point/message/significance of " so the
+    # verse regex (which allows up to 4 words before "chap:verse") does not fold
+    # those words into a bogus book name ("context of Psalm 23:1").
+    t = re.sub(
+        r"^(?:the\s+)?(?:context|meaning|point|message|significance|teaching)\s+of\s+",
+        "",
+        t,
+        flags=re.IGNORECASE,
+    ).strip()
+    m = _VERSE_REF_IN_QUESTION.search(t)
+    if not m:
+        return None
+    return _normalize_verse_id(m.group(1))
+
+
 def _topical_anchor_refs(question: str) -> list[str]:
     """Extra verses to pin for broad topical questions (not verse lookups)."""
     if _is_verse_lookup(question):
