@@ -4,6 +4,24 @@ Plan: `docs/V3_DATASET_PLAN.md`. This file = exact state + the next action.
 
 ---
 
+## ►►►► CURRENT (2026-09-03, later) — retrieval fix merged; next is a GPU re-eval
+
+PRs #44 (protocol v4), #45 (v4 rescore + docs), **#46 (retrieval reference-token fix,
+`eaeb649f`)** are all on `main`. #46 changes what the RAG stack retrieves for exposition
+questions ("what does X teach?" now pins the verse and searches on its *text*, not the bare
+reference), so the numbers in the RESULT block below **pre-date it**.
+
+**NEXT — needs ~40 min GPU:** `git pull` then re-run protocol-v4 keyword on **v3-SFT and
+v2-4b** through the fixed RAG stack (`scripts/_run_v3_eval_all.sh`). Then:
+- v3-SFT clears overall-fuzzy-expo-excl ≥ 0.52 **and** the Genesis-19:28-class hallucination
+  is gone → **ship v3-SFT as v3** (ROADMAP item 5; all-CPU packaging, HF push needs the token).
+- else → **one v3.1 retrain** (ROADMAP item 7): quote-first exposition templates +
+  hallucination-hardening set, ~7 h.
+Run the external SOTA board (`run_external_baselines.sh`) **once**, on the final weights.
+**Recommendation: publish nothing until this re-eval decides.**
+
+---
+
 ## ►►► RESULT (2026-09-03) — protocol-v4 rescore + manual read done. Recommend: ship v3-SFT as v3.
 
 Ran the Path-D tooling (no GPU, no model re-run): `scripts/rescore_v4.py`,

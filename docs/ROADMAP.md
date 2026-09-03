@@ -21,6 +21,17 @@ for what's next. Narrative status: `docs/PROJECT_STATUS_AND_GOALS.md`; full deta
 
 ### ▶ Resume here (2026-08-29)
 
+> **▶▶ CURRENT (2026-09-03).** Protocol v4 shipped (#44). v4 rescore done (#45): the
+> `verse_lookup` "regression" was an eval artifact — quote recall held (77.3% vs 78.8%,
+> p=0.50); v3-SFT overall fuzzy expo-excl **0.499** (< 0.52 bar by 0.021), one confident
+> hallucination (Genesis 19:28). The `rag/retrieval.py` reference-token bug that caused
+> the bad exposition context is **fixed and merged (#46)** — but this changes retrieval
+> output, so the v4 numbers pre-date it. **NEXT (needs ~40 min GPU): re-eval v3-SFT + v2-4b
+> on protocol v4 through the fixed RAG stack.** If v3-SFT then clears 0.52 and the
+> Genesis-19:28-class error is gone → item 5 (ship v3-SFT as v3). Else → item 7 (one v3.1
+> retrain). Recommendation: **hold the publish until the re-eval decides.** Only the final
+> HF push needs the owner's token.
+
 1. [ ] **Commit + merge** branch `v2/dataset-full-upgrade-2026-08-28` (11 modified + untracked: `config.v2-4b.yaml`, `fetch_mhc_commentary.py`, `scripts/run_v2_4b_sft.sh`, `scripts/_tf_openai_server.py`, `scripts/_run_v3_eval.sh`, `docs/benchmark_runs/20260829_*`).
 2. [x] **v3 SFT + GRPO + eval; judge abandoned → protocol v4 (2026-09-01 / 09-02)**
    - v3-SFT: synthesis categories up ~1.8×, citation 98%, hallucination 2%, quote recall
@@ -52,16 +63,19 @@ for what's next. Narrative status: `docs/PROJECT_STATUS_AND_GOALS.md`; full deta
 4. [x] **SFT on v3** (`training/config.v3-4b.yaml`), 2026-09-01 — 2,447 steps, eval_loss 0.568→0.49,
    adapter merged → `models/qwen3.5-4b-bible-v3-merged`. GRPO 150-step probe ran and was **inert**
    (0/266 changed); not shipped. See `docs/V3_STATUS.md`.
-5. [ ] **Ship v3-SFT as v3** (all CPU) — `merge_adapters.py` (done) → `convert_hf_to_gguf.py --no-mtp`
-   → `llama-quantize` ladder (Q4_K_M/Q5_K_M/Q6_K/Q8_0 + imatrix) → publish
+4b. [ ] **Re-eval v3-SFT + v2-4b, protocol v4, through the fixed RAG stack** (~40 min GPU) —
+   `scripts/_run_v3_eval_all.sh` after `git pull` (picks up #46). Decides item 5 vs item 7.
+5. [ ] **Ship v3-SFT as v3** — *only if 4b clears the gate* (overall fuzzy expo-excl ≥ 0.52,
+   Genesis-19:28-class error gone). All CPU: `merge_adapters.py` (done) → `convert_hf_to_gguf.py
+   --no-mtp` → `llama-quantize` ladder (Q4_K_M/Q5_K_M/Q6_K/Q8_0 + imatrix) → publish
    `Ttimms/Bible-Assistant-Qwen3.5-4B-v3` + `-v3-GGUF` (HF push needs the owner's token) → add
    the `## Architecture` mermaid to the new cards → bump README / MODEL_CARD / MODEL_COMPARISON to v3.
-6. [ ] **Fix `rag/retrieval.py` reference-token matching** (GPU-free, highest-leverage on the
-   `verse_exposition` category) — for "What is X about?" questions the hybrid retriever returns
-   verse-*number* coincidences ("1 Chronicles 9:17" → "2 Chronicles 17:9") instead of thematic
-   neighbours, feeding both v2 and v3 poor context (see `docs/CODEBASE_AUDIT.md`). Down-weight
-   or strip bare `book chap:verse` tokens from the sparse/dense query for non-lookup intents;
-   re-score the exposition category after.
+6. [x] **Fix `rag/retrieval.py` reference-token matching** — DONE, PR #46 (`eaeb649f`).
+   `rag/helpers._extract_exposition_verse_ref` detects "what does X teach / what is X about" +
+   a verse ref; `rag/rag_server` pins that verse and passes its **text** as a new `search_query`
+   arg to `rag/retrieval._retrieve_entries` (dense+BM25 use it; rerank still uses the raw
+   question) + a "quote first, then explain" note. +10 tests. Changes exposition retrieval →
+   item 4b re-eval measures the gain.
 7. [ ] **v3.1 — the SOTA push** (GPU, only after 6): (a) add quote-first exposition templates
    (`"{ref} reads: "{verbatim}". [1–2 sentence explanation]"`) to the verse-drill generators;
    (b) add a small hallucination-hardening set (decline-when-context-missing, and the
