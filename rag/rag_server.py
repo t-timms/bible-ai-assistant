@@ -46,6 +46,7 @@ from rag.helpers import (
     _EVAL_SUFFIX_PATTERN,
     EMPTY_MODEL_REPLY,
     _content_to_str,
+    _extract_exposition_verse_ref,
     _extract_verse_ref_from_lookup,
     _is_counseling_request,
     _is_meta_question,
@@ -458,16 +459,35 @@ async def chat_completions(request: Request):
             vr = _extract_verse_ref_from_lookup(q)
             if vr:
                 pin_refs.append(vr)
+            # Exposition ("what does X teach / what is X about") — pin the verse and
+            # search with its own text, not the bare reference (which retrieves
+            # verse-number coincidences). See docs/CODEBASE_AUDIT.md.
+            search_query: str | None = None
+            if not vr:
+                expo_ref = _extract_exposition_verse_ref(q)
+                if expo_ref:
+                    pin_refs.append(expo_ref)
+                    expo_text = verse_text_lookup(expo_ref)
+                    if expo_text:
+                        search_query = expo_text
             topical_pins = _topical_anchor_refs(q)
             pin_refs.extend(topical_pins)
             context_entries = await _retrieve_entries(
-                q, top_k=settings.rag_top_k, pin_refs=pin_refs or None
+                q,
+                top_k=settings.rag_top_k,
+                pin_refs=pin_refs or None,
+                search_query=search_query,
             )
             if context_entries:
                 notes: list[str] = []
                 if vr:
                     notes.append(
                         "The context includes the verse you were asked about; quote it exactly."
+                    )
+                elif search_query:
+                    notes.append(
+                        "The context includes the verse you were asked about; quote it first, "
+                        "then explain what it means in its context."
                     )
                 if topical_pins and not _is_verse_lookup(q):
                     notes.append(

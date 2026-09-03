@@ -3,6 +3,7 @@
 # Import pure helper functions from the extracted helpers module (no ChromaDB/embedder)
 from rag.helpers import (
     INDEX_VERSION,
+    _extract_exposition_verse_ref,
     _extract_verse_ref_from_lookup,
     _is_counseling_request,
     _is_verse_lookup,
@@ -122,6 +123,36 @@ class TestVerseRefExtraction:
 
     def test_topical_empty_for_lookup(self) -> None:
         assert _topical_anchor_refs("What does John 3:16 say?") == []
+
+
+class TestExpositionRefExtraction:
+    """`_extract_exposition_verse_ref` — verse named + 'about'/'teach' phrasing,
+    but NOT a verbatim 'say?' lookup."""
+
+    def test_about_phrasing(self) -> None:
+        assert (
+            _extract_exposition_verse_ref("What is 1 Chronicles 9:17 about?") == "1 Chronicles 9:17"
+        )
+
+    def test_teach_phrasing(self) -> None:
+        assert _extract_exposition_verse_ref("What does Hosea 7:8 teach?") == "Hosea 7:8"
+
+    def test_mean_and_context_phrasing(self) -> None:
+        assert _extract_exposition_verse_ref("What does Romans 5:1 mean?") == "Romans 5:1"
+        assert _extract_exposition_verse_ref("What is the context of Psalm 23:1?") == "Psalms 23:1"
+
+    def test_none_for_verbatim_lookup(self) -> None:
+        # "say?" lookups are handled by _extract_verse_ref_from_lookup, not here.
+        assert _extract_exposition_verse_ref("What does John 3:16 say?") is None
+
+    def test_none_without_a_reference(self) -> None:
+        assert _extract_exposition_verse_ref("What does the Bible teach about grace?") is None
+
+    def test_none_without_exposition_cue(self) -> None:
+        assert _extract_exposition_verse_ref("Quote John 3:16 for me.") is None
+
+    def test_empty_input(self) -> None:
+        assert _extract_exposition_verse_ref("") is None
 
 
 class TestCounselingDetection:
