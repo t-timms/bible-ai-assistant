@@ -624,3 +624,37 @@ re-evaluated under the current protocol, and ships no artifact a third party can
 Closing gaps 1–3 requires the deferred GPU work; this pass corrects every claim the repo
 makes about itself so the docs match reality in the meantime.
 
+---
+
+# Finding — RAG retrieval matches verse *reference* tokens, not meaning (2026-09-03)
+
+Surfaced while hand-reading the 36 `verse_exposition` items in
+`docs/benchmark_runs/20260902_exposition_v2_vs_v3.md`.
+
+**Symptom.** For "What does X teach?" / "What is X about?" questions, the hybrid
+retriever returns verse-*number* coincidences instead of thematic neighbours:
+
+- "1 Chronicles 9:17" → "2 Chronicles 17:9", "1 Chronicles 17:17", "1 Chronicles 17:19"
+- "Genesis 1:17" (about light) → "Genesis 17:7", "Genesis 8:17", "Genesis 22:17" (covenant, not light)
+- "Joel 1:7" → "1 Timothy 1:7", "John 7:17", "1 John 3:7" (pure `1:7` / `7:17` echo)
+
+**Cause (likely).** BM25 tokenises the numeric reference (`9`, `17`, `1`, `Chronicles`)
+and the dense embedding is dominated by the surface form of the reference string, so
+`chapter:verse` digit overlap outranks topical similarity. The reranker
+(`bge-reranker-v2-m3`) does not rescue it because the candidate set is already
+reference-matched noise.
+
+**Impact.** Both v2 and v3 are fed this poor context on the exposition category.
+v2's "for comparison, here are passages on …" list is mostly this noise; v3's one
+confident hallucination (Genesis 19:28 → an invented "God protects Lot" reading)
+was partly built on it. This is the **single highest-leverage fix for the
+`verse_exposition` category** and needs no GPU.
+
+**Fix direction.** In `rag/retrieval.py`, for non-`verse_lookup` intents: strip or
+heavily down-weight bare `Book chap:verse` tokens from the sparse query; consider a
+separate "topical" retrieval path that embeds the *question* text without the
+reference, or expands the reference to its verse text before embedding. Re-score
+the `verse_exposition` category (`scripts/rescore_v4.py` inputs) after.
+
+**Status:** open, not yet fixed. Tracked in `docs/ROADMAP.md` item 6.
+

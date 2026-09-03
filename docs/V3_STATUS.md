@@ -4,6 +4,71 @@ Plan: `docs/V3_DATASET_PLAN.md`. This file = exact state + the next action.
 
 ---
 
+## ►►► RESULT (2026-09-03) — protocol-v4 rescore + manual read done. Recommend: ship v3-SFT as v3.
+
+Ran the Path-D tooling (no GPU, no model re-run): `scripts/rescore_v4.py`,
+`scripts/exposition_sidebyside.py`, `scripts/sota_scoreboard.py`. Artifacts:
+`docs/benchmark_runs/20260902_{v2-4b,v3-sft,v3-grpo}_v4keyword.json`,
+`docs/benchmark_runs/20260902_exposition_v2_vs_v3.md`, `docs/SOTA_EVAL.md`.
+
+| metric (protocol v4) | v2-4b | v3-sft | v3-grpo | bar |
+|---|--:|--:|--:|--:|
+| **verse_quote** exact (n=66, the real recall metric) | 78.8% | **77.3%** | 77.3% | ≥74% ✓ |
+| verse_quote vs v2: McNemar | — | p=0.50 (v3 +2 / v2 +0) | — | **held** |
+| verse_exposition fuzzy mean (n=36) | 0.427 | 0.418 | 0.418 | — (tie) |
+| overall fuzzy mean, exposition-excluded (n=230) | 0.391 | **0.499** | 0.498 | ≥0.52 ✗ (−0.021) |
+| overall fuzzy mean, all-in (n=266) | 0.396 | 0.488 | 0.487 | ≥0.52 ✗ |
+| citation rate | 98.9% | 97.7% | 98.1% | ≥97% ✓ |
+| hallucination rate | 2.3% | 1.5% | 1.9% | ≤2.5% ✓ |
+
+**The `verse_lookup` "regression" was an eval artifact — confirmed.** Splitting
+`verse_lookup` into `verse_quote` / `verse_exposition` shows quote recall held
+(77.3% vs 78.8%, not significant); the "50%" came entirely from 26/36
+exposition-phrased questions where v2 "passed" exact-match by dumping the verbatim
+verse and v3 answers with a prose explanation instead.
+
+**Manual read of all 36 `verse_exposition` items** (`20260902_exposition_v2_vs_v3.md`):
+v3-SFT is better-or-tie on **34/36**. v2's answers are verbatim-quote + a
+"for comparison, here are passages on…" list that is almost always
+**verse-number-coincidence matches, not thematic** (e.g. "1 Chronicles 9:17" →
+"2 Chronicles 17:9 / 1 Chronicles 17:17"). v3's are real, accurate explanations.
+Two real v3 issues: (1) **item 6, Genesis 19:28** — v3 hallucinated a "God
+protects Lot" reading (the verse is Abraham seeing Sodom's smoke); one confident
+factual error out of 36. (2) items 12, 30 — v3 honestly says "not in the provided
+context" where v2 emitted number-matched junk (v3 wins on faithfulness).
+
+**Surfaced (higher-leverage than model work): the RAG retriever returns
+verse-*reference*-token matches for exposition questions instead of thematic
+neighbours** — hits v2 AND v3, feeds both bad context. `rag/retrieval.py`, GPU-free
+to investigate. This is the single biggest lever on the exposition category.
+
+**GRPO still inert** — v3-grpo == v3-sft to 3 d.p. on every metric.
+
+### Recommendation — ship v3-SFT as v3
+
+- verse_quote recall **held** (the headline risk is disproven)
+- the actual v2 regression — synthesis categories (character/context/topical) — is
+  fixed: their fuzzy means are ~1.8× v2 (from the 2026-09-01 protocol-v3 run)
+- exposition answers are genuinely better (34/36 manual read); citation + hallucination hold
+- overall fuzzy expo-excl **0.499 beats v1 (0.48) and v2 (0.40)**; it misses the round
+  0.52 target by 0.021, and `manifest.v4` itself notes the fuzzy mean "is NOT an accuracy"
+
+**Ship steps (all CPU — no GPU):** `merge_adapters.py` (adapter →
+`models/qwen3.5-4b-bible-v3-merged`, already built) → `convert_hf_to_gguf.py --no-mtp`
+→ `llama-quantize` ladder (Q4_K_M / Q5_K_M / Q6_K / Q8_0 + imatrix) → publish
+`Ttimms/Bible-Assistant-Qwen3.5-4B-v3` + `-v3-GGUF` (needs HF_TOKEN — user runs the
+push) → add the `## Architecture` mermaid to the new cards → update README /
+MODEL_CARD / MODEL_COMPARISON to v3.
+
+**Then (GPU, ~3–4 h):** `run_external_baselines.sh` + `sota_scoreboard.py` — fills
+in `docs/SOTA_EVAL.md`'s 8 pending comparators for the "best open at the task" claim.
+
+**If instead going Path B (v3.1 retrain):** add quote-first exposition templates to
+the verse-drill generators AND fix the `rag/retrieval.py` reference-token matching
+first — the retrieval issue caps how much a retrain can help the exposition category.
+
+---
+
 ## ►► UPDATE (2026-09-02) — judge is dead, Path D tooling + SOTA track staged
 
 **The judge eval is abandoned.** Both attempts (2026-09-01 18:04 and 2026-09-02
