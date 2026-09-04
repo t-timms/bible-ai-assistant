@@ -81,20 +81,26 @@ for what's next. Narrative status: `docs/PROJECT_STATUS_AND_GOALS.md`; full deta
    arg to `rag/retrieval._retrieve_entries` (dense+BM25 use it; rerank still uses the raw
    question) + a "quote first, then explain" note. +10 tests. Changes exposition retrieval →
    item 4b re-eval measures the gain.
-7. [ ] **v3.1 — the SOTA push** (GPU). The 2026-09-03 re-eval (4b) pins the gap to the
-   **synthesis categories** (character/context/cross_reference/topical/theological ≈ 0.37 fuzzy
-   mean; `verse_lookup` already 0.707, exposition already fixed by #46). So v3.1 is a *dataset*
-   change, not a template tweak:
-   (a) **thematic-synthesis distillation** — regenerate the character / context / cross_reference
-   / topical / theological training answers as teacher-distilled explanatory prose that matches
-   the reference-answer style and specifics (`training/distill_answers.py` teacher path; the RAG
-   retriever is live now, so `thematic_qa` — deferred in item 3 — is back on);
-   (b) keep a small hallucination-hardening slice (decline-when-context-missing; the
-   Song-of-Solomon-2:13 / verse-number-confusion class);
-   (c) re-SFT (`config.v3-4b.yaml`, ~7 h); (d) re-eval protocol v4 + the SOTA board.
-   Acceptance: overall fuzzy expo-excl ≥ 0.52, **each synthesis category ≥ 0.50**,
-   hallucination ≤ 1.0% (tighter than v2's 2.3%), and **rank #1 among open models on
-   `docs/SOTA_EVAL.md`** on closeness-to-expected while meeting the citation/hallucination gates.
+7. [ ] **v3.1 — the SOTA push** (GPU, ~10-13 h unattended). The 2026-09-03 re-eval (4b) pins
+   the gap to the **synthesis categories** (character/context/cross_reference/topical/theological
+   ≈ 0.37 fuzzy mean; `verse_lookup` already 0.707, exposition already fixed by #46). v3.1 is a
+   *dataset* change, not a template tweak. **Prep DONE (2026-09-03):**
+   - `training/build_v3_thematic.py` (new) + `training/v3_thematic_questions.json` (60 → 103
+     stems; +43 for `character` / `context` / `cross_reference`) → `data/raw_v3/thematic_inputs.jsonl`
+     (2,395 rows). `context of <passage>` questions pin the passage + search on its text (#46 pattern).
+     +`tests/test_build_v3_thematic.py` (18).
+   - **`scripts/_run_v3.1_pipeline.sh`** (new) — one command: llama-server (Qwen3-14B Q5_K_M) →
+     `distill_answers.py` (thematic only; the v3 regen `distill_out.jsonl` is reused) →
+     `assemble_v3.py --thematic` → `train_v3.1.json` → SFT (`config.v3.1-4b.yaml`, new) →
+     `merge_adapters.py` → `scripts/_coherence_check.py` → protocol-v4 eval → ship/hold verdict
+     with per-category means + the two gates. All `*v3.1*` names; no v3 artifact overwritten.
+     `SMOKE=1` validates stages 1-3 in ~10 min.
+   - Also carries a hallucination-hardening slant via the thematic stems (decline-when-missing;
+     Song-of-Solomon-2:13 / verse-number-confusion class).
+   **Run:** see `docs/V3_STATUS.md` "RUN OVERNIGHT". Acceptance: overall fuzzy expo-excl ≥ 0.52,
+   **each synthesis category ≥ 0.50**, hallucination ≤ 1.0% (tighter than v2's 2.3%), and
+   **rank #1 among open models on `docs/SOTA_EVAL.md`** on closeness-to-expected while meeting
+   the citation/hallucination gates.
 8. [ ] **Run the SOTA board** — `scripts/run_external_baselines.sh` + `scripts/sota_scoreboard.py`
    (GPU, ~3–4 h) — fills `docs/SOTA_EVAL.md`'s 8 pending comparators. Run once v3 ships, then again after v3.1.
 9. [ ] `rag_server.py` **commentary-retrieval path** (so `grounded_exegesis` training matches inference — else it's the F-2/F-3 format mismatch).
