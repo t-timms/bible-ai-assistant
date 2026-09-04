@@ -17,6 +17,7 @@ from training.evaluate import (
     check_hallucination,
     check_verse_accuracy,
     check_verse_accuracy_fuzzy,
+    check_verse_accuracy_semantic,
     has_citation,
     load_questions,
     query_rag,
@@ -103,6 +104,66 @@ class TestCheckVerseAccuracyFuzzy:
         expected = "For God so loved the world, that he gave his only Son."
         response = "The capital of France is Paris."
         assert check_verse_accuracy_fuzzy(response, expected) < 0.4
+
+
+class _FakeScorer:
+    """Stand-in for the CrossEncoder — returns a fixed score per .predict() call,
+    so these tests don't load bge-reranker-v2-m3 (slow, needs sentence-transformers)."""
+
+    def __init__(self, score: float) -> None:
+        self.score = score
+        self.calls: list[tuple[str, str]] = []
+
+    def predict(self, pairs: list[tuple[str, str]]) -> list[float]:
+        self.calls.extend(pairs)
+        return [self.score for _ in pairs]
+
+
+class TestCheckVerseAccuracySemantic:
+    """Tests for check_verse_accuracy_semantic() — protocol v5.
+
+    A prior version of this function applied an extra sigmoid on top of the
+    CrossEncoder's own output. bge-reranker-v2-m3 already applies its
+    default_activation_function (Sigmoid) inside .predict() -- verified
+    empirically (identical-text pair -> 0.9999, unrelated pair -> 0.0000163) --
+    so a second sigmoid crushed the usable range into [0.5, 0.73] and made
+    every unrelated/wrong response score ~0.5 regardless of content. These
+    tests pin the fixed (no-double-sigmoid) behavior so it can't regress.
+    """
+
+    def test_passes_expected_then_response_to_scorer(self) -> None:
+        scorer = _FakeScorer(0.9)
+        check_verse_accuracy_semantic("my response", "the expected text", scorer=scorer)
+        assert scorer.calls == [("the expected text", "my response")]
+
+    def test_high_raw_score_maps_near_one_not_squashed(self) -> None:
+        # A prior double-sigmoid bug mapped 0.999 -> ~0.73. It must not be re-squashed.
+        scorer = _FakeScorer(0.999)
+        assert check_verse_accuracy_semantic("resp", "exp", scorer=scorer) == 0.999
+
+    def test_low_raw_score_maps_near_zero_not_half(self) -> None:
+        # Same bug mapped ~0.0 -> ~0.5 (sigmoid(0) == 0.5). Must stay near 0.
+        scorer = _FakeScorer(0.0000163)
+        assert check_verse_accuracy_semantic("resp", "exp", scorer=scorer) < 0.01
+
+    def test_clamps_out_of_range_raw_scores(self) -> None:
+        assert check_verse_accuracy_semantic("resp", "exp", scorer=_FakeScorer(1.4)) == 1.0
+        assert check_verse_accuracy_semantic("resp", "exp", scorer=_FakeScorer(-0.3)) == 0.0
+
+    def test_empty_response_and_expected_returns_none(self) -> None:
+        assert check_verse_accuracy_semantic("", "", scorer=_FakeScorer(0.9)) is None
+
+    def test_empty_response_only_returns_zero(self) -> None:
+        assert check_verse_accuracy_semantic("", "expected text", scorer=_FakeScorer(0.9)) == 0.0
+
+    def test_empty_expected_only_returns_zero(self) -> None:
+        assert check_verse_accuracy_semantic("some response", "", scorer=_FakeScorer(0.9)) == 0.0
+
+    def test_no_scorer_available_returns_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        import training.evaluate as evaluate_mod
+
+        monkeypatch.setattr(evaluate_mod, "_get_semantic_scorer", lambda: None)
+        assert check_verse_accuracy_semantic("resp", "exp") is None
 
 
 class TestCheckHallucination:
