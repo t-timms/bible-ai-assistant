@@ -82,10 +82,19 @@ bar is a call for the project owner, not something changed unilaterally here.
 
 Artifacts: `docs/benchmark_runs/20260904_{v2-4b,v3-sft,v3.1,v3.2}_v5semantic.json`.
 
+**9B escalation feasibility — checked same day, ruled out (ROADMAP item 9).** Verified
+against Unsloth's own Qwen3.5 fine-tuning guide before spending any GPU time: bf16 LoRA
+(the recommended path) needs 22 GB for the 9B, 6 GB over this 16 GB card, and Unsloth
+explicitly advises against QLoRA/4-bit training for any Qwen3.5 variant ("higher than
+normal quantization differences") — no documented sub-16GB path exists. `config.v2-9b.yaml`
+is also not run-ready as written (missing its own `revision:` pin — would silently inherit
+the 4B model's commit SHA). Moot regardless: the semantic re-score above shows real,
+non-noise headroom still open on 4B, so there's no evidenced reason to trade a working
+recipe for an OOM or a documented quality regression. Not pursuing 9B on this hardware.
+
 **NEXT:** (1) ship v3.2 — GGUF ladder + HF publish (same all-CPU steps as prior ships,
-`docs/V3_DATASET_PLAN.md` publish checklist); (2) 9B escalation feasibility check
-(ROADMAP item 9) — VRAM headroom for `config.v2-9b.yaml` QLoRA on this 16 GB box, before
-committing any GPU time to it; (3) resolve the 0.52-fuzzy-vs-v5-semantic gate question above.
+`docs/V3_DATASET_PLAN.md` publish checklist); (2) resolve the 0.52-fuzzy-vs-v5-semantic
+gate question above.
 
 ---
 

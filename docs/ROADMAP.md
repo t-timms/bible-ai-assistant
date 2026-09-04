@@ -41,9 +41,12 @@ for what's next. Narrative status: `docs/PROJECT_STATUS_AND_GOALS.md`; full deta
 > from the runner-up. Caveat: none of the four clear the *original* 0.52 fuzzy expo-excl bar
 > — that bar was written against a metric now shown to have a narrow noise floor at this
 > quality level; whether to keep it or gate on v5 semantic instead is an open call, not
-> silently changed. **NEXT:** ship v3.2 (item 8, done), then the 9B-escalation feasibility
-> check (item 9, `docs/V3_DATASET_PLAN.md`'s own contingency). Full numbers:
-> `docs/V3_STATUS.md` "PROTOCOL V5 + SHIP DECISION".
+> silently changed. **9B escalation checked (item 9) and ruled out** — Unsloth's own guide
+> puts Qwen3.5-9B bf16 LoRA at 22 GB (over this 16 GB card) and explicitly advises against
+> QLoRA/4-bit training for any Qwen3.5 variant; no sub-16GB path exists, and item 8's result
+> shows 4B still has real headroom, so there's no evidenced case for it anyway. **NEXT:** ship
+> v3.2 (item 8, done) and resolve the 0.52-fuzzy-vs-v5-semantic gate question above. Full
+> numbers: `docs/V3_STATUS.md` "PROTOCOL V5 + SHIP DECISION".
 
 1. [ ] **Commit + merge** branch `v2/dataset-full-upgrade-2026-08-28` (11 modified + untracked: `config.v2-4b.yaml`, `fetch_mhc_commentary.py`, `scripts/run_v2_4b_sft.sh`, `scripts/_tf_openai_server.py`, `scripts/_run_v3_eval.sh`, `docs/benchmark_runs/20260829_*`).
 2. [x] **v3 SFT + GRPO + eval; judge abandoned → protocol v4 (2026-09-01 / 09-02)**
@@ -120,10 +123,28 @@ for what's next. Narrative status: `docs/PROJECT_STATUS_AND_GOALS.md`; full deta
    DECISION" for the full per-category table and ship steps. The original 0.52 fuzzy bar
    is not cleared by any of the four; whether to keep it as the gate or replace it with a
    v5-semantic bar is still an open decision, not made unilaterally here.
-9. [ ] **9B escalation feasibility** — `docs/V3_DATASET_PLAN.md`'s own contingency
-   ("if 4B stalls on thematic_qa after GRPO → escalate to `config.v2-9b.yaml`, QLoRA").
-   Check VRAM headroom for a 9B QLoRA SFT on the 16 GB box before committing any GPU time;
-   the config file already exists but has never been run.
+9. [x] **9B escalation feasibility — checked (2026-09-04), NOT FEASIBLE on this box; do not
+   pursue.** `docs/V3_DATASET_PLAN.md`'s contingency ("if 4B stalls → escalate to
+   `config.v2-9b.yaml`, QLoRA") assumed QLoRA 4-bit would fit 16 GB. Verified against
+   Unsloth's own Qwen3.5 fine-tuning guide before committing any GPU time: bf16 LoRA
+   (the *recommended* path) needs **22 GB** for the 9B — 6 GB over this card's 16 GB — and
+   Unsloth explicitly advises **against** QLoRA (4-bit) for training on any Qwen3.5 variant,
+   dense or MoE, citing "higher than normal quantization differences" (matches the warning
+   already in `training/train_unsloth.py`'s own header comment, now externally corroborated).
+   Their Dynamic 4-bit quants don't except Qwen3.5 fine-tuning from that warning either — no
+   documented 16 GB-feasible path exists for this model at 9B. `config.v2-9b.yaml` is also
+   not run-ready as written: it names `Qwen/Qwen3.5-9B` without its own `revision:` pin, so it
+   would silently inherit `MODEL_NAME`'s 4B commit SHA (`train_unsloth.py`'s H-5 pinning
+   contract) — would need `revision: c202236235762e1c871ad0ccb60c8ee5ba337b9a` (verified via
+   `HfApi.model_info` 2026-09-04) fixed before any run, moot given the VRAM finding above.
+   **Conclusion: the win this session came from fixing the eval metric and dataset/prompt
+   issues on 4B, not from the model being too small — item 8's v3.2 result (clean, real,
+   statistically significant gains over v3.1/v3-SFT) says there's still headroom on 4B.
+   Escalating to 9B now would trade a working, well-understood 4B recipe for either an OOM
+   or a documented quantization-quality regression, for no evidenced benefit.** Revisit only
+   if a bigger GPU becomes available, or if a future Qwen3.x release ships an 9B variant with
+   a validated sub-16GB QLoRA training path.
+   Sources: [Unsloth Qwen3.5 Fine-tuning Guide](https://unsloth.ai/docs/models/qwen3.5/fine-tune).
 10. [ ] **Run the SOTA board** — `scripts/run_external_baselines.sh` + `scripts/sota_scoreboard.py`
    (GPU, ~3–4 h) — fills `docs/SOTA_EVAL.md`'s 8 pending comparators. Run once v3.2 ships.
 11. [ ] `rag_server.py` **commentary-retrieval path** (so `grounded_exegesis` training matches inference — else it's the F-2/F-3 format mismatch).
