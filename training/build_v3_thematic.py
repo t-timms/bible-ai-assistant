@@ -126,7 +126,9 @@ def _passage_ref(chunk: str) -> str | None:
 # target variants per stem, by shape (synthesis shapes get more — they are the gap)
 _TARGET = {"character": 25, "context": 25, "cross_reference": 25, "topical": 22}
 # retrieval breadth by shape
-_TOPK = {"character": 8, "context": 7, "cross_reference": 8, "topical": 9}
+# Matches rag_top_k=8 (rag/settings.py, bumped 2026-09-04 on measured recall
+# gains) so training-time and serving-time retrieval depth stay in sync.
+_TOPK = {"character": 8, "context": 8, "cross_reference": 8, "topical": 9}
 
 
 def _shape_of(stem: dict) -> str:
