@@ -61,6 +61,25 @@ SYSTEM_CONTRACT = (
     "non-sectarian."
 )
 
+# RAFT-style distractor-discrimination note (2026-09-04) — thematic_qa only. The
+# v3.1 eval found the model weaving in lexically-similar but off-topic retrieved
+# verses uncritically (e.g. Joshua 24:19's covenant warning "he will not forgive
+# your disobedience" pulled into a "does God forgive all sins?" answer, alongside
+# the correct Mark 3:28 / 1 John 1:9). CONTEXT for thematic_qa is retrieved at
+# top_k 8-9 specifically so real distractors like this are usually present during
+# training too — the fix is training the model to weigh them, not removing them.
+THEMATIC_DISTRACTOR_NOTE = (
+    " Some verses in CONTEXT may share a word with the question without actually "
+    "addressing it (a different situation, audience, or covenant) — a verse using "
+    "'forgive' about something else, or the same place/event named in an unrelated "
+    "passage. Read every verse before writing. Build the answer around the ones "
+    "that genuinely support it; do not cite or lean on one just because it shares "
+    "vocabulary. If a CONTEXT verse cuts against the direct answer (e.g. a warning "
+    "verse for a question about grace), still give the direct answer first and "
+    "address the tension in a sentence — don't open with it or let it read as a "
+    "contradiction."
+)
+
 STRICTER_SUFFIX = (
     "\n\nYour previous attempt cited or quoted something not present in CONTEXT. "
     "Redo the answer. Every reference and every quoted phrase must come from a verse "
@@ -251,7 +270,10 @@ def _process_row(
 ) -> dict:
     """Distil one input; retry once with a stricter system prompt on a bad citation."""
     user = f"CONTEXT:\n{row['context']}\n\nQUESTION: {row['question']}"
-    system = SYSTEM_CONTRACT
+    base_contract = SYSTEM_CONTRACT
+    if row.get("category") == "thematic_qa":
+        base_contract = base_contract + THEMATIC_DISTRACTOR_NOTE
+    system = base_contract
     answer, problems = "", ["not_attempted"]
     for attempt in range(max_retries + 1):
         try:
@@ -263,7 +285,7 @@ def _process_row(
         problems = validate(answer, verse_lookup)
         if not problems:
             break
-        system = SYSTEM_CONTRACT + STRICTER_SUFFIX
+        system = base_contract + STRICTER_SUFFIX
     return {
         "id": row["id"],
         "category": row.get("category", "?"),

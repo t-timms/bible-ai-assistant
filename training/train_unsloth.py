@@ -373,6 +373,13 @@ def main() -> None:
     use_local_model = bool(args.model_path)
     if args.model_path:
         model_path = str(Path(args.model_path).resolve())
+    # DMT-style continued fine-tuning (2026-09-04): if --model-path points at a
+    # saved LoRA adapter directory (has adapter_config.json), Unsloth's
+    # from_pretrained loads the base model with that adapter already attached
+    # and trainable -- get_peft_model() below must be skipped, or it would
+    # discard the trained adapter and attach a fresh, randomly-initialized one.
+    # https://unsloth.ai/docs/basics/continued-pretraining
+    continuing_adapter = use_local_model and (Path(model_path) / "adapter_config.json").exists()
 
     wandb_project = os.getenv("WANDB_PROJECT", "bible-ai")
     if args.no_wandb:
@@ -414,17 +421,25 @@ def main() -> None:
             if bak.exists():
                 os.rename(bak, orig)
 
-    # Apply LoRA adapters
-    model = FastLanguageModel.get_peft_model(
-        model,
-        r=LORA_R,
-        target_modules=LORA_TARGET_MODULES,
-        lora_alpha=LORA_ALPHA,
-        lora_dropout=LORA_DROPOUT,
-        bias="none",
-        use_gradient_checkpointing="unsloth",
-        random_state=RANDOM_STATE,
-    )
+    # Apply LoRA adapters -- unless --model-path already pointed at a saved
+    # adapter (continuing_adapter, set above), in which case from_pretrained
+    # already returned the base model with that adapter attached and trainable.
+    if continuing_adapter:
+        print(
+            f"Continuing training on the existing adapter at {model_path} "
+            "(skipping get_peft_model -- a fresh call would discard it)."
+        )
+    else:
+        model = FastLanguageModel.get_peft_model(
+            model,
+            r=LORA_R,
+            target_modules=LORA_TARGET_MODULES,
+            lora_alpha=LORA_ALPHA,
+            lora_dropout=LORA_DROPOUT,
+            bias="none",
+            use_gradient_checkpointing="unsloth",
+            random_state=RANDOM_STATE,
+        )
 
     # Qwen3.5 tokenizer from Unsloth is a VL processor that treats text as images. Use text-only tokenizer for dataset.
     from transformers import AutoTokenizer

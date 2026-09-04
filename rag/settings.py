@@ -38,7 +38,14 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
     # Retrieval tuning
     # ------------------------------------------------------------------
-    rag_top_k: int = 5
+    # 2026-09-04: was 5. scripts/retrieval_metrics.py (after fixing two real bugs
+    # in it — a _get_rag() tuple-unpack mismatch and a column-order mislabel)
+    # measured fused_rerank recall@5=0.20 / recall@10=0.25 for `topical` and
+    # recall@5=0.22 / recall@10=0.33 for `character` — real, comfortably-sized
+    # recall gains between depth 5 and 10 for exactly the categories weakest in
+    # generation. Also fixes a train/serve mismatch: training/build_v3_thematic.py
+    # already retrieved at top_k 7-9. 8 stays well under context_max_chars (3500).
+    rag_top_k: int = 8
     hybrid_candidates: int = 20
     # Wall-clock budget for the dense ChromaDB query (H-8). A soft timeout — see
     # comment in rag/retrieval.py on why a truly hung call can't be hard-killed
