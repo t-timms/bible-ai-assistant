@@ -117,7 +117,7 @@ You should see `CUDA available: True`, your GPU name, and **`sm_120`** in the ar
 3. **Copy the token:** Click the copy icon next to the token. It looks like `hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` (starts with `hf_`). You won’t see it again after you leave the page, so copy it now.
 4. **In Anaconda Prompt** (with `bible-ai-assistant` activated and project folder as current directory), run:
    ```bash
-   huggingface-cli login
+   hf auth login
    ```
 5. When it says **“Enter your token”** or **“Paste your token”**:
    - **Right‑click** in the terminal window to paste (Windows pastes with right‑click in most terminals).
@@ -148,7 +148,7 @@ You should see `CUDA available: True`, your GPU name, and **`sm_120`** in the ar
 In Anaconda Prompt, from the project folder with `bible-ai-assistant` active:
 
 ```bash
-huggingface-cli login
+hf auth login
 # When prompted: paste HF token (hf_...), Enter
 
 wandb login
@@ -167,13 +167,13 @@ wandb login
 
 ```bash
 # Download to models/base_model (creates folder; ~10–20 min, ~8GB). Exclude .msgpack to save space.
-# Preferred (new CLI):
 hf download Qwen/Qwen3.5-4B --local-dir models/base_model --exclude "*.msgpack"
-# Legacy (still works, but deprecated):
-huggingface-cli download Qwen/Qwen3.5-4B --local-dir models/base_model --exclude "*.msgpack"
 ```
 
-**Note:** If you see a warning that `huggingface-cli download` is deprecated, use `hf download` next time. If you see “Xet Storage” / “hf_xet” messages, the download still uses regular HTTP; installing `pip install hf_xet` is optional for faster future downloads.
+**Note:** `huggingface-cli` (the old CLI) is fully deprecated as of `huggingface_hub` 1.29+ — it
+now exits immediately with a "no longer works" warning and downloads nothing, so use `hf`
+(verified 2026-09-04). If you see “Xet Storage” / “hf_xet” messages, the download still uses
+regular HTTP; installing `pip install hf_xet` is optional for faster future downloads.
 
 **Check:** When it finishes, `models/base_model/` should contain config, tokenizer, and model weights (e.g. `.safetensors`). Do not commit this folder (it’s in `.gitignore`).
 
@@ -371,7 +371,7 @@ python training/train_unsloth.py --run-name qwen3.5-4b-bible-John --model-path m
 **If you get an error:**  
 - **“Training data not found”** → Run the dataset builder (Step 8) first.  
 - **“CUDA out of memory”** → In **training/config.yaml** try lowering `per_device_train_batch_size` (e.g. to 2) and/or `max_seq_length` (e.g. 1024).  
-- **Login/API errors** → Make sure you’re logged in: `huggingface-cli login` and `wandb login`.
+- **Login/API errors** → Make sure you’re logged in: `hf auth login` and `wandb login`.
 
 ---
 
