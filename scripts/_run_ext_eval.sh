@@ -13,20 +13,22 @@ TS="$(date +%Y%m%d-%H%M%S)"
 RAGLOG="/tmp/rag_${LABEL}_${TS}.log"
 BENCHLOG="/tmp/bench_${LABEL}_${TS}.log"
 
-# Retry: `ollama create` returning success does not guarantee `ollama list`
-# reflects it on the very next call -- observed directly 2026-09-04 during the
-# real external sweep, where a WSL-under-load hiccup (see
-# reference_wsl2_load_hangs in project memory) made a single `ollama list`
-# come back empty a few seconds after a real, verified-successful create
-# (confirmed present moments later). A same-instant check has no room to
-# recover from a one-off stall; retry before aborting a whole comparator run
-# over it.
-found=0
-for _ in 1 2 3 4 5; do
-  ollama list | awk '{print $1}' | grep -qx "$SERVED" && { found=1; break; }
-  sleep 5
-done
-[ "$found" = "1" ] || { echo "SERVED tag '$SERVED' not in ollama list after retries — abort"; exit 1; }
+# `ollama create NAME` (no explicit :tag, as run_external_baselines.sh does
+# for every hf_gguf comparator -- served="ext-${key}") stores and lists the
+# result as "NAME:latest", while `ollama pull` for an ollama_tag comparator
+# lists under its already-explicit tag (e.g. "qwen3:8b", no :latest added).
+# The exact-match check below used to compare against $SERVED with no
+# suffix, so it ALWAYS failed for every locally-created model -- 100% of the
+# time, not intermittently -- even though `ollama create` had genuinely
+# succeeded each time (confirmed directly: all 5 comparator tags were
+# present in `ollama list` immediately, 2026-09-04). A retry loop was added
+# here first on the mistaken assumption this was a transient WSL hiccup
+# (coincidentally observed once during the same debugging session) -- it
+# could not have worked, since the mismatch was deterministic, and it
+# didn't: every comparator still failed with it in place. Strip a trailing
+# ":latest" from every listed name before comparing so both forms match.
+ollama list | awk '{print $1}' | sed 's/:latest$//' | grep -qx "$SERVED" || {
+  echo "SERVED tag '$SERVED' not in ollama list — abort"; exit 1; }
 
 # RAG server -> Ollama (NOT the tf-server used for the hybrid-arch bible models)
 source .venv-rag/bin/activate
