@@ -90,6 +90,23 @@ comparators:
     fits_16gb: true
     group: size_matched
 
+  - key: rhema-gemmabible
+    hf: https://hf.co/rhemabible/GemmaBible
+    # 2026-09-05: found via web search while auditing the comparator set for
+    # completeness -- a second, better-documented dedicated-bible model from
+    # the same org as rhema-bibleai-gemma above. Fine-tuned from
+    # google/gemma-4-E4B-it (Gemma 4, not 3), ~4.5B effective params, proper
+    # Apache-2.0 license, ships its own GGUF (verified via HfApi file listing,
+    # not guessed). Kept alongside rhema-bibleai-gemma rather than replacing
+    # it -- both are legitimate size-matched peers.
+    params_b: 4.5
+    license: apache-2.0
+    serving: hf_gguf
+    gguf_file: merged.Q5_K_M.gguf
+    template: gemma
+    fits_16gb: true
+    group: size_matched
+
   # ---- general instruct baselines (the "does niche tuning even help?" control) ----
   - key: qwen3-8b-instruct
     hf: https://hf.co/Qwen/Qwen3-8B
