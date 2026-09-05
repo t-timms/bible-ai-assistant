@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Run the external comparators (benchmarks/external_comparators.yaml) through the
-# UNCHANGED RAG stack on the protocol-v4 282-question suite. One JSON per model:
+# UNCHANGED RAG stack on the protocol-v5 282-question suite (same suite/hash as v4;
+# v5 only adds the semantic metric, backfilled separately -- see SUITE PROMOTE below).
+# One JSON per model:
 #   docs/benchmark_runs/<UTCdate>_ext-<key>_keyword.json      (run_benchmark.py naming)
 # Then: python scripts/sota_scoreboard.py   -> docs/SOTA_EVAL.md
 #
@@ -25,9 +27,13 @@
 # SUITE PROMOTE: evaluate.py reads prompts/evaluation_questions.json (not the manifest
 #   snapshot). This script copies benchmarks/suites/evaluation_questions.v3.json over it
 #   after backing up the current file to prompts/evaluation_questions.pre-v4.json, and
-#   hard-verifies the normalized sha256 == manifest.v4 suite_sha256 before any run.
-#   Our own models' v4 numbers come from scripts/rescore_v4.py (same questions, same
-#   responses, deterministic re-bucket) so the board stays apples-to-apples.
+#   hard-verifies the normalized sha256 == manifest.v5 suite_sha256 before any run (v4
+#   and v5 pin the identical suite/hash -- v5 only adds a metric, see manifest.v5.yaml).
+#   Our own models' numbers come from scripts/rescore_v5.py (same questions, same
+#   responses, deterministic v4 re-bucket + semantic score, no re-run) so the board
+#   stays apples-to-apples. After this sweep: backfill semantic onto each new
+#   ext-*_keyword.json with `scripts/rescore_v5.py --file ... --out ..._v5semantic.json`
+#   before trusting the semantic column in `scripts/sota_scoreboard.py`'s output.
 # KNOWN FAILURE MODES: wrong chat template -> fuzzy≈0 everywhere (--smoke-first catches it);
 #   GGUF filename drift -> `ollama create` fails (fix gguf_file in the yaml); only ONE
 #   model resident at a time; `ollama pull` registry throttling -> 3× retry.
@@ -50,7 +56,7 @@ LOG="logs/extbase_${TS}.log"
 exec > >(tee -a "$LOG") 2>&1
 
 YAML="benchmarks/external_comparators.yaml"
-MANIFEST="benchmarks/manifest.v4.yaml"
+MANIFEST="benchmarks/manifest.v5.yaml"
 SNAP="benchmarks/suites/evaluation_questions.v3.json"
 LIVE="prompts/evaluation_questions.json"
 GGUF_DIR="models/ext_gguf"

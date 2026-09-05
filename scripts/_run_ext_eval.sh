@@ -2,7 +2,7 @@
 # Protocol-v4 keyword benchmark for ONE model already served by Ollama on :11434.
 # Called by run_external_baselines.sh. Starts the RAG server (its own venv)
 # pointed at Ollama, waits for health, runs scripts/run_benchmark.py against
-# benchmarks/manifest.v4.yaml, tears the RAG server down.
+# benchmarks/manifest.v5.yaml, tears the RAG server down.
 #
 #   LABEL=ext-foo SERVED=some-ollama-tag bash scripts/_run_ext_eval.sh
 set -uo pipefail
@@ -32,7 +32,7 @@ done
 CMD=(python scripts/run_benchmark.py
      --label "$LABEL" --model-tag "$LABEL"
      --ollama-model "$SERVED"
-     --manifest benchmarks/manifest.v4.yaml
+     --manifest benchmarks/manifest.v5.yaml
      --rag-url http://127.0.0.1:8081/v1/chat/completions)
 echo "RUN: ${CMD[*]}" | tee "$BENCHLOG"
 "${CMD[@]}" >> "$BENCHLOG" 2>&1

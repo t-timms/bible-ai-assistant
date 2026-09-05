@@ -25,9 +25,19 @@ Outputs:
   docs/benchmark_runs/20260904_<label>_v5semantic.json   (one per candidate)
   + a printed ranked comparison table.
 
+Also supports ad-hoc single-file mode, for backfilling the semantic metric onto
+an external comparator's fresh v4 keyword run after scripts/run_external_baselines.sh
+(same re-bucket + semantic-score logic, no model re-run; naming convention
+scripts/sota_scoreboard.py expects: <run>_keyword.json -> <run>_v5semantic.json):
+
+  python scripts/rescore_v5.py \
+    --file docs/benchmark_runs/20260905_ext-qwen3-8b-instruct_keyword.json \
+    --out  docs/benchmark_runs/20260905_ext-qwen3-8b-instruct_v5semantic.json
+
 Usage:
   python scripts/rescore_v5.py                # write v5 JSONs + print table
   python scripts/rescore_v5.py --print-only    # table only, write nothing
+  python scripts/rescore_v5.py --file IN --out OUT   # ad-hoc single-file backfill
 """
 
 from __future__ import annotations
@@ -149,9 +159,35 @@ def pct(x: float) -> str:
     return f"{x * 100:.1f}%"
 
 
+def run_single_file(in_path: Path, out_path: Path, scorer: object) -> None:
+    """Ad-hoc mode: backfill verse_accuracy_semantic onto one arbitrary saved
+    keyword run (e.g. an external comparator) -- same logic as the batch mode,
+    scoped to a single file so it can be called once per comparator after
+    scripts/run_external_baselines.sh, with no dependency on the 4 hardcoded
+    RUNS labels."""
+    src = json.loads(in_path.read_text(encoding="utf-8"))
+    label = in_path.stem
+    results = rescore(src, scorer)
+    out = build_output(label, src, results)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
+    fuzzy_excl, _ = mean(results, "verse_accuracy_fuzzy", exclude=EXPOSITION_CATEGORIES)
+    sem_excl, n = mean(results, "verse_accuracy_semantic", exclude=EXPOSITION_CATEGORIES)
+    print(
+        f"  {label}: fuzzy(expo-excl)={fuzzy_excl:.3f}  semantic(expo-excl)={sem_excl:.3f} (n={n})"
+    )
+    print(f"  wrote {out_path}")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--print-only", action="store_true", help="print the table, write no files")
+    ap.add_argument(
+        "--file", type=Path, default=None, help="ad-hoc mode: one keyword.json to backfill"
+    )
+    ap.add_argument(
+        "--out", type=Path, default=None, help="ad-hoc mode: output path (required with --file)"
+    )
     args = ap.parse_args()
 
     scorer = _get_semantic_scorer()
@@ -160,6 +196,12 @@ def main() -> None:
             "ERROR: semantic scorer unavailable (sentence-transformers / bge-reranker-v2-m3 "
             "not loadable). Run inside .venv-rag with the model reachable."
         )
+
+    if args.file:
+        if not args.out:
+            sys.exit("ERROR: --file requires --out")
+        run_single_file(args.file, args.out, scorer)
+        return
 
     loaded: dict[str, tuple[dict, list[dict]]] = {}
     t0 = time.time()
