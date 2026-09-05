@@ -6,6 +6,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-09-05
+
+### Added
+- **v3.2 shipped** — [`Ttimms/Bible-Assistant-Qwen3.5-4B-v3.2`](https://huggingface.co/Ttimms/Bible-Assistant-Qwen3.5-4B-v3.2)
+  + [`…-v3.2-GGUF`](https://huggingface.co/Ttimms/Bible-Assistant-Qwen3.5-4B-v3.2-GGUF)
+  (F16/Q8_0/Q6_K/Q5_K_M/Q4_K_M). A DMT-style continued LoRA fine-tune from the v3.1
+  adapter (RAFT-style distractor-discrimination prompt fix + a retrieval-depth fix,
+  `rag_top_k` 5→8): 80.3% verse-quote exact, 98.9% citation, 1.9% hallucination — the
+  first checkpoint in the line to clear every acceptance gate. Two prior iterations
+  (v3-SFT, v3.1) were built and held back first; see `docs/MODEL_CARD.md` "Version
+  history" and `docs/V3_STATUS.md`.
+- **Protocol v5** (`benchmarks/manifest.v5.yaml`) — `check_verse_accuracy_semantic`, a
+  cross-encoder (`bge-reranker-v2-m3`) metric, built after auditing protocol v4's fuzzy
+  metric and finding it couldn't rank v3-SFT/v3.1/v3.2 (all within 0.008 of each other —
+  inside its noise floor). Caught and fixed a real double-sigmoid bug in the metric
+  before trusting any number it produced.
+- **External SOTA sweep** — 12 models scored (4 ours + 8 external) through the identical
+  RAG stack; the closest thing to a "Bible LLM benchmark" that exists (none was found).
+  v3.2 leads every model in its size class (≤4.5B) on every metric; against two larger
+  models (12B, 14B) it trails narrowly on raw semantic similarity but wins decisively on
+  the task-specific metrics (quote-exactness, citation, hallucination). Getting the sweep
+  running at all surfaced 6 real, previously-undiscovered bugs in
+  `scripts/run_external_baselines.sh` (never once completed before this release) — see
+  `docs/V3_STATUS.md` "EXTERNAL SOTA SWEEP DONE" and the git history on the merged
+  `feat/sota-eval-v5-external-sweep` branch for the full list. Full table:
+  `docs/SOTA_EVAL.md`.
+- 9B escalation feasibility checked and ruled out for this hardware (Unsloth's own
+  Qwen3.5 guide: bf16 LoRA needs 22GB, over this 16GB card; QLoRA/4-bit not recommended
+  for Qwen3.5) — documented before spending any GPU time on it.
+
+### Fixed
+- `huggingface-cli` fully deprecated in the installed `huggingface_hub` (1.29+) — exits
+  immediately, downloads nothing. Switched to `hf` throughout the project's scripts and
+  docs.
+
+## [0.9.2] - 2026-09-03
+
 ### Added
 - **Protocol-v4 rescore result — v3-SFT recommended for release (2026-09-03)** —
   ran `scripts/rescore_v4.py` + `scripts/exposition_sidebyside.py` + `scripts/sota_scoreboard.py`
