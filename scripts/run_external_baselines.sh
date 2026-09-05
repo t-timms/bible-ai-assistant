@@ -59,12 +59,24 @@ YAML="benchmarks/external_comparators.yaml"
 MANIFEST="benchmarks/manifest.v5.yaml"
 SNAP="benchmarks/suites/evaluation_questions.v3.json"
 LIVE="prompts/evaluation_questions.json"
-GGUF_DIR="models/ext_gguf"
+# Absolute, not relative: the Modelfile written below does `FROM $GGUF_DIR/$gfile`,
+# and ollama's FROM directive treats a relative path as a REGISTRY model
+# reference to pull (not a local file), failing with a DNS-lookup error against
+# a literal host named "models" -- never caught before because no hf_gguf
+# comparator had reached this step until the download-path bugs above were fixed.
+GGUF_DIR="$HOME/bible-ai-assistant/models/ext_gguf"
+# `hf` (like huggingface-cli before it) is only installed inside .venv-rag, not
+# on the base system PATH -- this script never activates that venv (only
+# scripts/_run_ext_eval.sh does, for the RAG server). Call it by full path so
+# the GGUF download step doesn't silently fail with "command not found" while
+# every other preflight check (which uses bare `ollama`/`python3`) still passes.
+HF_BIN="$HOME/bible-ai-assistant/.venv-rag/bin/hf"
 
 echo "=== preflight $(date -Is) ==="
 command -v ollama >/dev/null || { echo "ollama missing"; exit 1; }
 python3 -c "import yaml" 2>/dev/null || { echo "pyyaml missing"; exit 1; }
 [ -f "$MANIFEST" ] && [ -f "$SNAP" ] || { echo "v4 manifest/snapshot missing — run scripts/make_v4_suite.py"; exit 1; }
+[ -x "$HF_BIN" ] || { echo "$HF_BIN missing/not executable — hf_gguf comparators cannot download"; exit 1; }
 
 FREE_GB=$(df -PBG "$HOME" | awk 'NR==2{gsub("G","",$4); print $4+0}')
 echo "disk free: ${FREE_GB} GB"
@@ -86,12 +98,24 @@ cp "$SNAP" "$LIVE"
 [ "$(snap_hash "$LIVE")" = "$PIN" ] || { echo "LIVE sha256 != manifest pin after copy — abort"; exit 1; }
 echo "promoted v4 suite into $LIVE  (sha256 $PIN OK)"
 
+# Field separator is \x1f (ASCII unit separator), NOT a tab. bash's `read`
+# treats tab as "IFS whitespace" and silently COLLAPSES runs of consecutive
+# tabs into one delimiter (a POSIX quirk that applies even when tab is the
+# only IFS character) -- with \t this shifted every field after two
+# back-to-back empty ones (ollama_tag AND gguf both unset, e.g.
+# bible-study-phi3-mini / rhema-bibleai-gemma, which ship their own GGUF and
+# have no separate `gguf:` repo) by two positions, so `gfile`/`tmpl` silently
+# took on `tmpl`/`group`'s values -- caught via a direct repro before this
+# script would have wrongly reported those 2 comparators' downloads as
+# "not found" against a garbage repo path. \x1f is not IFS-whitespace, so
+# empty fields are preserved exactly.
 mapfile -t ROWS < <(python3 - "$YAML" <<'PY'
 import sys, yaml
 d = yaml.safe_load(open(sys.argv[1]))
 for c in d["comparators"]:
-    print("\t".join([c["key"], c["serving"], c.get("ollama_tag",""),
-                     c.get("gguf",""), c.get("gguf_file",""), c.get("template",""), c.get("group","")]))
+    print("\x1f".join([c["key"], c["serving"], c.get("ollama_tag",""),
+                       c.get("gguf",""), c.get("gguf_file",""), c.get("template",""),
+                       c.get("group",""), c.get("hf","")]))
 PY
 )
 echo "comparators: ${#ROWS[@]}"
@@ -109,7 +133,7 @@ _tmpl() {
 }
 
 run_one() {
-  local key="$1" serving="$2" otag="$3" gurl="$4" gfile="$5" tmpl="$6"
+  local key="$1" serving="$2" otag="$3" gurl="$4" gfile="$5" tmpl="$6" hfurl="$7"
   local served
   echo; echo "================ $(date -Is)  $key  ($serving) ================"
   if [ "$serving" = "ollama_tag" ]; then
@@ -118,7 +142,11 @@ run_one() {
   else
     served="ext-${key}"
     local path="$GGUF_DIR/$gfile" repo
-    repo="$(echo "$gurl" | sed 's#https://hf.co/##')"
+    # `gguf:` names a separate quant repo (e.g. mradermacher/*-GGUF); when a
+    # comparator ships its own GGUF in its main repo instead (no `gguf:` key --
+    # bible-study-phi3-mini, rhema-bibleai-gemma), fall back to `hf:`. Without
+    # this, repo ends up empty and `hf download` fails on an empty repo id.
+    repo="$(echo "${gurl:-$hfurl}" | sed 's#https://hf.co/##')"
     if [ ! -f "$path" ]; then
       echo "download: $repo :: $gfile"
       # `huggingface-cli` is deprecated and non-functional as of huggingface_hub
@@ -126,7 +154,7 @@ run_one() {
       # download attempted. `hf download` is the replacement; it materializes
       # real files under --local-dir directly, so --local-dir-use-symlinks
       # (removed) is no longer needed.
-      hf download "$repo" "$gfile" --local-dir "$GGUF_DIR" \
+      "$HF_BIN" download "$repo" "$gfile" --local-dir "$GGUF_DIR" \
         || { echo "DOWNLOAD FAILED — skip"; return 1; }
     fi
     { printf 'FROM %s\n' "$path"; printf 'TEMPLATE """%s"""\n' "$(_tmpl "$tmpl")"; } > "$GGUF_DIR/Modelfile.$key"
@@ -139,9 +167,9 @@ run_one() {
 }
 
 for row in "${ROWS[@]}"; do
-  IFS=$'\t' read -r key serving otag gurl gfile tmpl group <<< "$row"
+  IFS=$'\x1f' read -r key serving otag gurl gfile tmpl group hfurl <<< "$row"
   [ -n "$ONLY" ] && [ "$ONLY" != "$key" ] && continue
-  run_one "$key" "$serving" "$otag" "$gurl" "$gfile" "$tmpl"
+  run_one "$key" "$serving" "$otag" "$gurl" "$gfile" "$tmpl" "$hfurl"
   [ "$SMOKE_FIRST" = "1" ] && { echo; echo "--smoke-first: stopping after $key. Inspect /tmp/bench_ext-${key}_*.log then re-run without the flag."; break; }
 done
 

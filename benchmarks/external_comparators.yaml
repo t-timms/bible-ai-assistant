@@ -67,7 +67,12 @@ comparators:
     params_b: 3.8
     license: mit
     serving: hf_gguf
-    gguf_file: bible-study-phi3-mini.Q4_K_M.gguf   # repo ships its own GGUF
+    # Verified against the repo's actual file listing 2026-09-04 (the guessed
+    # name above 404'd): only one non-vocab-test GGUF exists, under gguf/, and
+    # it's literally named for the stock base model -- worth treating this
+    # repo's "bible-tuned" framing with suspicion rather than at face value;
+    # note it in the writeup if the response content doesn't look bible-tuned.
+    gguf_file: gguf/phi-3-mini-4k-instruct.Q4_K_M.gguf
     template: phi3
     fits_16gb: true
     group: size_matched      # closest to our 4B — the fair size-for-size row
@@ -77,7 +82,10 @@ comparators:
     params_b: 4              # gemma-based; confirm exact size from config on download
     license: apache-2.0
     serving: hf_gguf
-    gguf_file: BibleAI.Q4_K_M.gguf
+    # Verified against the repo's actual file listing 2026-09-04 (the guessed
+    # name above 404'd): no Q4_K_M exists, only BF16 and Q8_0 -- using Q8_0
+    # (larger but still small for a 4B; fine for a one-time baseline).
+    gguf_file: gguf/final_merged.Q8_0.gguf
     template: gemma
     fits_16gb: true
     group: size_matched
