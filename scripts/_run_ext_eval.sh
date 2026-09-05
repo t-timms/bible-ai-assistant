@@ -13,8 +13,20 @@ TS="$(date +%Y%m%d-%H%M%S)"
 RAGLOG="/tmp/rag_${LABEL}_${TS}.log"
 BENCHLOG="/tmp/bench_${LABEL}_${TS}.log"
 
-ollama list | awk '{print $1}' | grep -qx "$SERVED" || {
-  echo "SERVED tag '$SERVED' not in ollama list — abort"; exit 1; }
+# Retry: `ollama create` returning success does not guarantee `ollama list`
+# reflects it on the very next call -- observed directly 2026-09-04 during the
+# real external sweep, where a WSL-under-load hiccup (see
+# reference_wsl2_load_hangs in project memory) made a single `ollama list`
+# come back empty a few seconds after a real, verified-successful create
+# (confirmed present moments later). A same-instant check has no room to
+# recover from a one-off stall; retry before aborting a whole comparator run
+# over it.
+found=0
+for _ in 1 2 3 4 5; do
+  ollama list | awk '{print $1}' | grep -qx "$SERVED" && { found=1; break; }
+  sleep 5
+done
+[ "$found" = "1" ] || { echo "SERVED tag '$SERVED' not in ollama list after retries — abort"; exit 1; }
 
 # RAG server -> Ollama (NOT the tf-server used for the hybrid-arch bible models)
 source .venv-rag/bin/activate
