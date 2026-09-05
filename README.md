@@ -178,7 +178,7 @@ cd bible-ai-assistant
 
 # 2. Get a GGUF quant (needs current llama.cpp — Ollama's bundled runtime is not
 #    new enough for the Qwen3.5 hybrid arch yet):
-#    huggingface-cli download Ttimms/Bible-Assistant-Qwen3.5-4B-v2-GGUF \
+#    hf download Ttimms/Bible-Assistant-Qwen3.5-4B-v2-GGUF \
 #      bible-v2-4b-Q4_K_M.gguf --local-dir models/
 #    Serve it: llama-server -m models/bible-v2-4b-Q4_K_M.gguf -ngl 99 --port 8080
 #    (pass chat_template_kwargs={"enable_thinking": false} on /v1/chat/completions)

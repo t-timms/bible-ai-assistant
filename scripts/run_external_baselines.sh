@@ -121,8 +121,13 @@ run_one() {
     repo="$(echo "$gurl" | sed 's#https://hf.co/##')"
     if [ ! -f "$path" ]; then
       echo "download: $repo :: $gfile"
-      huggingface-cli download "$repo" "$gfile" --local-dir "$GGUF_DIR" \
-        --local-dir-use-symlinks False || { echo "DOWNLOAD FAILED — skip"; return 1; }
+      # `huggingface-cli` is deprecated and non-functional as of huggingface_hub
+      # 1.29+ (installed in .venv-rag) -- it exits nonzero immediately, no
+      # download attempted. `hf download` is the replacement; it materializes
+      # real files under --local-dir directly, so --local-dir-use-symlinks
+      # (removed) is no longer needed.
+      hf download "$repo" "$gfile" --local-dir "$GGUF_DIR" \
+        || { echo "DOWNLOAD FAILED — skip"; return 1; }
     fi
     { printf 'FROM %s\n' "$path"; printf 'TEMPLATE """%s"""\n' "$(_tmpl "$tmpl")"; } > "$GGUF_DIR/Modelfile.$key"
     ollama create "$served" -f "$GGUF_DIR/Modelfile.$key" || { echo "ollama create FAILED — skip"; return 1; }
