@@ -21,7 +21,15 @@ for what's next. Narrative status: `docs/PROJECT_STATUS_AND_GOALS.md`; full deta
 
 ### ▶ Resume here (2026-08-29)
 
-> **▶▶▶ CURRENT (2026-09-04).** v3.1 and v3.2 both ran; both **HOLD under the fuzzy
+> **▶▶▶▶ CURRENT (2026-09-05).** External SOTA sweep done (item 10) — 12 models scored,
+> 6 real bugs fixed to get there. **Not a clean sweep**: v3.2 is #1/12 on fuzzy, #3/12 on
+> semantic (behind `christian-bible-expert-12b` 12B and `qwen3-14b-instruct` 14B) — but wins
+> decisively on quote-exactness/citation/hallucination against both. The "best open model at
+> the task" claim holds on task-specific metrics, not on semantic alone; state it that way.
+> Full detail: `docs/V3_STATUS.md` "EXTERNAL SOTA SWEEP DONE" (top of file). Superseded block
+> below is the v3.2-ship-decision context that led here.
+
+> **▶▶▶ 2026-09-04.** v3.1 and v3.2 both ran; both **HOLD under the fuzzy
 > metric** (expo-excl 0.492, 0.500 — within 0.008 of v3-SFT's 0.497, i.e. inside that
 > metric's noise floor). Audited `check_verse_accuracy_fuzzy` (best-single-sentence
 > difflib match) and confirmed it rewards sentence-bundling luck over content — it
@@ -145,8 +153,15 @@ for what's next. Narrative status: `docs/PROJECT_STATUS_AND_GOALS.md`; full deta
    if a bigger GPU becomes available, or if a future Qwen3.x release ships an 9B variant with
    a validated sub-16GB QLoRA training path.
    Sources: [Unsloth Qwen3.5 Fine-tuning Guide](https://unsloth.ai/docs/models/qwen3.5/fine-tune).
-10. [ ] **Run the SOTA board** — `scripts/run_external_baselines.sh` + `scripts/sota_scoreboard.py`
-   (GPU, ~3–4 h) — fills `docs/SOTA_EVAL.md`'s 8 pending comparators. Run once v3.2 ships.
+10. [x] **Run the SOTA board** (2026-09-05) — `scripts/run_external_baselines.sh` +
+   `scripts/sota_scoreboard.py`, ~4h actual (not the 3-4h estimate: fixing 6 real,
+   previously-undiscovered bugs in a script that had never once completed a GGUF-comparator
+   eval added most of the time). **12 models scored** (4 ours + 8 external;
+   `qwen3-32b-instruct` skipped by decision). **Result is not a clean sweep**: v3.2 is #1/12
+   on fuzzy, but #3/12 on semantic — behind `christian-bible-expert-12b` (12B) and
+   `qwen3-14b-instruct` (14B, untuned). v3.2 still wins decisively on the task-specific
+   metrics (quote-exactness, citation, hallucination) against both. Full breakdown:
+   `docs/V3_STATUS.md` "EXTERNAL SOTA SWEEP DONE", table in `docs/SOTA_EVAL.md`.
 11. [ ] `rag_server.py` **commentary-retrieval path** (so `grounded_exegesis` training matches inference — else it's the F-2/F-3 format mismatch).
 12. [ ] **Retrieval upgrade** — embedder stronger than `nomic-embed-text-v1.5`; then **constrained verse-reference decoding** (trie on the citation span; mind the alignment tax, arXiv 2604.06066).
 13. [ ] **Ornith GGUF backfill** — feasible: convert the *non-MTP-stripped* pruned bf16 (or the with-MTP variant); `unsloth/Qwen3.5-35B-A3B-GGUF` proves `qwen3_5_moe` GGUF works upstream.
