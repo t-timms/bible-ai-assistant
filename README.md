@@ -325,6 +325,7 @@ Every push and pull request runs a staged pipeline (`lint` → `type-check` + `s
 | **OpenTelemetry traces** — distributed tracing across RAG server and Ollama calls | Planned |
 | **Cloud deployment** — Docker + AWS/GCP with CI/CD auto-deploy | Planned |
 | **vLLM serving** — swap Ollama for vLLM OpenAI-compatible API for higher throughput | Planned |
+| **Native NVFP4-GGUF** — Blackwell-tensor-core-accelerated GGUF via `michaelw9999/advanced-gguf-quantizer` (security-vetted 2026-09-14), replacing the current k-quant-only GGUF release; this repo is the validation run before the same treatment goes to kat-coder-nvfp4/ornith-nvfp4 | Planned |
 
 ---
 

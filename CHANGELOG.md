@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Planned
+- Native NVFP4-GGUF via `michaelw9999/advanced-gguf-quantizer` (security-vetted
+  2026-09-14) — the validation run before the same treatment goes to
+  kat-coder-nvfp4/ornith-nvfp4. See README.md Roadmap table. Not started.
+
 ## [0.10.0] - 2026-09-05
 
 ### Added
