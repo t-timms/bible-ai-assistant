@@ -533,7 +533,7 @@ requires-dist = [
     { name = "fastapi", marker = "extra == 'dev'", specifier = ">=0.109.0" },
     { name = "fastapi", marker = "extra == 'rag'", specifier = ">=0.109.0,<1.0.0" },
     { name = "faster-whisper", marker = "extra == 'ui'", specifier = ">=1.0.0,<2.0.0" },
-    { name = "gradio", marker = "extra == 'ui'", specifier = ">=6.16.0,<6.27.0" },
+    { name = "gradio", marker = "extra == 'ui'", specifier = ">=6.16.0,<6.28.0" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.26.0" },
     { name = "httpx", marker = "extra == 'rag'", specifier = ">=0.26.0,<1.0.0" },
     { name = "httpx", marker = "extra == 'ui'", specifier = ">=0.26.0,<1.0.0" },
