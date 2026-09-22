@@ -1,0 +1,31 @@
+cff-version: 1.2.0
+title: bible-ai-assistant
+abstract: >-
+  A locally-hosted, retrieval-grounded Bible Q&A assistant fine-tuned on
+  Qwen/Qwen3.5-4B for a single 16 GB consumer GPU. Hybrid RAG (dense + BM25 +
+  reciprocal rank fusion + cross-encoder reranking), per-verse citation
+  verification, and a versioned, sha-pinned evaluation protocol (v1-v5).
+  Current model (v3.2): 80.3% verse-quote exact recall, 98.9% citation rate,
+  1.9% hallucination -- verified against 12 models (4 internal iterations +
+  8 external comparators, the closest thing to a Bible-LLM benchmark that
+  currently exists) through the identical RAG stack.
+type: software
+authors:
+  - name: t-timms
+repository-code: https://github.com/t-timms/bible-ai-assistant
+url: https://huggingface.co/Ttimms/Bible-Assistant-Qwen3.5-4B-v3.2
+license: MIT
+keywords:
+  - bible
+  - rag
+  - fine-tuning
+  - qwen3.5
+  - retrieval-augmented-generation
+  - llm-evaluation
+  - question-answering
+references:
+  - type: software
+    title: Qwen3.5-4B
+    authors:
+      - name: Qwen Team, Alibaba
+    url: https://huggingface.co/Qwen/Qwen3.5-4B

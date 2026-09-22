@@ -1,0 +1,6 @@
+name: bible-orpo
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+prefix: /home/ttimm/miniforge3/envs/bible-orpo

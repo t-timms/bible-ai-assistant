@@ -2,7 +2,7 @@
 # Protocol-v4 keyword benchmark for ONE model already served by Ollama on :11434.
 # Called by run_external_baselines.sh. Starts the RAG server (its own venv)
 # pointed at Ollama, waits for health, runs scripts/run_benchmark.py against
-# benchmarks/manifest.v4.yaml, tears the RAG server down.
+# benchmarks/manifest.v5.yaml, tears the RAG server down.
 #
 #   LABEL=ext-foo SERVED=some-ollama-tag bash scripts/_run_ext_eval.sh
 set -uo pipefail
@@ -13,7 +13,21 @@ TS="$(date +%Y%m%d-%H%M%S)"
 RAGLOG="/tmp/rag_${LABEL}_${TS}.log"
 BENCHLOG="/tmp/bench_${LABEL}_${TS}.log"
 
-ollama list | awk '{print $1}' | grep -qx "$SERVED" || {
+# `ollama create NAME` (no explicit :tag, as run_external_baselines.sh does
+# for every hf_gguf comparator -- served="ext-${key}") stores and lists the
+# result as "NAME:latest", while `ollama pull` for an ollama_tag comparator
+# lists under its already-explicit tag (e.g. "qwen3:8b", no :latest added).
+# The exact-match check below used to compare against $SERVED with no
+# suffix, so it ALWAYS failed for every locally-created model -- 100% of the
+# time, not intermittently -- even though `ollama create` had genuinely
+# succeeded each time (confirmed directly: all 5 comparator tags were
+# present in `ollama list` immediately, 2026-09-04). A retry loop was added
+# here first on the mistaken assumption this was a transient WSL hiccup
+# (coincidentally observed once during the same debugging session) -- it
+# could not have worked, since the mismatch was deterministic, and it
+# didn't: every comparator still failed with it in place. Strip a trailing
+# ":latest" from every listed name before comparing so both forms match.
+ollama list | awk '{print $1}' | sed 's/:latest$//' | grep -qx "$SERVED" || {
   echo "SERVED tag '$SERVED' not in ollama list — abort"; exit 1; }
 
 # RAG server -> Ollama (NOT the tf-server used for the hybrid-arch bible models)
@@ -32,7 +46,7 @@ done
 CMD=(python scripts/run_benchmark.py
      --label "$LABEL" --model-tag "$LABEL"
      --ollama-model "$SERVED"
-     --manifest benchmarks/manifest.v4.yaml
+     --manifest benchmarks/manifest.v5.yaml
      --rag-url http://127.0.0.1:8081/v1/chat/completions)
 echo "RUN: ${CMD[*]}" | tee "$BENCHLOG"
 "${CMD[@]}" >> "$BENCHLOG" 2>&1

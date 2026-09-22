@@ -21,6 +21,7 @@ import re
 import sys
 from difflib import SequenceMatcher
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlparse
 
 _eval_logger = logging.getLogger(__name__)
@@ -269,6 +270,67 @@ def check_verse_accuracy_fuzzy(response: str, expected: str) -> float:
         ratio = SequenceMatcher(None, norm_expected, norm_cand).ratio()
         best = max(best, ratio)
     return round(best, 3)
+
+
+_semantic_scorer_cache: object | None = None
+_SEMANTIC_SCORER_TRIED = False
+
+
+def _get_semantic_scorer() -> object | None:
+    """Lazy-load the cross-encoder reranker (bge-reranker-v2-m3, revision-pinned
+    in rag/settings.py) as a general-purpose semantic-similarity scorer.
+
+    Reused rather than adding a new dependency (e.g. bert-score): it's the same
+    already-audited model this repo already runs for retrieval reranking, and a
+    cross-encoder trained for relevance judgment is a documented alternative to
+    raw BERTScore for exactly this — judging whether two texts say the same
+    thing regardless of phrasing/sentence-structure. Returns None (metric
+    unavailable, not zero) if sentence-transformers/the model can't load, e.g.
+    outside the .venv-rag environment."""
+    global _semantic_scorer_cache, _SEMANTIC_SCORER_TRIED
+    if _SEMANTIC_SCORER_TRIED:
+        return _semantic_scorer_cache
+    _SEMANTIC_SCORER_TRIED = True
+    try:
+        from rag.retrieval import _get_reranker
+
+        _semantic_scorer_cache = _get_reranker()
+    except Exception:  # noqa: BLE001 - optional dependency; metric degrades to None
+        _semantic_scorer_cache = None
+    return _semantic_scorer_cache
+
+
+def check_verse_accuracy_semantic(response: str, expected: str, scorer: Any = None) -> float | None:
+    """Cross-encoder semantic-similarity score in [0, 1], or None if no scorer
+    is available (caller should omit the metric, not treat None as 0).
+
+    Protocol v5 (2026-09-04): added after auditing check_verse_accuracy_fuzzy on
+    the v3.1/v3.2 re-evals. That metric is a best-single-sentence
+    difflib.SequenceMatcher ratio against the whole `expected` string — pure
+    character overlap. Two equally-correct, equally-cited answers with the same
+    facts differently worded scored 0.11 vs 0.28 and 0.25 vs 0.59 purely from
+    sentence-chunking luck (see docs/V3_STATUS.md "RE-EVAL DONE" / benchmarks/
+    manifest.v5.yaml). A cross-encoder judges semantic equivalence, not
+    character sequence overlap, so phrasing/sentence-structure luck no longer
+    swings the score. Kept alongside, not instead of, the exact/fuzzy metrics —
+    report all three; do not silently replace one with another (same rule v4
+    used for all-in vs exposition-excluded).
+    """
+    if not response or not expected:
+        return 0.0 if (response or expected) else None
+    scorer = scorer if scorer is not None else _get_semantic_scorer()
+    if scorer is None:
+        return None
+    # sentence-transformers' CrossEncoder applies bge-reranker-v2-m3's own
+    # default_activation_function (Sigmoid, per its config_sentence_transformers.json)
+    # inside .predict() -- the output is ALREADY a calibrated [0, 1] score, not a raw
+    # logit. Verified empirically 2026-09-04: identical-text pair -> 0.9999,
+    # unrelated-text pair -> 0.0000163. An earlier version of this function applied
+    # a second sigmoid on top, which crushed that [0, 1] spread into [0.5, 0.73] and
+    # made the metric non-discriminative (every unrelated/wrong-fact/refusal response
+    # scored ~0.5 regardless of content) -- do not reapply sigmoid here.
+    raw = float(scorer.predict([(expected, response)])[0])
+    return round(max(0.0, min(1.0, raw)), 3)
 
 
 # Prefixes that indicate a regex false positive (e.g. " and Psalms 27:1" matched as one ref)

@@ -1,6 +1,13 @@
 # Bible AI Assistant — Project Status & End Goal
 
-**Last updated:** 2026-08-29 (v2-4b SFT trained, evaluated, and published — see below)
+**Last updated:** 2026-08-29 (v2-4b SFT trained, evaluated, and published — see below).
+This snapshot predates v3.2; for the current shipped model and the live roadmap, see
+[docs/V3_STATUS.md](V3_STATUS.md) and [docs/ROADMAP.md](ROADMAP.md). Short version: the
+"Next (the v3 SOTA push)" plan below **ran to completion** — v3-SFT and v3.1 were built and
+held back, then **v3.2 shipped** (80.3% verse-quote exact, 98.9% citation, 1.9%
+hallucination), verified against 12 external models (best in its size class; best at the
+task-specific metrics against larger models too). The historical plan and v1/v2 narrative
+below are kept as a record, not a live status.
 
 ---
 

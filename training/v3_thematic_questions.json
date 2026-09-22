@@ -2,7 +2,8 @@
   "_meta": {
     "purpose": "Hand-curated thematic / expository questions for the v3 `thematic_qa` category — the gap protocol-v3 exposed (open-ended 'what does the Bible teach about X', 'who is Y', 'explain Z'). At build time each question is run through the live RAG retriever (rag/retrieval.py) for its Context block, then through the teacher (training/distill_answers.py) for a synthesized, cited answer. Probabilistic real-user framing prefixes + light paraphrase augmentation expand this core set toward ~2,500 training examples.",
     "expansion": "target ~10-15x via _persona() framing prefixes already in build_dataset_v2.py + 2-3 paraphrases per stem; keep the answer grounded in freshly-retrieved context each time",
-    "count_core": 60
+    "count_core": 103,
+    "v3_1_note": "2026-09-03: +43 questions covering the eval's synthesis categories that the original 60 under-covered — character ('Who was X?'), context ('What is the context of X?'), cross_reference ('How does X relate to Y?'). Each new question carries a 'shape' key so build_v3_thematic.py can vary framing/retrieval. Re-eval (docs/V3_STATUS.md 'RE-EVAL DONE') pinned the v3-SFT gap to these categories (~0.37 fuzzy mean)."
   },
   "questions": [
     {"theme": "person_of_christ", "q": "Who is Jesus, according to the Bible?"},
@@ -64,6 +65,52 @@
     {"theme": "worship", "q": "What does the Bible teach about worship?"},
     {"theme": "wisdom", "q": "What does the book of Proverbs mean by wisdom?"},
     {"theme": "creation", "q": "What does the Bible say about creation?"},
-    {"theme": "providence", "q": "What does the Bible teach about God's guidance and provision?"}
+    {"theme": "providence", "q": "What does the Bible teach about God's guidance and provision?"},
+
+    {"theme": "character", "shape": "character", "q": "Who was Moses?"},
+    {"theme": "character", "shape": "character", "q": "Who was Abraham?"},
+    {"theme": "character", "shape": "character", "q": "Who was David?"},
+    {"theme": "character", "shape": "character", "q": "Who was Joseph, the son of Jacob?"},
+    {"theme": "character", "shape": "character", "q": "Who was Elijah?"},
+    {"theme": "character", "shape": "character", "q": "Who was Daniel?"},
+    {"theme": "character", "shape": "character", "q": "Who was Ruth?"},
+    {"theme": "character", "shape": "character", "q": "Who was Esther?"},
+    {"theme": "character", "shape": "character", "q": "Who was Deborah?"},
+    {"theme": "character", "shape": "character", "q": "Who was Joshua?"},
+    {"theme": "character", "shape": "character", "q": "Who was John the Baptist?"},
+    {"theme": "character", "shape": "character", "q": "Who was the Apostle Peter?"},
+    {"theme": "character", "shape": "character", "q": "Who was the Apostle Paul?"},
+    {"theme": "character", "shape": "character", "q": "Who was Mary, the mother of Jesus?"},
+    {"theme": "character", "shape": "character", "q": "Who was Stephen in the book of Acts?"},
+
+    {"theme": "context", "shape": "context", "q": "What is the context of Psalm 23?"},
+    {"theme": "context", "shape": "context", "q": "What is the context of Psalm 51?"},
+    {"theme": "context", "shape": "context", "q": "What is the context of Romans 8:28?"},
+    {"theme": "context", "shape": "context", "q": "What is the context of Isaiah 53?"},
+    {"theme": "context", "shape": "context", "q": "What is the context of the Sermon on the Mount?"},
+    {"theme": "context", "shape": "context", "q": "What is the context of John 3:16?"},
+    {"theme": "context", "shape": "context", "q": "What is the context of Philippians 4:13?"},
+    {"theme": "context", "shape": "context", "q": "What is the context of Jeremiah 29:11?"},
+    {"theme": "context", "shape": "context", "q": "What is the context of 1 Corinthians 13?"},
+    {"theme": "context", "shape": "context", "q": "What is the context of the book of Job?"},
+    {"theme": "context", "shape": "context", "q": "What is the context of Genesis 1?"},
+    {"theme": "context", "shape": "context", "q": "What is the context of the Ten Commandments?"},
+    {"theme": "context", "shape": "context", "q": "What is the context of Ephesians 2:8-9?"},
+    {"theme": "context", "shape": "context", "q": "What is the context of Hebrews 11?"},
+
+    {"theme": "cross_reference", "shape": "cross_reference", "q": "How does Romans 3:23 relate to Romans 6:23?"},
+    {"theme": "cross_reference", "shape": "cross_reference", "q": "How does Genesis 3:15 relate to Revelation 12:9?"},
+    {"theme": "cross_reference", "shape": "cross_reference", "q": "How does Isaiah 53:5 relate to 1 Peter 2:24?"},
+    {"theme": "cross_reference", "shape": "cross_reference", "q": "How does Isaiah 7:14 relate to Matthew 1:23?"},
+    {"theme": "cross_reference", "shape": "cross_reference", "q": "How does Exodus 12 relate to 1 Corinthians 5:7?"},
+    {"theme": "cross_reference", "shape": "cross_reference", "q": "How does Deuteronomy 6:4-5 relate to Mark 12:29-30?"},
+    {"theme": "cross_reference", "shape": "cross_reference", "q": "How does Psalm 110:1 relate to Hebrews 1:13?"},
+    {"theme": "cross_reference", "shape": "cross_reference", "q": "How does Joel 2:28-32 relate to Acts 2:17-21?"},
+    {"theme": "cross_reference", "shape": "cross_reference", "q": "How does Habakkuk 2:4 relate to Romans 1:17?"},
+    {"theme": "cross_reference", "shape": "cross_reference", "q": "How does Jeremiah 31:31-34 relate to Hebrews 8:8-12?"},
+    {"theme": "cross_reference", "shape": "cross_reference", "q": "How does Genesis 15:6 relate to Romans 4:3?"},
+    {"theme": "cross_reference", "shape": "cross_reference", "q": "How does Numbers 21:9 relate to John 3:14?"},
+    {"theme": "cross_reference", "shape": "cross_reference", "q": "How does Hosea 11:1 relate to Matthew 2:15?"},
+    {"theme": "cross_reference", "shape": "cross_reference", "q": "How does Psalm 22 relate to Matthew 27?"}
   ]
 }

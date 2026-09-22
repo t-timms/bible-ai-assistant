@@ -82,7 +82,7 @@ def _variant_available(retrieval_mod: object, variant: str) -> str | None:
 def rank_for_query(retrieval_mod: object, variant: str, query: str, depth: int) -> list[str]:
     """Ranked verse ids for one query under one variant."""
     if variant == "dense":
-        collection, embedder = retrieval_mod._get_rag()
+        collection, _passages, embedder = retrieval_mod._get_rag()
         hits = retrieval_mod._dense_search(query, collection, embedder, depth)
         return [hit.verse_id for hit in hits]
 
@@ -90,7 +90,7 @@ def rank_for_query(retrieval_mod: object, variant: str, query: str, depth: int) 
         hits = retrieval_mod._bm25_search(query, depth)
         return [hit.verse_id for hit in hits]
 
-    collection, embedder = retrieval_mod._get_rag()
+    collection, _passages, embedder = retrieval_mod._get_rag()
     dense_hits = retrieval_mod._dense_search(query, collection, embedder, FUSION_DEPTH)
     bm25_hits = retrieval_mod._bm25_search(query, FUSION_DEPTH)
     fused_hits = retrieval_mod._reciprocal_rank_fusion(dense_hits, bm25_hits)
@@ -133,8 +133,12 @@ def aggregate(per_question: dict[str, dict], subset: list[dict]) -> dict[str, fl
     return {key: sum(per_question[r["qid"]][key] for r in subset) / len(subset) for key in keys}
 
 
-def _fmt_row(label: str, n: int, means: dict[str, float]) -> str:
-    cells = "  ".join(f"{means[key]:.3f}" for key in sorted(means))
+def _fmt_row(label: str, n: int, means: dict[str, float], key_order: list[str]) -> str:
+    """`key_order` must match the printed header — `sorted(means)` alphabetizes
+    keys ("recall@10" < "recall@5" as strings), silently misaligning every
+    column against its header. Caller passes the same `metric_keys` used to
+    build the header so the two can never drift apart again."""
+    cells = "  ".join(f"{means[key]:.3f}" for key in key_order)
     return f"  {label:<28} n={n:<4} {cells}"
 
 
@@ -170,13 +174,15 @@ def main() -> int:
         overall = aggregate(per_question, records)
         print(f"\n[{variant}] overall")
         print(header)
-        print(_fmt_row("all", len(records), overall))
+        print(_fmt_row("all", len(records), overall, metric_keys))
 
         categories: dict[str, list[dict]] = {}
         for record in records:
             categories.setdefault(record.get("category", "unknown"), []).append(record)
         for cat, cat_records in sorted(categories.items()):
-            print(_fmt_row(cat, len(cat_records), aggregate(per_question, cat_records)))
+            print(
+                _fmt_row(cat, len(cat_records), aggregate(per_question, cat_records), metric_keys)
+            )
 
     if not any_variant_ran:
         print(

@@ -6,7 +6,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from training.assemble_v3 import BLEND_N, KEEP_BUDGETS, TRIAGE_N, load_distilled
+from training.assemble_v3 import BLEND_N, KEEP_BUDGETS, TRIAGE_N, load_distilled, reuse_blend
 
 
 def _write_jsonl(path: Path, rows: list[dict]) -> None:
@@ -52,6 +52,24 @@ def test_load_distilled_tolerates_blank_lines(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     assert len(load_distilled(src)) == 1
+
+
+def test_reuse_blend_filters_and_caps(tmp_path: Path) -> None:
+    prior = [
+        {"messages": [{"role": "user", "content": "a"}], "category": "general_blend"},
+        {"messages": [{"role": "user", "content": "b"}], "category": "verse_recall"},
+        {"messages": [{"role": "user", "content": "c"}], "category": "general_blend"},
+        {"category": "general_blend"},  # no messages -> skipped
+        {"messages": [{"role": "user", "content": "d"}], "category": "general_blend"},
+    ]
+    p = tmp_path / "train_v3.json"
+    p.write_text(json.dumps(prior), encoding="utf-8")
+
+    out = reuse_blend(p, cap=BLEND_N)
+    assert [m["messages"][0]["content"] for m in out] == ["a", "c", "d"]
+    assert all(set(r) == {"messages"} for r in out)  # category stripped
+
+    assert len(reuse_blend(p, cap=2)) == 2
 
 
 def test_keep_budgets_are_sane() -> None:

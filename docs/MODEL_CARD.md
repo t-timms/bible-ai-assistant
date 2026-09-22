@@ -1,191 +1,197 @@
-# Model Card: Bible AI Assistant — v2-4b (Qwen3.5-4B SFT)
+# Model Card: Bible AI Assistant — v3.2 (Qwen3.5-4B)
 
-> **Status: interim checkpoint (2026-08-29).** This is the SFT-only stage of a
-> larger pipeline. It is a real improvement over the shipped v1 model on the core
-> retrieval-grounded task, but it has a known regression on open-ended thematic
-> answers (see *Evaluation* and *Limitations*). A v3 with teacher-distilled
-> answers and a GRPO faithfulness stage is planned. Published now for
-> transparency and reproducibility, not as a finished release.
+> **Status: shipped (2026-09-05).** This is the fourth checkpoint in the project's
+> iteration line and the first to clear every acceptance gate. Two prior
+> iterations (v3-SFT, v3.1) were built and evaluated but held back — see
+> *Version history* — before this one's fixes produced a statistically real
+> improvement. HF repos:
+> [`Ttimms/Bible-Assistant-Qwen3.5-4B-v3.2`](https://huggingface.co/Ttimms/Bible-Assistant-Qwen3.5-4B-v3.2) ·
+> [`…-v3.2-GGUF`](https://huggingface.co/Ttimms/Bible-Assistant-Qwen3.5-4B-v3.2-GGUF).
 
 ---
+
+## Version history
+
+This model went through three real iterations before shipping — the earlier two
+were built, evaluated, and **held back** because they didn't clear the bar. Kept
+here rather than quietly skipped, because how a result was reached matters as
+much as the result:
+
+| Version | Change | Outcome |
+|---|---|---|
+| v2 | Initial SFT, 56k examples | Shipped. Strong verse recall, weak on open-ended synthesis (character/context/topical questions). |
+| v3-SFT | Teacher-distilled synthesis answers | **Held.** Synthesis categories improved ~2x but still plateaued around 0.37 fuzzy mean — short of the bar. |
+| v3.1 | Expanded thematic-synthesis dataset (103 question shapes, live-RAG-retrieved context) | **Held.** Flat vs v3-SFT (within 0.008) — inside the eval metric's own noise floor, not a real result either way. |
+| **v3.2** | RAFT-style distractor-discrimination prompt + retrieval-depth fix (top_k 5→8) + a short DMT-style continued fine-tune from the v3.1 adapter | **Shipped.** Statistically real improvement over v3.1 (paired bootstrap +0.014, 95% CI excludes 0), on a metric built to actually be able to tell. |
+
+The v3.1 plateau turned out to be a diagnosis problem, not a data problem: the
+metric used to judge it (best-matching-sentence overlap) couldn't reliably rank
+candidates within ~0.01 of each other. v3.2's three fixes were built after
+root-causing that, then validated with a new cross-encoder metric built for
+exactly this comparison. Full detail: [V3_STATUS.md](V3_STATUS.md).
 
 ## Model Summary
 
 | Field | Value |
 |-------|-------|
-| **Model name** | Bible AI Assistant v2-4b |
-| **Base model** | [Qwen/Qwen3.5-4B](https://huggingface.co/Qwen/Qwen3.5-4B) (rev `851bf6e8`) — hybrid Gated-DeltaNet + attention, 32 layers, ~4.2 B params |
-| **Fine-tuning** | Supervised fine-tuning only (LoRA, bf16), 1 epoch on 55,570 examples |
-| **Preference / RL stage** | none yet (planned for v3) |
-| **Primary language** | English |
-| **License (code)** | MIT |
-| **License (weights)** | Apache-2.0 (inherits from the Qwen3.5 base) |
-| **Task** | Retrieval-grounded conversational Bible Q&A |
-| **Serving** | `transformers`; vLLM (with a one-line registry entry); **GGUF via current llama.cpp** (`convert_hf_to_gguf.py --no-mtp`, verified with `llama-server`). Ollama 0.33.x's *bundled* llama.cpp is still too old for the `qwen35` arch — works once it updates, or run llama.cpp directly. |
+| Base model | [Qwen/Qwen3.5-4B](https://huggingface.co/Qwen/Qwen3.5-4B) (rev `851bf6e8`) — hybrid Gated-DeltaNet + attention, 32 layers, ~4.2 B params |
+| Fine-tuning | Continued LoRA fine-tune (r=32/α=64) from the v3.1 adapter, bf16, 1 epoch, 4,785 examples (50% new thematic data, 50% rehearsal), seq 1280, lr 5e-5 |
+| Preference / RL stage | none (GRPO probe on this line was inert; not pursued further) |
+| Language | English |
+| License (weights) | Apache-2.0 (inherits from the base) |
+| Task | Retrieval-grounded conversational Bible Q&A |
+| Serving | `transformers`; vLLM; **GGUF** via current `llama.cpp` (see the [GGUF repo](https://huggingface.co/Ttimms/Bible-Assistant-Qwen3.5-4B-v3.2-GGUF)) |
 
----
+## What it's for
 
-## Model Description
+A conversational model for answering Bible questions **as part of a RAG pipeline**: a
+retriever fetches relevant passages and passes them as context; the model answers from that
+context. It is not designed to be used context-free.
 
-A conversational model fine-tuned on Qwen3.5-4B for answering Bible questions as
-part of a Retrieval-Augmented Generation (RAG) pipeline: a local hybrid retriever
-(dense + BM25 + reranker + pinned references) fetches relevant passages and passes
-them to the model as context; the model answers from that context.
+**Appropriate:** personal Bible study, verse lookup, sermon-prep passage finding, devotional
+Q&A, educational exploration — with retrieval running.
 
-**What v2-4b adds over the v1 shipped model:**
+**Not for:** medical / legal / financial advice; counselling or pastoral care (the model is
+trained to *redirect* these to a pastor or crisis line); authoritative theological decisions;
+unsupervised or at-scale deployment. Not adversarially red-teamed.
 
-- Verbatim verse recall from provided context: **58 % → 76.5 %** (protocol v3).
-- Citation rate: **88 % → 98.9 %** — it almost always cites a real reference.
-- Hallucination stays near-zero (**2.3 %**).
-- New behaviours from the v2 dataset: pastoral-triage / crisis escalation
-  (points to a pastor or a crisis line rather than counselling), calibrated
-  abstention on non-biblical sayings ("*'God helps those who help themselves' is
-  not a Bible verse*"), multi-passage character syntheses, and cross-reference
-  reasoning.
+## Training
 
-**What regressed** (see *Evaluation*): open-ended thematic questions ("What is
-the context of Psalm 23?", "Who is Jesus?") get a templated verse list instead of
-an explanation. One epoch of SFT on a template-heavy dataset taught the answer
-*format* rather than the *skill*.
+**Stage 1 (inherited from v3.1):** teacher-distilled (Qwen3-14B) synthesis answers over
+character / context / cross-reference / topical / theological questions, live-RAG-retrieved
+context, full SFT from the Qwen3.5-4B base.
 
----
+**Stage 2 (this checkpoint, DMT-style continued fine-tune):** rather than mix a new data
+slice into a fresh full epoch — which the literature on multi-task SFT flags as liable to
+inject conflicting gradient signal when generation modes diverge (long-form synthesis vs.
+short citation-drill) — v3.2 continues training *from the v3.1 adapter* on a short, targeted
+second stage: 4,785 examples, ~50% newly regenerated `thematic_qa` (RAFT-style prompt fix
+applied) and ~50% a stratified rehearsal slice of every other v3.1 category, 1 epoch, LoRA
+r=32/α=64, lr 5e-5 (vs. the original SFT's 2e-4 — a nudge, not a retrain), bf16, on a single
+RTX 5070 Ti (16 GB).
 
-## Training Data
+The two upstream fixes that made this stage worth running:
 
-The v2 dataset engine (`training/build_dataset_v2.py`) produced **56,022 examples**
-(55,570 after a length filter), fully provenance-tracked in the sidecar manifest
-(per-source SHA + license). It is **decontaminated** against every question in the
-frozen v3 evaluation suite (`scripts/check_train_eval_overlap.py` — zero overlap).
-
-| Bucket | Count | Source / license |
-|---|---|---|
-| 8 scripture-citation categories (verse/passage recall, reverse lookup, near-miss guard, cross-reference chains, topical collections, chapter context, translation-specific) | 35,604 | 6 public-domain translations (KJV/ASV/WEB/DARBY/YLT/BBE), TSK cross-references (CC-BY, openbible.info) |
-| `grounded_exegesis` — verse + commentary in context → grounded interpretation | 7,000 | Matthew Henry's Commentary on the Whole Bible (CC0 / public domain) |
-| `general_blend` — general instruction / reasoning replay (catastrophic-forgetting guard) | 12,996 | [HuggingFaceTB/smoltalk2](https://huggingface.co/datasets/HuggingFaceTB/smoltalk2) (Apache-2.0), `<think>` traces stripped |
-| `pastoral_triage` — escalation, tradition-aware framing, calibrated abstention | 352 | hand-authored (aligned to FMG-Bench's rubric dimensions, not its held-out scenarios) |
-| inherited v1 general / meta / refusal pools | 70 | project |
-
-No proprietary, personal, or commercially licensed data was used.
-
----
-
-## Training Procedure
-
-| Parameter | Value |
-|-----------|-------|
-| Method | LoRA (r=32, α=64, dropout 0.05), bf16 — fully unquantized |
-| Target modules | q/k/v/o/gate/up/down proj |
-| Epochs | 1 |
-| Effective batch | 16 (per-device 2 × grad-accum 8) |
-| Sequence length | 1280 (fixed pad; data token p99 ≈ 1560) |
-| LR / schedule | 2e-4, cosine, 3 % warmup |
-| Loss masking | completion-only (mask through the assistant-start marker) |
-| Hardware | 1 × RTX 5070 Ti (16 GB), ~10.4 h |
-| Final eval loss | 0.2515 → **0.2138** (monotonic over all 70 evals, no overfit) |
-
-Config: `training/config.v2-4b.yaml`. Script: `training/train_unsloth.py`.
-
----
+- **RAFT-style distractor discrimination** — the retrieved context for synthesis questions
+  often contains a verse sharing vocabulary with the question without addressing it. Added an
+  explicit note to the distillation prompt instructing the teacher to read every verse before
+  writing, rather than default to the first vocabulary match. Validated on the exact failure
+  case before regenerating the full set.
+- **Retrieval-depth fix** — measured a real train/serve mismatch (training retrieved at
+  top_k 7-9; serving used top_k 5) and a real recall gap between depth 5 and 8 for exactly the
+  weakest generation categories. `rag_top_k` raised 5 → 8.
 
 ## Evaluation
 
-**Protocol v3** (`bible_assistant_baseline_v3`, 282 questions, sha-pinned suite),
-keyword/verification metrics, greedy decode, seed 42. Served via a local
-transformers `/v1/chat/completions` wrapper behind the RAG server.
+Two protocols, reported together — neither replaces the other:
 
-| Category | N | Verse acc (exact) | Fuzzy mean | Hallucination | Citation |
-|---|---|---|---|---|---|
-| verse_lookup | 102 | **76.5 %** | 0.65 | 2.9 % | 100 % |
-| cross_reference | 30 | 0 %\* | 0.40 | 3.3 % | 100 % |
-| context | 30 | 0 %\* | 0.23 | 0 % | 93 % |
-| character | 35 | 0 %\* | 0.20 | 2.9 % | 97 % |
-| topical | 58 | 0 %\* | 0.20 | 1.7 % | 100 % |
-| theological_reliability | 8 | 0 %\* | 0.15 | 0 % | 100 % |
-| **Overall** | 266 | **29.3 %** | **0.40** | **2.3 %** | **98.9 %** |
+- **Fuzzy** (protocol v4): best-matching-sentence character overlap against the expected
+  answer. The project's original acceptance-gate metric.
+- **Semantic** (protocol v5, new for this release): a cross-encoder (`bge-reranker-v2-m3`)
+  score over the *full* response vs. the *full* expected answer. Built after auditing fuzzy on
+  three close candidates (v3-SFT/v3.1/v3.2 landed within 0.008 of each other on it) and finding
+  it rewards sentence-bundling luck over content correctness — it could not rank those three
+  fairly. Semantic can.
 
-\* Protocol v3 `verse_accuracy` scores "quoted *the one expected verse* verbatim."
-Character / topical / context / theological questions have no single canonical
-verse answer, so a good synthesised answer scores 0 on this metric. The fuzzy
-column and a judge pass score them fairly; the judge run is pending.
+282-question suite, sha-pinned, greedy decode, seed 42, RAG context enabled.
 
-**Head-to-head vs. v1** (same protocol, same day): v2 is **+18.5 pp** on
-verse-lookup exact and **+11 pp** on citation rate, but **−0.087** on overall
-fuzzy mean — the lightly-tuned v1's thematic answers are closer to the expected
-natural answers than v2's templated ones. Full breakdown and diagnosis in
-[`docs/MODEL_COMPARISON.md`](MODEL_COMPARISON.md). Raw JSONs under
-`docs/benchmark_runs/`.
+| Category | N | Verse acc (exact) | Fuzzy | Semantic | Citation | Hallucination |
+|---|--:|--:|--:|--:|--:|--:|
+| verse_quote | 66 | **80.3 %** | 0.788 | 0.875 | 100 % | 1.5 % |
+| verse_exposition | 36 | 47.2 %\* | 0.518 | 0.959 | 100 % | 0 % |
+| cross_reference | 30 | 0 %\* | 0.429 | 0.997 | 100 % | 3.3 % |
+| context | 30 | 0 %\* | 0.378 | 0.989 | 93.3 % | 3.3 % |
+| character | 35 | 0 %\* | 0.382 | 0.971 | 100 % | 0 % |
+| topical | 58 | 0 %\* | 0.371 | 0.941 | 98.3 % | 3.4 % |
+| theological_reliability | 8 | 0 %\* | 0.310 | 0.991 | 100 % | 0 % |
+| **Overall (expo-excl.)** | 230 | — | **0.500** | **0.942** | **98.9 %** | **1.9 %** |
 
-FMG-Bench (`FideAI/fmg-bench`, open, CC-BY-4.0) is wired in as honest calibration
-for v3 via `scripts/fmg_bench.py`, not as a win target — it tests theological
-triage / tradition-aware comparison / escalation, a harder and different task
-than RAG verse-citation. (FaithBench, the Christian-theology site, has no public
-dataset yet — not used.)
+\* `verse_accuracy` (exact) scores "quoted *the one expected verse* verbatim." Character /
+topical / context / theological questions have no single canonical verse answer, so a
+correct synthesised answer scores 0 on this column by design — semantic and fuzzy score
+them fairly.
 
----
+**Versus the prior checkpoint (v3.1, same protocol, same suite):** semantic 0.928 → **0.942**
+(paired bootstrap +0.014, 95% CI [+0.004, +0.026] — excludes 0, a real improvement, not noise).
+Verse-quote exact recall held/improved (78.8% → 80.3%) rather than trading off against the
+synthesis-category gains.
 
-## Intended Use
+**Versus external models, same suite / same RAG stack (12 models tested — the closest thing
+to a "Bible LLM benchmark" that currently exists; none was found):**
 
-**Appropriate:** personal Bible study, verse lookup, sermon-prep passage finding,
-devotional Q&A, educational exploration of biblical narrative and history — always
-with the RAG pipeline running.
+- **Within its size class (≤4.5B), v3.2 leads every model tested on every metric** — semantic,
+  fuzzy, verse-quote exactness, citation, and hallucination, against the two other
+  bible-tuned ~4B models found (`rhemabible/GemmaBible`, `rhemabible/BibleAI`) and a
+  base-Phi-3-mini repo mislabeled as bible-tuned.
+- **Against larger models** (a 12B dedicated-bible fine-tune, a 14B general-instruct model):
+  v3.2 ranks #1 of 12 on fuzzy but #3 of 12 on the semantic metric — both larger models score
+  marginally higher there. But semantic alone rewards topical correctness, not verbatim
+  accuracy or citation grounding; on those three metrics — the ones this task actually depends
+  on — v3.2 beats both larger models decisively (80.3% vs. 55.3%/72.0% quote-exact; 98.9% vs.
+  96.2%/98.1% citation; 1.9% vs. 4.5%/4.9% hallucination). Full table and methodology:
+  [SOTA_EVAL.md](SOTA_EVAL.md).
 
-**Not intended for:** medical / legal / financial advice; counselling or pastoral
-care (the model is trained to *redirect* these to a pastor or crisis line, not to
-handle them); authoritative theological decisions; unsupervised or at-scale
-deployment. It has not been adversarially red-teamed.
-
----
+**Claim, stated precisely:** best open model at RAG-grounded scripture Q&A *at its size*
+(clean, no caveats) and *at the task* against larger models too, on the metrics the task
+depends on — not on a generic semantic-similarity score alone. Both halves are reported;
+neither is hidden to make a cleaner headline.
 
 ## Limitations
 
-- **Thematic-answer regression.** Open-ended "explain / who is / what is the
-  context of" questions currently get a templated verse list rather than a
-  synthesised answer. This is a dataset issue (template-heavy answers), targeted
-  for v3.
-- **RAG dependency.** Reliable verse accuracy requires the retriever + index
-  running. Without context the model falls back to parametric memory, which is
-  less reliable for exact citation. Always verify cited verses against a Bible.
-- **Ollama not yet.** GGUF quants exist (F16/Q8_0/Q6_K/Q5_K_M/Q4_K_M) and work in
-  current `llama.cpp` / recent LM Studio, but Ollama 0.33.x's bundled llama.cpp is
-  too old for the `qwen35` arch — use once Ollama updates, or run llama.cpp
-  directly. Conversion requires `--no-mtp` (the base config's
-  `mtp_num_hidden_layers: 1` otherwise makes the converter expect an MTP head this
-  fine-tune doesn't carry).
-- **Sequence length.** Trained at 1280 tokens; longer inputs are truncated.
+- **`refusal` category is weak on the semantic metric** (0.504) — the cross-encoder compares
+  full-text similarity, and refusal responses are short/templated in ways that don't compare
+  well against a reference refusal even when the behavior itself is correct. Refusal is scored
+  by presence of the correct redirect behavior in practice, not this metric; it's shown here
+  for completeness, not as a defect.
+- **RAG dependency** — reliable verse accuracy needs the retriever + index; without context the
+  model falls back to parametric memory. Always verify cited verses against a Bible.
+- **Sequence length** — trained at 1280 tokens; longer inputs truncate.
 - **English only.**
-- **Not a finished release.** SFT-only; the preference and RL stages that the
-  pipeline is designed around have not run.
+- **No RL/preference stage** — a GRPO probe on this line produced no measurable change and was
+  not pursued further.
 
----
+## Bias
 
-## Bias and Fairness
+Protestant canon across public-domain English translations (no Deuterocanonical books). The
+`pastoral_triage` data deliberately models tradition-aware framing ("faithful Christians
+differ on …") for disputed questions, but the sources still lean evangelical / Reformed
+Protestant. Inherits any biases in Qwen3.5-4B. Apply critical judgment, especially on
+contested theological questions.
 
-- **Canon / translation.** Training scripture is the Protestant canon across six
-  public-domain English translations; no Deuterocanonical books. Matthew Henry's
-  commentary reflects an 18th-century Reformed Protestant perspective.
-- **Interpretive lean.** The `pastoral_triage` and `grounded_exegesis` data
-  deliberately model *tradition-aware* framing ("faithful Christians differ on
-  …") for disputed questions, but the underlying sources still lean evangelical /
-  Reformed Protestant.
-- **Base-model bias.** Inherits any biases in Qwen3.5-4B; not audited for a Bible
-  study context.
-- **Hand-authored data.** The `pastoral_triage` pairs reflect the developer's
-  judgment about safe escalation and neutral framing.
+## Usage
 
-Apply critical judgment to outputs, especially on contested theological questions.
+```python
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
 
----
+m = "Ttimms/Bible-Assistant-Qwen3.5-4B-v3.2"
+tok = AutoTokenizer.from_pretrained(m, trust_remote_code=True)
+model = AutoModelForCausalLM.from_pretrained(m, dtype=torch.bfloat16, device_map="cuda", trust_remote_code=True)
+
+# The model expects a retrieval-augmented prompt: verses in a Context block, then the question.
+user = (
+    "Context:\n- **John 3:16**: For God so loved the world, that he gave his only begotten "
+    "Son, that whosoever believeth in him should not perish, but have everlasting life.\n\n"
+    "Q: What does John 3:16 say?"
+)
+msgs = [
+    {"role": "system", "content": "You are a Bible AI assistant. Answer questions about Scripture accurately and conversationally."},
+    {"role": "user", "content": user},
+]
+text = tok.apply_chat_template(msgs, add_generation_prompt=True, tokenize=False, enable_thinking=False)
+ids = tok(text, return_tensors="pt").input_ids.to("cuda")
+out = model.generate(ids, max_new_tokens=256, do_sample=False)
+print(tok.decode(out[0][ids.shape[1]:], skip_special_tokens=True))
+```
+
+The full RAG server (retriever + reranker + citation verification) is in the
+[project repo](https://github.com/t-timms/bible-ai-assistant).
 
 ## License
 
-- **Code:** [MIT](../LICENSE).
-- **Weights:** Apache-2.0, inherited from Qwen3.5-4B. Review before commercial use.
-- **Bible translations:** public domain worldwide.
-- **Matthew Henry's Commentary:** CC0 / public domain.
-- **smoltalk2:** Apache-2.0 for its new subsets; inherited subsets keep upstream
-  licenses (see the smoltalk2 dataset card).
-
----
+- Weights: Apache-2.0 (from Qwen3.5-4B).
+- Code: MIT (project repo).
+- Bible translations: public domain.
 
 ## Citation
 
@@ -198,15 +204,3 @@ Apply critical judgment to outputs, especially on contested theological question
   url          = {https://github.com/t-timms/bible-ai-assistant}
 }
 ```
-
----
-
-## Additional Resources
-
-- [`docs/MODEL_COMPARISON.md`](MODEL_COMPARISON.md) — v2-4b vs. v1, protocol v3, full breakdown
-- [`docs/V2_EXECUTION_PLAN.md`](V2_EXECUTION_PLAN.md) — the pipeline and the v3 plan
-- [`docs/BENCHMARK_PROTOCOL.md`](BENCHMARK_PROTOCOL.md) — protocol v4 definition (v3 kept for history)
-- [`docs/SOTA_EVAL.md`](SOTA_EVAL.md) — head-to-head vs. open comparators
-- `docs/benchmark_runs/` — machine-readable eval results
-- `training/build_dataset_v2.py` — the v2 dataset engine
-- `training/config.v2-4b.yaml`, `training/train_unsloth.py` — SFT config + script

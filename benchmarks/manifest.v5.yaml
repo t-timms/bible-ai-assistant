@@ -1,0 +1,115 @@
+# Bible Assistant — versioned evaluation protocol (v5)
+# v4 -> v5 changes (2026-09-04): adds a semantic-similarity metric
+# (verse_accuracy_semantic) alongside the existing exact/fuzzy metrics. No new
+# question suite, no model re-run -- v5 re-scores the SAME 282 questions / SAME
+# per-item responses v4 already scored, adding one metric field per item.
+# Motivated by an audit of check_verse_accuracy_fuzzy on the v3.1/v3.2 re-evals
+# (2026-09-04): v3-SFT / v3.1 / v3.2 landed within 0.008 overall fuzzy
+# (expo-excl) of each other -- at or below the metric's noise floor (it scores
+# the single best-matching sentence against the whole expected answer via
+# difflib, which rewards sentence-bundling luck over content correctness) --
+# so it could not fairly rank the four shipped candidates.
+
+protocol_id: bible_assistant_baseline_v5
+protocol_version: 5
+
+# Same frozen, hash-pinned suite as v4 -- v5 changes no question, answer, or
+# category. See changes_from_v4.
+suite_path: benchmarks/suites/evaluation_questions.v3.json
+suite_sha256: f6640605c7d214e8359adc16543bf0b26280a309dabe8cdf98d0a1dbe7f0b770
+suite_v2_snapshot: benchmarks/suites/evaluation_questions.v2.json
+suite_v2_sha256: 1ef4df4f7b9bf9eaf0ff14e720bf33d048f23440ed1d1b624497f7ab84b0d279
+suite_v1_snapshot: benchmarks/suites/evaluation_questions.v1.json
+suite_v1_sha256: b4db19e1f09b547eca6bebca9e123814e5f67dd7ebf31eee39b199f3d463b9f4
+
+description: >
+  Same suite, categories, decoding, and existing metrics as v4. Adds
+  verse_accuracy_semantic: a cross-encoder (BAAI/bge-reranker-v2-m3, the
+  revision-pinned reranker rag/settings.py already loads for retrieval)
+  similarity score in [0, 1] over (expected_answer, response), computed by
+  training.evaluate.check_verse_accuracy_semantic. Reused rather than adding
+  a new dependency (e.g. bert-score) -- it is the same already-audited model
+  this repo already runs in production. Reported per-item and aggregated the
+  same two ways as the fuzzy metric (all-in, expo-excluded). This does NOT
+  replace verse_accuracy_fuzzy as the acceptance-gate metric (0.52 bar,
+  docs/V3_DATASET_PLAN.md) -- it exists to rank candidates the fuzzy metric
+  could not discriminate between (see changes_from_v4).
+
+changes_from_v4:
+  - "New metric verse_accuracy_semantic: sentence-transformers CrossEncoder
+     score, (expected_answer, response) pair order. The model's own
+     default_activation_function (Sigmoid) already runs inside .predict() --
+     verified empirically 2026-09-04 (identical-text pair -> 0.9999,
+     unrelated-text pair -> 0.0000163) -- so the score is used as-is
+     (clamped to [0, 1]), with NO second sigmoid applied on top. An earlier
+     draft of check_verse_accuracy_semantic applied one anyway, which crushed
+     the range to [0.5, 0.73] and made every unrelated/wrong response score
+     ~0.5 regardless of content -- caught and fixed before any rescore ran
+     (tests/test_evaluate_keyword.py::TestCheckVerseAccuracySemantic pins the
+     fixed behavior)."
+  - "No suite, category, decoding, or existing-metric change from v4 -- v5's
+     exact/fuzzy/citation/hallucination numbers are identical to v4's for the
+     same run; v5 numbers are a superset, not a replacement."
+  - "In practice the metric saturates near 1.0 for most topically-correct
+     answers regardless of fine phrasing quality (a cross-encoder judges
+     relevance/entailment, not fine-grained fluency) and drops sharply toward
+     0 for wrong-verse / off-topic / hallucinated responses. That makes its
+     aggregate mean behave like a content-correctness rate rather than a
+     smoothly graded quality score -- appropriate for ranking candidates by
+     how often they get the substance right, not for grading prose quality."
+  - "Produced by scripts/rescore_v5.py from existing v4 (or v3, re-bucketed
+     via the same rebucket() rule scripts/rescore_v4.py uses) keyword
+     artifacts -- no model re-run needed, matching how v4 was produced from
+     v3 (see benchmarks/manifest.v4.yaml rescore_from_v3_runs)."
+  - "verse_accuracy_semantic is None (omitted from aggregates, never coerced
+     to 0) on any item scored when the reranker dependency is unavailable --
+     callers must check for None explicitly."
+
+metrics:
+  keyword:
+    summary: >
+      Unchanged from v4: exact-substring overlap + fuzzy overlap @0.85 +
+      citation regex + per-verse citation verification. Wilson 95% CIs;
+      paired A/B via McNemar + bootstrap.
+    cli: python training/evaluate.py --protocol-id bible_assistant_baseline_v5 --ollama-model <name>
+  semantic:
+    summary: >
+      Cross-encoder (bge-reranker-v2-m3) similarity between the full response
+      and the full expected answer, used directly (already-sigmoid-scaled by
+      the model itself, see changes_from_v4). Reused from the already-pinned/
+      audited RAG reranker (rag.retrieval._get_reranker) -- no new
+      dependency. Rescore-only in v5 (no live CLI path yet); computed
+      post-hoc by scripts/rescore_v5.py from saved keyword-run JSON.
+    cli: python scripts/rescore_v5.py
+  judge:
+    summary: Unchanged from v4 (qwen3:8b, calibration only, not a gate).
+    cli: python training/evaluate.py --judge --judge-model qwen3:8b --protocol-id bible_assistant_baseline_v5 --ollama-model <name>
+
+metric_constants:
+  fuzzy_pass_threshold: 0.85
+  min_category_n_for_percentage: 30
+
+decoding:
+  temperature: 0.0
+  seed_required: true
+
+judge:
+  default_model: qwen3:8b
+  default_url_env: OLLAMA_URL
+  role: calibration_only
+  dimensions:
+    - faithfulness
+    - citation
+    - hallucination
+    - helpfulness
+    - conciseness
+
+reproducibility_checklist:
+  - RAG server and Chroma index unchanged (or document commit + index build)
+  - Same Ollama model tag (e.g. bible-assistant-orpo vs bible-assistant-orpo-f16)
+  - Same judge model weights for --judge runs (v5 = qwen3:8b, same as v4)
+  - Reranker model + revision unchanged (rag/settings.py reranker_model_revision) --
+    verse_accuracy_semantic is not comparable across reranker versions
+  - Report which protocol_id (v1-v5) a given result used -- scores across
+    protocols are not comparable
+  - Verify suite sha256 before trusting any comparison (run_benchmark.py fails fast on mismatch)

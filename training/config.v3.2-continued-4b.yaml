@@ -1,0 +1,62 @@
+# Bible AI Assistant - V3.2 Continued Fine-Tune (DMT-style, stage 2)
+#
+# NOT a fresh SFT. Continues the v3.1 LoRA adapter (train_unsloth.py
+# --model-path models/qwen3.5-4b-bible-v3.1-sft) on a short, thematic_qa-heavy
+# set: the RAFT-fixed regenerated thematic_qa (training/distill_answers.py's
+# THEMATIC_DISTRACTOR_NOTE) plus a same-size rehearsal slice of every other
+# category from train_v3.1.json (training/build_continued_ft_set.py).
+#
+# Why a separate short stage instead of upsampling inside one mixed epoch:
+# literature on multi-task SFT mixing (docs/V3_STATUS.md "RAFT / DMT" citations,
+# 2026-09-04) finds that mixing divergent generation modes (long-form synthesis
+# vs. short citation-drill) in a single stage can inject conflicting gradient
+# signal; a short second stage warm-started from the already-competent v3.1
+# adapter, with a rehearsal slice to guard the other skills, is the
+# better-supported fix (Dual-Stage Mixed Fine-Tuning, arXiv:2402.08096).
+#
+# Lower LR than the original SFT (5e-5 vs 2e-4) -- this is a nudge, not a
+# retrain; a smaller dataset (~1/9th of v3.1's) means far fewer steps at 1 epoch
+# even before accounting for the gentler rate.
+#
+#   python training/train_unsloth.py --config training/config.v3.2-continued-4b.yaml \
+#       --model-path models/qwen3.5-4b-bible-v3.1-sft \
+#       --run-name qwen3.5-4b-bible-v3.2-continued --no-wandb
+
+model:
+  name: "Qwen/Qwen3.5-4B"
+  revision: "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
+  load_in_4bit: false
+  max_seq_length: 1280
+
+lora:
+  r: 32
+  alpha: 64
+  dropout: 0.05
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+  bias: "none"
+
+training:
+  output_dir: "checkpoints_v3.2_continued"
+  eval_split: 0.02  # smaller absolute eval set -> hold out a larger fraction
+  num_train_epochs: 1
+  per_device_train_batch_size: 2
+  gradient_accumulation_steps: 8
+  learning_rate: 5.0e-5
+  lr_scheduler_type: "cosine"
+  warmup_ratio: 0.05
+  max_eval_steps: 50
+  logging_steps: 10
+  bf16: true
+  report_to: "none"
+  random_state: 20260904
+
+data:
+  train_file: "data/processed/train_v3.2-continued.json"
+  eval_file: null
